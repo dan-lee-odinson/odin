@@ -12,7 +12,7 @@ Everything in this table is new, written from 26 October 2026 on. Rows are added
 
 | What | Where | Built by |
 |---|---|---|
-| Repository skeleton: folder layout, configuration, keys, licences | repository root, `config/`, `keys/` | Claude Code |
+| Repository skeleton: folder layout, configuration, keys, licenses | repository root, `config/`, `keys/` | Claude Code |
 | Repository tests: contract and rules hashes, signer fingerprint, HUGINN guard, secret scan | `tests/` | Claude Code |
 
 ## Existed before
@@ -27,6 +27,6 @@ Everything in this table is new, written from 26 October 2026 on. Rows are added
 
 Dan Lee-Odinson is the only human contributor. Claude Code and Muse Code wrote code under his direction.
 
-## Licence
+## License
 
 Code: Apache License 2.0 ([`LICENSE`](LICENSE)). Documentation: CC BY 4.0 ([`LICENSE-docs`](LICENSE-docs)). See [`NOTICE`](NOTICE).

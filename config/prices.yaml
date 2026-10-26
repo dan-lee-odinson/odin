@@ -1,6 +1,6 @@
 # Model prices read by the spend meter at run time (CONTRACT.md §11.2, §11.3).
 # US dollars per million tokens. Every figure carries its source and the date it was taken.
-# Both providers bill reasoning tokens as output.
+# CONTRACT.md §11.2 states that both providers bill reasoning tokens as output.
 
 spark:
   provider: Meta Model API, Standard mode
@@ -17,5 +17,5 @@ spark_open:
   input_per_mtok: 1.25
   cached_input_per_mtok: 0.15
   output_per_mtok: 4.25
-  source: Baseten's model page, read 26 October 2026, as recorded in CONTRACT.md v0.5 §11.2
+  source: https://www.baseten.co/library/muse-spark-open/ (Model API pricing, per 1M tokens)
   date: 2026-10-26
