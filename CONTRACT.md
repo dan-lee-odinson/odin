@@ -2,12 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Version | v0.4, 26 October 2026 |
+| Version | v0.5, 26 October 2026 |
 | Repository | `github.com/dan-lee-odinson/odin` |
 | Design authority | Dan Lee-Odinson, Director. Every value in this contract is his to change. |
 | Drafting assistance | Claude (advisor session). Drafting assistance only; the Director holds design authority and makes every ruling. |
 | Governs | Claude Code and Muse Code, equally. Where this contract and any other instruction disagree, the builder stops and reports. |
 | Source of the rulings | The kickoff record, `claude/odin-meta-hackathon-kickoff.md` in the RESEARCH project, §1, with the Director's words verbatim where he wrote them. |
+| Changes from v0.4 | The Director's rulings of 26 October after the $100 Baseten hackathon credit arrived. The open-weights arm `spark_open` moves from Modal to Baseten, applying his earlier selection that it run on Modal until Baseten or Fireworks credits arrived (§11.1). Its spending stop is $90 (§11.3). Each model answers at its best, by its strongest structured method: `spark` keeps structured output, and `spark_open`, for which Baseten offers no structured output or JSON mode, answers by tool calling; the same checks judge both, and each run records the method (§11.1). Prices and the meter's amounts follow (§11.2). Modal remains only as the Glimmer GPU fallback. |
 | Changes from v0.3 | The Director's ruling on the protective commands (§5.5), and his rulings of 26 October on GPT's second review: BALDUR-0 re-runs the whole decision at dispatch and voids a command whose result or basis changed (§9.3); the plan chain is fixed for the whole run (§5.1); with no fresh telemetry only the protective commands go out (§9.6); urgent turns run before report turns (§6.1); Glimmer is judged on quality as well as speed (§11.1); the restore test's scope is stated (§9.4). |
 | Changes from v0.2 | The Director's rulings of 26 October on ODIN's authority: ODIN's rung comes from his signed arming act (§5.4), and TYR-0 sets what ODIN may do and grants nothing; ODIN is armed at AI_AUTONOMOUS throughout, in contact and out; BALDUR-0 decides by a rung × class table, a prohibited list and pre-authorized leases (§5.2, §7.4); the revoke scenario's restore is a pre-signed re-arming act. A wrong statement about in-contact autonomy in v0.2 §1 is removed. |
 | Changes from v0.1 | The Director's rulings of 26 October on v0.1 and on GPT's review of it: full autonomy under TYR-0 in every phase; one plan per pass; the plan grants authority directly, so the authority-request form and lease requests are gone; no human spacecraft commands; one phase-3 scenario tests revocation and a signed restore; a report path for check-ins and pass starts; the gateway is BALDUR-0; dispatch-time rechecks, saved inputs and prospective spend limits; the held-out wording; the cut order. |
@@ -217,7 +218,7 @@ Feed details (beacon contents and rate, the coverage model) are set by the appro
 
 ### 7.1 Answer forms on an action turn
 
-The model answers with exactly one JSON object and nothing else. No surrounding text and no code fence.
+The model answers with exactly one JSON object and nothing else. No surrounding text and no code fence. (`spark_open` gives the same object as one answer-tool call, which its adapter converts; §11.1.)
 
 | Form | Shape | Becomes |
 |---|---|---|
@@ -386,22 +387,25 @@ Never cut: BALDUR-0, the event log, phase 2, the phase-3 matched pair, at least 
 | Name | Provider | Model | Notes |
 |---|---|---|---|
 | `spark` | Meta Model API, Standard mode | `muse-spark-1.3` | ODIN's main model. Key from `META_API_KEY` |
-| `spark_open` | Modal Shared Endpoint | `meta-models/Muse-Spark-Open-816B-A42B` | The open-weights arm. Send `Modal-Routing-Affinity-Key` set to the `run_id` on every call in a run; set the reasoning effort explicitly, never the default |
+| `spark_open` | Baseten Model API (hackathon credit), OpenAI-compatible at `https://inference.baseten.co/v1` | `meta-models/muse-spark-open-1026`, exactly (the hackathon's name for Muse Spark Open; the hackathon key works only with this name) | The open-weights arm. Key from `BASETEN_API_KEY`. Set `reasoning_effort` explicitly on every call, never the default (Baseten's default is `xhigh`). Answers by calling one answer tool (below); `reasoning_content` is never the answer. Every run records the endpoint and model ID |
 | `glimmer_local` | Ollama or llama.cpp on the Director's laptop | Muse Glimmer 30B, `Q4_K_M` GGUF on D: | The onboard test. **Ruled (26 October 2026): speed plus quality.** It passes only with decisions under 60 seconds each and the same quality checks as `spark`: well-formed commands, the outcomes it achieves, and staying within authority |
 | `stand_in` | none | scripted | Canned answers for building and debugging |
+
+**Ruled (26 October 2026): each model at its best, by its strongest structured method.** The Director's reasons are in the kickoff record. `spark` answers with structured output. `spark_open`, for which Baseten offers no structured output or JSON mode, answers by tool calling: each answer form of §7.1, and the report of §7.5, is an answer tool whose parameters are the fields the model writes for that form. The model may call the two read-only tools, then ends the turn with exactly one call to one answer tool. The adapter turns that call into the one JSON object of §7.2, and the same validator judges it. No answer-tool call, more than one, or a call with wrong fields is `MALFORMED`. Both models use the same two read-only tools. Each run's frozen configuration records the answer method, so the write-up can state it.
 
 The configuration used in a scored run is frozen and its hash recorded with the run.
 
 ### 11.2 Prices and what pays for them
 
-Kept in `config/prices.yaml` with the source and date of each figure, and read by the spend meter. Starting values: `spark` $1.25 per million input tokens, $0.15 cached, $4.25 output (reasoning is billed as output). `spark_open` is billed per token, and Modal's docs state that plan credits do not cover Shared Endpoints; its rate is read from the endpoint's own usage view before the first run. A Modal GPU (a Glimmer fallback) draws on the $30 monthly credit first.
+Kept in `config/prices.yaml` with the source and date of each figure, and read by the spend meter. Starting values: `spark` $1.25 per million input tokens, $0.15 cached, $4.25 output (reasoning is billed as output). `spark_open` on Baseten: $1.25 per million input tokens, $0.15 cached, $4.25 output (Baseten's model page, read 26 October 2026; Baseten counts reasoning tokens as output), paid from the $100 Baseten hackathon credit. A Modal GPU (a Glimmer fallback) draws on the $30 monthly Modal credit first.
 
-The meter tracks three amounts separately: hackathon credits used (Meta), plan credits used (Modal), and out-of-pocket charges.
+The meter tracks four amounts separately: hackathon credits used at Meta, hackathon credits used at Baseten, plan credits used at Modal, and out-of-pocket charges.
 
 ### 11.3 Spending stops, enforced before each call
 
 - **Before each call** the meter reserves the call's worst-case cost: the known input tokens at the full input price plus the call's maximum output tokens at the output price. Every call sets a maximum output, reasoning included. If spent plus reserved would pass a stop, the call is refused and `SPEND_STOP` is logged. After the call, actual usage replaces the reservation.
 - **Meta: $125** (ruled), of the $150 in hackathon credits.
+- **Baseten: $90** (ruled), of the $100 hackathon credit.
 - **Modal: $12.00** (ruled), under the $12.51 account spend limit.
 - A run that hits a stop ends with no further ODIN requests and is recorded as stopped.
 

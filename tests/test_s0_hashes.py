@@ -4,9 +4,10 @@ import pytest
 
 from tests.repo_checks import REPO_ROOT, check_file_hash
 
-# From 00_HANDOFF.md, 26 October 2026: contract v0.4, and Muse Code's rules as frozen that day.
-CONTRACT_SHA256 = "f7e3eddf212015ed06a7accb80a03b72f0e81076c58f6de5919688d75e9999bc"
-AGENTS_SHA256 = "bda6df727be32bc0091fd12253f9402b38d6d016d2398e4b40cdada9130204b3"
+# From 00_HANDOFF.md (the v0.5 packet), 26 October 2026: contract v0.5, and Muse Code's rules
+# as frozen that day.
+CONTRACT_SHA256 = "87d43e224ef5e8eb62559c96810781482ba8ca01019aa6dcf74a9dd0f850ec7a"
+AGENTS_SHA256 = "c20486b123214ec5cf7d6b8c5272f935b288ad2487a1716bb21cdccb7a3628e6"
 
 GOVERNING = {
     "CONTRACT.md": CONTRACT_SHA256,

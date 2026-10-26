@@ -26,6 +26,8 @@ PLANTED = {
                            + "\n-----END " + "OPENSSH PRIVATE KEY-----\n",
     "PEM private key": "-----BEGIN " + "PRIVATE KEY-----\n" + _fake(40) + "\n",
     "META_API_KEY with a value": "META_API_KEY" + "=" + _fake(32) + "\n",
+    "BASETEN_API_KEY with a value": "$env:" + "BASETEN_API_KEY" + ' = "' + _fake(8) + "." + _fake(32) + '"\n',
+    "Api-Key header": "Authorization: " + "Api-Key " + _fake(8) + "." + _fake(32) + "\n",
     "Modal token secret in YAML": "MODAL_PROXY_TOKEN_SECRET" + ": " + "ws-" + _fake(24) + "\n",
     "Modal token id": "token_id = " + "ak-" + _fake(22) + "\n",
     "sk- style key": "client(key=" + "sk-" + _fake(40) + ")\n",
@@ -65,7 +67,8 @@ def test_naming_secrets_and_public_keys_pass(tmp_path):
     (tmp_path / "config.yaml").write_text("api_key_env: META_API_KEY\n", encoding="utf-8")
     (tmp_path / "adapter.py").write_text(
         'import os\nMETA_API_KEY = os.environ["META_API_KEY"]\n'
-        'token = os.getenv("MODAL_PROXY_TOKEN_SECRET")\n', encoding="utf-8")
+        'token = os.getenv("MODAL_PROXY_TOKEN_SECRET")\n'
+        'baseten = os.environ.get("BASETEN_API_KEY")\n', encoding="utf-8")
     shutil.copy(REPO_ROOT / "keys" / "dev-test.pub", tmp_path / "dev-test.pub")
     shutil.copy(REPO_ROOT / "keys" / "allowed_signers", tmp_path / "allowed_signers")
     assert check_no_secrets(tmp_path) == []

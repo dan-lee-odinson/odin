@@ -199,8 +199,10 @@ def check_no_forbidden_huginn_paths(root):
 # ---------------------------------------------------------------------------------------
 # Secret scan. A finding names the file, line and kind of secret, never the value.
 
-SECRET_ENV_VARS = ["META_API_KEY", "MODAL_ENDPOINT_URL", "MODAL_PROXY_TOKEN_ID",
-                   "MODAL_PROXY_TOKEN_SECRET"]
+# AGENTS.md §2.5 names META_API_KEY and BASETEN_API_KEY. The Modal names stay covered while
+# Modal remains the Glimmer GPU fallback (CONTRACT.md §11.2).
+SECRET_ENV_VARS = ["META_API_KEY", "BASETEN_API_KEY", "MODAL_ENDPOINT_URL",
+                   "MODAL_PROXY_TOKEN_ID", "MODAL_PROXY_TOKEN_SECRET"]
 SECRET_PATTERNS = [
     ("private key", r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----"),
     ("value written for a secret environment variable",
@@ -213,6 +215,7 @@ SECRET_PATTERNS = [
     ("Google API key", r"\bAIza[0-9A-Za-z_-]{35}"),
     ("Slack token", r"\bxox[abprs]-[A-Za-z0-9-]{10,}"),
     ("bearer token", r"(?i)\bbearer\s+[A-Za-z0-9._~+/-]{24,}=*"),
+    ("Api-Key header", r"(?i)\bapi-key\s+[A-Za-z0-9._-]{20,}"),
     ("quoted secret assignment",
      r"(?i)\b(?:api[_-]?key|secret|token|passw(?:or)?d)[\"']?\s*[:=]\s*[\"'][^\"'\s]{16,}[\"']"),
 ]

@@ -4,7 +4,7 @@ ODIN is Project AESIR's operational intelligence. In this build it flies a simul
 
 > **Status: stage S0, the repository skeleton.** This README is a stub. The full README, with reproduction instructions and the held-out wording, comes at stage S10.
 
-The build contract is [`CONTRACT.md`](CONTRACT.md) (v0.4, 26 October 2026).
+The build contract is [`CONTRACT.md`](CONTRACT.md) (v0.5, 26 October 2026).
 
 ## Built Oct 26–Nov 4
 
