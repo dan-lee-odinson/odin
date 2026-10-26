@@ -1,0 +1,8 @@
+# Local HTTP services between the builders (CONTRACT.md §8). Everything binds to 127.0.0.1.
+# These avoid HUGINN's ports: its COSMOS (2910), the COSMOS demo (2900), the simulator (7801),
+# and COSMOS's internal services (6379, 6380, 8812, 9000).
+host: 127.0.0.1
+ports:
+  harness: 8710   # GET /turn/next, GET /docs/lookup, GET /history (§8.1); POST /checkin (A-1)
+  baldur0: 8711   # POST /request, POST /escalation (§8.2)
+  log: 8712       # POST /log/agent, POST /report (§8.3)

@@ -1,0 +1,3 @@
+# Store and check out every file byte for byte: no line-ending conversion.
+# CONTRACT.md, .agents/AGENTS.md, keys/ and Muse Code's deposits are checked by hash.
+* -text

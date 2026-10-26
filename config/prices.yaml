@@ -1,0 +1,20 @@
+# Model prices read by the spend meter at run time (CONTRACT.md §11.2, §11.3).
+# US dollars per million tokens. Every figure carries its source and the date it was taken.
+# null means not yet known; the meter must not guess it.
+
+spark:
+  provider: Meta Model API, Standard mode
+  model: muse-spark-1.3
+  input_per_mtok: 1.25
+  cached_input_per_mtok: 0.15
+  output_per_mtok: 4.25        # reasoning is billed as output
+  source: CONTRACT.md v0.4 §11.2, starting values
+  date: 2026-10-26
+
+spark_open:
+  provider: Modal Shared Endpoint
+  model: meta-models/Muse-Spark-Open-816B-A42B
+  input_per_mtok: null
+  output_per_mtok: null
+  source: To be read from the endpoint's own usage view before the first run (CONTRACT.md v0.4 §11.2)
+  date: null

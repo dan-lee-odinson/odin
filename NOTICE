@@ -1,0 +1,9 @@
+ODIN: Project AESIR's operational intelligence, built for the Meta hackathon
+Copyright 2026 Dan Lee-Odinson
+
+The code is licensed under the Apache License, Version 2.0 (LICENSE). The documentation
+is licensed under the Creative Commons Attribution 4.0 International license
+(LICENSE-docs).
+
+HUGINN, the simulator ODIN flies, is a separate project included unchanged as a git
+submodule at deps/huginn. It carries its own LICENSE, LICENSE-docs and NOTICE.

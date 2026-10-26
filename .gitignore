@@ -1,0 +1,13 @@
+# COSMOS docs cache, written by Muse Code's fetch script (handoff §5)
+cache/
+
+# Development runs; scored runs in runs/scored/ are committed as evidence
+runs/dev/
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+
+# Probe files planted by tests/show_red.py while it shows a check failing
+_red_probe*
