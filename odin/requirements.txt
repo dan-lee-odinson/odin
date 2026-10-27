@@ -1,0 +1,5 @@
+# ODIN (Muse Code side) — project-local .venv at the workspace root.
+# Run: .venv\Scripts\python.exe -m pytest odin/tests/test_m1_*.py
+cryptography>=42
+PyYAML>=6
+pytest>=8
