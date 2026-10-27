@@ -1,4 +1,6 @@
-# What the repository tests need: python -m pip install -r requirements-dev.txt
+# What the repository-wide tests need: python -m pip install -r requirements-dev.txt
 pytest>=8
 PyYAML>=6
 jsonschema>=3.2
+# ODIN's own requirements, so each deposit's tests in odin/tests run too
+-r odin/requirements.txt
