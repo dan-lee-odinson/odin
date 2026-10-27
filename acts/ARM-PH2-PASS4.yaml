@@ -1,0 +1,20 @@
+# Drafted 27 October 2026 from the Director's rulings of that day, section 3. Unsigned: the Director
+# signs it after phase 1 with ssh-keygen -Y sign -n aesir-arm. A hash of all zeros is a placeholder for
+# a plan whose final bytes do not exist yet; Claude Code fills it once every hash in that plan is real.
+act_id: ARM-PH2-PASS4
+kind: ARM
+rung: AI_AUTONOMOUS
+runs:
+  - PH2-PASS4-SPARK-R1
+  - PH2-PASS4-SPARK-R2
+  - PH2-PASS4-SPARK-R3
+  - PH2-PASS4-SPARK-R4
+  - PH2-PASS4-SPARK-R5
+  - PH2-PASS4-OPEN-R1
+  - PH2-PASS4-OPEN-R2
+  - PH2-PASS4-OPEN-R3
+  - PH2-PASS4-OPEN-R4
+  - PH2-PASS4-OPEN-R5
+plan_chain_hashes:
+  - sha256:0000000000000000000000000000000000000000000000000000000000000000   # TYR0-P2-PASS4-v1
+expires_utc: "2026-11-05T02:00:00.000Z"

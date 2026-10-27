@@ -1,0 +1,324 @@
+# PASS-2, contact B of two — RESPONSE.
+#
+# Companion record: 2026-09-20-P2a (detection). Per D-015 a pass may span two contacts;
+# per the Director's ruling of 2026-09-20 the two are filed as two pass records threaded
+# by one anomaly record.
+#
+# CONTACT DESIGNATION, per the Director's ruling of 2026-09-20: a pass flies a contact's
+# DURATION, taken from the computed week, at a mission position the pass plan chooses.
+# This contact is 430 s — the duration of computed contact 16 — flown at MET 21800.
+# That position is CHOSEN, not orbit-derived: no contact of the computed week other than
+# contact 1 has its acquisition inside this scenario's 23040 s, so no real contact exists
+# where the limit is crossed. Reaching MET 21800 was made possible by the --start-at
+# pre-roll built under D-015.
+#
+# CROSS-CONTACT INFERENCE, per the Director's ruling of 2026-09-20: PROC-002-S02 and S03
+# are answered from contact A's observation, because in eclipse both string currents read
+# 0.00 A and the asymmetry those steps test for is invisible here. Each such entry names
+# the contact its evidence came from.
+
+pass_id: 2026-09-20-P2b
+procedure: PROC-001
+executed_utc: '2026-09-20T21:38:31Z'
+
+pass_plan:
+  window_aos_utc: '2026-09-20T22:06:25Z'
+  window_los_utc: '2026-09-20T22:13:35Z'
+  predicted_soc_pct: 55
+  planned_commands: []
+
+# NOTE on predicted_soc_pct: as on contact A, 55 is the scenario's INITIAL state of
+# charge and the only predicted value the build produces. No predicted profile exists for
+# a contact at MET 21800, where the observed value is 35.49. The -19.5 delta at
+# PROC-001-S06 is an artefact of comparing two different mission times, not a variance.
+#
+# NOTE on planned_commands: the campaign plan records PASS-2 as `Commanded: no` and
+# justifies contact 16 on not needing commanding margin. PROC-002-S04 commands a payload
+# shed whenever S03 selects array-string failure, which is what this pass is designed to
+# produce. One command was therefore sent under the contingency procedure. The plan's
+# field is wrong; the contact carried ample margin regardless (430 s leaves 190 s usable
+# against the 20 s D-014 requires). Raised as a finding.
+
+event_timeline:
+  - {utc: '2026-09-20T21:38:31Z', event: pre-pass configuration verification GO, dictionary v0.5 5e1c2750ef9e0d54}
+  - {utc: '2026-09-20T22:06:25Z', event: AOS, simulator began transmitting from MET 21800 after a 21800-step silent pre-roll}
+  - {utc: '2026-09-20T22:06:27Z', event: frame lock, first frame received CDH_MET 21802, SoC 35.492 percent}
+  - {utc: '2026-09-20T22:07:59Z', event: EPS_BATT_SOC crossed the 35 percent YELLOW limit at CDH_MET 21894, value 34.996}
+  - {utc: '2026-09-20T22:08:25Z', event: PROC-001-S07 limit response required, PROC-002 invoked}
+  - {utc: '2026-09-20T22:09:51Z', event: CMD_PLD_SET_STATE state OFF sent, payload shed}
+  - {utc: '2026-09-20T22:09:51Z', event: shed verified, CDH_CMD_ACC_CNT 1 to 2, PLD_STATE ON to OFF, EPS_LOAD_I 1.400 to 0.800 A, within one frame}
+  - {utc: '2026-09-20T22:11:35Z', event: final state snapshot, SoC 34.075 percent, EPS_MODE NOMINAL, still discharging}
+  - {utc: '2026-09-20T22:13:35Z', event: LOS, last frame received CDH_MET 22229, SoC 33.709 percent, spacecraft handed over still energy-negative}
+
+limit_violations:
+  - {point: EPS_BATT_SOC, level: YELLOW, side: low, threshold_pct: 35,
+     first_utc: '2026-09-20T22:07:59Z', first_cdh_met: 21894, value_at_first: 34.996,
+     value_at_los: 33.709, cleared: false,
+     note: 'not cleared within the contact; the shed slowed the discharge but could not reverse it in eclipse'}
+
+actions:
+  - {step: PROC-001-S07, action: 'limit response required branch taken; PROC-002 invoked and recorded under invoked_procedures'}
+  - {step: PROC-002-S04, action: 'CMD_PLD_SET_STATE state OFF sent at 22:09:51.046687Z; ground command log records exactly one command for this contact'}
+  - {step: PROC-002-S05, action: 'verified by counter delta AND affected points: ACC 1 to 2, REJ 0, PLD_STATE ON to OFF, EPS_LOAD_I 1.400 to 0.800 A, EPS_BATT_I -0.963 to -0.550 A, all in the frame at 22:09:51.103693Z — 57 ms after the send'}
+  - {step: PROC-002-S07, action: 'watched for autonomous mode entry for the remaining 223 s; EPS_MODE read NOMINAL for all 428 frames. LOW_POWER entry lies at MET 22822, 592 s beyond LOS'}
+  - {step: PROC-001-S16, action: 'telemetry extract taken over 21:52:00Z-22:16:00Z, 428 packets; command extract over the same window returned exactly 1 packet'}
+
+completion_record:
+
+  - step: PROC-001-S01
+    role: PLAN
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {predicted_soc_pct: 55, window_aos_utc: '2026-09-20T22:06:25Z',
+              window_los_utc: '2026-09-20T22:13:35Z'}
+
+  - step: PROC-001-S02
+    role: EPS
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {pass_setup_verdict: GO, identity_vs_dictionary_result: PASS,
+              loaded_vs_repository_result: PASS, target_inventory_result: PASS}
+
+  - step: PROC-001-S03
+    role: FD
+    operator: Dan Lee-Odinson
+    state: completed
+    branch: GO
+    observation: >-
+      tools/pass_setup.py printed Verdict GO with all four conditions PASS, on the same
+      dictionary digest verified for contact A
+
+  - step: PROC-001-S04
+    role: EPS
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {first_frame_utc: '2026-09-20T22:06:27Z', cdh_frame_cnt_first: 21803,
+              cdh_frame_cnt_second: 21804, staleness_annunciator_state: GREEN}
+
+  - step: PROC-001-S05
+    role: EPS
+    operator: Dan Lee-Odinson
+    state: completed
+    branch: acquired
+    observation: >-
+      CDH_FRAME_CNT advanced 21803 to 21804 across consecutive frames one second apart,
+      staleness annunciator GREEN, interface CONNECTED
+
+  - step: PROC-001-S06
+    role: EPS
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {eps_batt_v_at_aos2: 7.2733, soc_pct_at_aos2: 34.856,
+              soc_delta_vs_plan_pct: -20.144, eps_sa1_i_at_aos2: 0.00,
+              eps_sa2_i_at_aos2: 0.00, adm_eclipse_at_aos2: ECLIPSE}
+
+  - step: PROC-001-S07
+    role: FD
+    operator: Dan Lee-Odinson
+    state: completed
+    branch: limit response required
+    observation: >-
+      EPS_BATT_SOC read 34.856 percent at AOS plus 2 minutes, at or below the 35 percent
+      yellow limit, having crossed it 26 s earlier at CDH_MET 21894. EPS_MODE NOMINAL,
+      so the autonomous-protection branch does not apply: 34.856 is above the 30 percent
+      LOW_POWER entry, and the ladder not having acted at this value is correct rather
+      than a failure to actuate. PROC-002 executed.
+
+  - step: PROC-001-S08
+    state: not_applicable
+    basis: >-
+      PROC-001-S07 selected limit response required and PROC-002 did not close with the
+      spacecraft in a commanded stable configuration, so the procedure did not return to
+      the commanding window. The pass plan also contains no payload activation.
+  - step: PROC-001-S09
+    state: not_applicable
+    basis: PROC-001-S08 not applicable; the procedure did not return to the commanding window
+  - step: PROC-001-S10
+    state: not_applicable
+    basis: PROC-001-S09 not applicable; no activation was planned or sent
+  - step: PROC-001-S11
+    state: not_applicable
+    basis: PROC-001-S09 not applicable; there was no activation command to verify
+  - step: PROC-001-S12
+    state: not_applicable
+    basis: PROC-001-S09 not applicable; there was no activation outcome to determine
+  - step: PROC-001-S13
+    state: not_applicable
+    basis: PROC-001-S09 not applicable; no rate command was planned
+  - step: PROC-001-S14
+    state: not_applicable
+    basis: PROC-001-S09 not applicable; there was no rate command to verify
+
+  - step: PROC-001-S15
+    role: EPS
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {soc_pct_at_los: 34.075, mode_at_los: NOMINAL, load_i_at_los: 0.800,
+              batt_v_at_los: 7.2642, batt_i_at_los: -0.5506}
+
+  - step: PROC-001-S16
+    role: PLAN
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {observed_los_utc: '2026-09-20T22:13:35Z',
+              computed_los_utc: '2026-09-20T22:13:35Z', last_cdh_frame_cnt: 22230}
+
+  - step: PROC-001-S17
+    role: PLAN
+    operator: Dan Lee-Odinson
+    state: completed
+
+  - step: PROC-001-S18
+    role: PLAN
+    operator: Dan Lee-Odinson
+    state: completed
+    branch: omission finding
+    observation: >-
+      tools/pass_report.py named PROC-002-S07 and PROC-002-S08 as having no entry on the
+      first review. Both are now recorded as omitted and dispositioned as ANOM-002: the
+      contact ended before the autonomous mode entry those steps wait on could occur.
+
+invoked_procedures:
+  - procedure: PROC-002
+    invoked_from: PROC-001-S07
+    completion_record:
+
+      - step: PROC-002-S01
+        role: EPS
+        operator: Dan Lee-Odinson
+        state: completed
+        records: {annunciated_point: EPS_BATT_SOC, annunciated_value: 34.996,
+                  annunciated_level: YELLOW, annunciated_utc: '2026-09-20T22:07:59Z',
+                  annunciated_cdh_met: 21894}
+
+      - step: PROC-002-S02
+        role: EPS
+        operator: Dan Lee-Odinson
+        state: completed
+        branch: negative beyond eclipse
+        observation: >-
+          EPS_BATT_I read between -0.961 and -0.964 A for every frame before the shed,
+          with ADM_ECLIPSE reading ECLIPSE throughout. Neither criterion the step states
+          is reachable in this scenario: EPS_BATT_I is never negative while SUNLIT,
+          because the surviving string carries 1.70 A against a 1.40 A load; and no
+          predicted eclipse depth exists in the build to compare against. The branch is
+          selected instead on the evidence of CONTACT A of this anomaly, 2026-09-20-P2a,
+          where EPS_SA1_I read 0.00 A against EPS_SA2_I 1.70 A while SUNLIT for all 329
+          frames. A spacecraft entering eclipse with one dead string is not discharging
+          because of the eclipse. Cross-contact inference is used here under the
+          Director's ruling of 2026-09-20; the step's own text does not authorise it, and
+          that gap is raised as a finding.
+
+      - step: PROC-002-S03
+        role: EPS
+        operator: Dan Lee-Odinson
+        state: completed
+        branch: array-string failure
+        observation: >-
+          On THIS contact EPS_SA1_I and EPS_SA2_I both read 0.00 A for all 428 frames:
+          eclipse zeroes both strings, so the asymmetry this step tests for is invisible
+          and the step is unanswerable from contact B alone. The branch is selected on
+          contact A of this anomaly, 2026-09-20-P2a, where EPS_SA1_I read 0.00 A against
+          EPS_SA2_I 1.70 A for all 329 frames while SUNLIT — one string at zero while the
+          other carried its expected current for the illumination state, which is the
+          observation this branch names. EPS_LOAD_I read 1.400 A, below the 1.5 A that
+          would select load excursion.
+
+      - step: PROC-002-S04
+        role: EPS
+        operator: Dan Lee-Odinson
+        state: completed
+        records: {shed_command_utc: '2026-09-20T22:09:51Z',
+                  shed_command_utc_precise: '2026-09-20T22:09:51.046687Z',
+                  command: CMD_PLD_SET_STATE, argument_state: 'OFF',
+                  cdh_met_at_send: 22006}
+
+      - step: PROC-002-S05
+        role: EPS
+        operator: Dan Lee-Odinson
+        state: completed
+        records: {pld_state_after_shed: 'OFF', load_i_after_shed: 0.800,
+                  load_i_before_shed: 1.400, cdh_cmd_acc_cnt_before: 1,
+                  cdh_cmd_acc_cnt_after: 2, cdh_cmd_rej_cnt: 0,
+                  batt_i_before_shed: -0.9631, batt_i_after_shed: -0.5504,
+                  effect_visible_utc: '2026-09-20T22:09:51.103693Z',
+                  send_to_effect_ms: 57}
+
+      - step: PROC-002-S06
+        role: EPS
+        operator: Dan Lee-Odinson
+        state: completed
+        branch: still negative
+        observation: >-
+          EPS_BATT_I remained negative for every frame after the verified shed, moving
+          from -0.963 A to -0.550 A and holding there to LOS. The shed cut the discharge
+          by 43 percent and could not reverse it: ADM_ECLIPSE read ECLIPSE throughout and
+          both array strings read 0.00 A, so there was no generation for any load
+          reduction to get underneath. This is not the stuck-load presentation the branch
+          text describes — the load did go away when the payload did, from 1.400 to
+          0.800 A — but the balance is still negative, which is the condition the branch
+          turns on.
+
+      - step: PROC-002-S07
+        state: omitted
+        anomaly: ANOM-002
+
+      - step: PROC-002-S08
+        state: omitted
+        anomaly: ANOM-002
+        no_observation_made: true
+
+      - step: PROC-002-S09
+        state: not_applicable
+        basis: >-
+          EPS_MODE read NOMINAL for all 428 frames of the contact. The step is applicable
+          only when the spacecraft is in LOW_POWER or SAFE.
+      - step: PROC-002-S10
+        state: not_applicable
+        basis: PROC-002-S09 not applicable; no mode command was sent, so there is no mode change to verify
+
+      - step: PROC-002-S11
+        role: FD
+        operator: Dan Lee-Odinson
+        state: completed
+
+anomalies:
+  - id: ANOM-002
+    step: PROC-002-S07
+    finding: >-
+      PROC-002-S07 and PROC-002-S08 could not be completed within the contact. Both wait
+      on an autonomous mode-ladder entry: S07 records the mode entered and the state of
+      charge at entry, and S08 chooses between safing by command and letting the ladder
+      hold. Measured, LOW_POWER entry lies at MET 22822 — 592 s after this contact's LOS
+      at MET 22230. The operator watched for the remaining 223 s after the verified shed
+      and EPS_MODE read NOMINAL for all 428 frames.
+      S08's decision table additionally has no outcome for what was observed: safe by
+      command requires state of charge at or below 20 percent (it was 33.709) or bus
+      voltage outside 4.75 to 5.25 V (it was 5.0); ladder holds requires an autonomous
+      entry to have occurred AND state of charge to have stopped falling, and neither
+      did. Both branch criteria were unreachable inside a 430 s contact.
+      This is the same shape as OF-017 and OF-018: a procedure step whose stated
+      conditions its own scenario cannot produce in the window it is flown in. Recorded
+      here as an omission because the steps produced no record, not because the operator
+      failed to attempt them.
+    feasibility: >-
+      Re-execution is NOT feasible anywhere in the v0.1 campaign. Both steps wait on an
+      autonomous mode-ladder entry, and no scenario in the campaign produces one.
+      Measured on the committed model: as this pass was actually flown, with the payload
+      shed verified at MET 22006, EPS_BATT_SOC bottoms out at 31.216 percent at the
+      scenario's end and never reaches the 30 percent LOW_POWER threshold — the
+      operator's correct response removed the very condition these steps exist to
+      record. Had the shed not been sent, LOW_POWER entry would have occurred at
+      MET 22822, 592 s beyond this contact's LOS. P3_stuck_load bottoms out at 60.009
+      percent and P4_hk_generation_halt at 65.009 percent, so neither remaining pass
+      reaches the ladder either. There is no pass in v0.1 to re-execute these steps on.
+    disposition: owner_risk_acceptance
+    accepted_by: Dan Lee-Odinson, design authority
+    rationale: >-
+      Ruled by Dan Lee-Odinson (Director), 2026-09-20. Accepted knowingly: PROC-002-S07
+      and PROC-002-S08 go unexercised in v0.1, and with them the autonomous mode ladder
+      that HUG-EPS-003 specifies and that PROC-002-S09 and S10 also depend on. The gap
+      is carried into the next gate as a finding in its own right — that no scenario in
+      the campaign drives EPS_BATT_SOC to the 30 percent LOW_POWER or 20 percent SAFE
+      entry, so a core autonomous protection behaviour is asserted in the record and
+      demonstrated by nothing.

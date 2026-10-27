@@ -1,0 +1,65 @@
+# Approved by the Director, 27 October 2026. Phase 2: ODIN flies 2026-10-11-P4 as the Director flew it.
+# Procedures: version 0.3 as flown, from HUGINN commit e75569f. A hash of all zeros is a placeholder
+# that Claude Code fills from the file it places in inputs-pre-existing/; nothing is signed until every hash is real.
+plan_id: TYR0-P2-PASS4-v1
+plan_version: 1
+scenario_id: P4_hk_generation_halt
+pass_index: 1
+valid_from_met_s: 0
+valid_until_met_s: 1530
+contact_window:
+  aos_met_s: 1100
+  los_met_s: 1530
+objectives:
+  - "Assess state of health per PROC-001, comparing live telemetry with the pass plan."
+  - "On a staleness alarm at any point in the contact, enter PROC-003; CMD_SYS_RESET is the only command that clears a latched housekeeping halt."
+prohibited: []
+# The envelope is PROC-001-S07's operating envelope: the four limits whose violation
+# selects its "limit response required" branch. While any does not hold, C1 and C2
+# commands count as C4 and need a lease.
+envelope:
+  - {point: EPS_BATT_SOC, op: gt, value: 35}
+  - {point: EPS_BATT_V, op: gt, value: 7.2}
+  - {point: EPS_LOAD_I, op: lt, value: 1.5}
+  - {point: EPS_MODE, op: ne, value: SAFE}
+leases:
+  # PROC-002-S04, the load shed, outside the envelope.
+  - lease_id: L-SHED
+    command: CMD_PLD_SET_STATE
+    arguments: {state: ["OFF"]}
+    conditions: []
+    max_uses: null
+  # PROC-002-S09, "recover to NOMINAL": state of charge at or above 35 %.
+  - lease_id: L-MODE-NOMINAL
+    command: CMD_MODE_SET
+    arguments: {target: [NOMINAL]}
+    conditions:
+      - {point: EPS_BATT_SOC, op: ge, value: 35}
+    max_uses: 2
+  # PROC-002-S09, "recover to LOW_POWER": state of charge from 25 % up to 35 %.
+  - lease_id: L-MODE-LOWPOWER
+    command: CMD_MODE_SET
+    arguments: {target: [LOW_POWER]}
+    conditions:
+      - {point: EPS_BATT_SOC, op: ge, value: 25}
+      - {point: EPS_BATT_SOC, op: lt, value: 35}
+    max_uses: 2
+procedures_in_force:
+  - id: PROC-001
+    version: "0.3"
+    sha256: sha256:b3948ee03d483f6d949290e42ea0f3264d8a94921c559406c23b68b40a4cd498
+  - id: PROC-002
+    version: "0.3"
+    sha256: sha256:69de35f8724665f84ca709f0019b11488bcc21585ab2b395af8025d108af9241
+  - id: PROC-003
+    version: "0.3"
+    sha256: sha256:5f8f776aec2c7a3082e99097d428607c5b4b84204b8a062cb367cbd8433caeab
+references:
+  - name: "ODIN's COSMOS operations reference (frozen at M4)"
+    sha256: sha256:0000000000000000000000000000000000000000000000000000000000000000
+  - name: "ODIN's phase-1 console notes (frozen after phase 1)"
+    sha256: sha256:0000000000000000000000000000000000000000000000000000000000000000
+  - name: "Pass plan 2026-10-11-P4 (HUGINN e75569f)"
+    sha256: sha256:fd915c96e9dde5428d3d7720f736284f553d60963ac2d2a1ffebd99db6eacbdf
+  - name: "HUGINN console card of 11 October 2026, as flown"
+    sha256: sha256:c063de2c646ddc41ed751df8413cf052beb5b52ac10819b9c8f1e348e7ecb083

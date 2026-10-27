@@ -1,7 +1,7 @@
 """Show the repository tests failing on purpose in the real working tree, then put it back.
 
     python tests/show_red.py          every stage
-    python tests/show_red.py s1       one stage (s0, s1, s2, s3, s4, deposits)
+    python tests/show_red.py s1       one stage (s0, s1, s2, s3, s4, inputs, deposits)
 
 For each case: run the real test (it passes), plant one defect, run it again (it must fail),
 restore the tree, confirm the restored bytes, and run it a third time (it passes). Planted
@@ -318,6 +318,39 @@ CASES = {"s0": [
      "tests/test_s4_cosmos.py::test_the_plugin_is_built_outside_its_read_only_folder_and_dials_the_link",
      change_file("connector/cosmos.py", replace_once(b"""f'plugin["variables"]["huginn_sim_port"] = "{link_port}"; '""",
                                                      b"''"))),
+], "inputs": [
+    ("PASS-3's plan with its acquisition a second late, so its window is not one the U35 tests use",
+     "tests/test_inputs_plans_acts.py::test_each_plans_contact_window_is_one_the_u35_tests_use[TYR0-P2-PASS3-v1]",
+     change_file("plans/TYR0-P2-PASS3-v1.yaml", replace_once(b"  aos_met_s: 800\n", b"  aos_met_s: 801\n"))),
+    ("a placed procedure with one byte appended, so it no longer matches its label",
+     "tests/test_inputs_plans_acts.py::test_every_input_is_labeled_with_its_hash_and_every_label_is_a_file",
+     change_file("inputs-pre-existing/procedures/v0.3/PROC-001.md", lambda data: data + b" ")),
+    ("an input holding a user-profile path",
+     "tests/test_inputs_plans_acts.py::test_no_input_holds_a_private_identity_detail",
+     add_file("inputs-pre-existing/_red_probe_note.md", "Saved to C:" + "\\Users\\" + "someone\\notes.md\n")),
+    ("PASS-4's plan listing a procedure hash no file here holds",
+     "tests/test_inputs_plans_acts.py::test_every_hash_a_plan_lists_is_a_file_here_or_a_placeholder[TYR0-P2-PASS4-v1]",
+     change_file("plans/TYR0-P2-PASS4-v1.yaml", replace_once(b"sha256:b3948ee0", b"sha256:c3948ee0"))),
+    ("one byte changed in contact A's frozen telemetry",
+     "tests/test_inputs_plans_acts.py::test_contact_a_is_frozen_and_listed_by_pass_2b",
+     change_file("plans/TYR0-P2-PASS2B-v1.contact-a-telemetry.csv", replace_once(b",2519,2520,", b",2518,2520,"))),
+    ("an arming act expiring a day after the submission deadline",
+     "tests/test_inputs_plans_acts.py::test_the_six_arming_acts_cover_the_runs_section_3_lists",
+     change_file("acts/ARM-PH2-PASS3.yaml", replace_once(b"2026-11-05T02:00:00.000Z", b"2026-11-06T02:00:00.000Z"))),
+    ("PASS-1's plan with PROC-002's hash back to a placeholder",
+     "tests/test_inputs_plans_acts.py::test_every_procedure_a_plan_names_is_placed[TYR0-P2-PASS1-v1]",
+     change_file("plans/TYR0-P2-PASS1-v1.yaml",
+                 replace_once(b"sha256:894affab98219145c58bf8bf588f564085cee10d3233cac4589ab467615e384e",
+                              b"sha256:" + b"0" * 64))),
+    ("a v0.1 procedure whose version line reads 0.2",
+     "tests/test_inputs_plans_acts.py::test_each_procedure_states_the_version_of_its_folder[0.1]",
+     change_file("inputs-pre-existing/procedures/v0.1/PROC-003.md",
+                 replace_once(b"Procedures version: 0.1 ", b"Procedures version: 0.2 "))),
+    ("v0.2's PROC-002 without the D-017 red-line of S02",
+     "tests/test_inputs_plans_acts.py::test_proc_002_s02_carries_the_d017_red_line_from_v0_2_on",
+     change_file("inputs-pre-existing/procedures/v0.2/PROC-002.md",
+                 replace_once(b"If the point you confirmed at S01 is EPS_LOAD_I, record branch load alarm and go to S03.\n",
+                              b""))),
 ], "deposits": [
     ("one byte changed in the committed deposit deposits/MC-M1-01.zip",
      "tests/test_deposits.py::test_each_committed_deposit_is_odin_at_its_commit",

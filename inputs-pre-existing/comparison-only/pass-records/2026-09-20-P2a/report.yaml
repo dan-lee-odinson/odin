@@ -1,0 +1,168 @@
+# PASS-2, contact A of two — DETECTION.
+#
+# Per D-015 a pass may span two contacts. Per the Director's ruling of 2026-09-20 the
+# two contacts are filed as two pass records, threaded by one anomaly record, following
+# the practice that a pass report describes one acquisition and an anomaly record spans
+# however many contacts its investigation takes.
+#
+# CONTACT DESIGNATION, per the Director's ruling of 2026-09-20: a pass flies a contact's
+# DURATION, taken from the computed week, at a mission position the pass plan chooses.
+# Both numbers are recorded. This contact is 330 s — the duration of computed contact 1 —
+# flown at MET 2190, which is also computed contact 1's own acquisition. It is the only
+# contact of the computed week whose acquisition falls inside this scenario's 23040 s.
+#
+# Companion record: 2026-09-20-P2b (response).
+
+pass_id: 2026-09-20-P2a
+procedure: PROC-001
+executed_utc: '2026-09-20T21:38:10Z'
+
+pass_plan:
+  window_aos_utc: '2026-09-20T21:42:59Z'
+  window_los_utc: '2026-09-20T21:48:29Z'
+  predicted_soc_pct: 55
+  planned_commands: []
+
+# NOTE on predicted_soc_pct: 55 is the scenario's INITIAL state of charge, which is the
+# only predicted value the build produces. There is no predicted state-of-charge profile
+# for a contact opening at MET 2190, and tools/pass_setup.py produces configuration
+# verification only. The 55 is therefore a prediction for MET 0, not for this contact,
+# and the +6.2 delta recorded at PROC-001-S06 is not a real variance. Raised as a
+# finding; see the anomaly record.
+
+event_timeline:
+  - {utc: '2026-09-20T21:38:10Z', event: pre-pass configuration verification GO, dictionary v0.5 5e1c2750ef9e0d54}
+  - {utc: '2026-09-20T21:42:59Z', event: AOS, simulator began transmitting from MET 2190 after a 2190-step silent pre-roll}
+  - {utc: '2026-09-20T21:43:00Z', event: frame lock, first frame received CDH_MET 2191}
+  - {utc: '2026-09-20T21:44:59Z', event: state of health complete, SoC 61.199 percent, rising}
+  - {utc: '2026-09-20T21:44:59Z', event: ARRAY STRING ASYMMETRY observed, EPS_SA1_I 0.00 A against EPS_SA2_I 1.70 A while SUNLIT}
+  - {utc: '2026-09-20T21:46:29Z', event: final state snapshot, SoC 61.293 percent, EPS_MODE NOMINAL}
+  - {utc: '2026-09-20T21:48:29Z', event: LOS, last frame received CDH_MET 2519}
+
+limit_violations: []
+
+actions:
+  - {step: PROC-001-S06, action: 'string asymmetry identified and carried forward to contact B; no step of PROC-001 branches on asymmetry (OF-017)'}
+  - {step: PROC-001-S07, action: 'nominal branch taken: no annunciator yellow or red, SoC 61.2 and rising'}
+  - {step: PROC-001-S16, action: 'telemetry extract taken over 21:40:00Z-21:52:00Z, 329 packets; command extract over the same window returned NO DATA, confirming an uncommanded contact'}
+
+completion_record:
+
+  - step: PROC-001-S01
+    role: PLAN
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {predicted_soc_pct: 55, window_aos_utc: '2026-09-20T21:42:59Z',
+              window_los_utc: '2026-09-20T21:48:29Z'}
+
+  - step: PROC-001-S02
+    role: EPS
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {pass_setup_verdict: GO, identity_vs_dictionary_result: PASS,
+              loaded_vs_repository_result: PASS, target_inventory_result: PASS}
+
+  - step: PROC-001-S03
+    role: FD
+    operator: Dan Lee-Odinson
+    state: completed
+    branch: GO
+    observation: >-
+      tools/pass_setup.py printed Verdict GO with all four conditions PASS: dictionary
+      v0.5 SHA256 5e1c2750ef9e0d54, six generated artifacts byte-identical to the
+      repository, two targets loaded
+
+  - step: PROC-001-S04
+    role: EPS
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {first_frame_utc: '2026-09-20T21:43:00Z', cdh_frame_cnt_first: 2192,
+              cdh_frame_cnt_second: 2193, staleness_annunciator_state: GREEN}
+
+  - step: PROC-001-S05
+    role: EPS
+    operator: Dan Lee-Odinson
+    state: completed
+    branch: acquired
+    observation: >-
+      CDH_FRAME_CNT advanced 2192 to 2193 across consecutive frames one second apart,
+      staleness annunciator GREEN, interface CONNECTED
+
+  - step: PROC-001-S06
+    role: EPS
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {eps_batt_v_at_aos2: 7.5993, soc_pct_at_aos2: 61.199,
+              soc_delta_vs_plan_pct: 6.199, eps_sa1_i_at_aos2: 0.00,
+              eps_sa2_i_at_aos2: 1.70, adm_eclipse_at_aos2: SUNLIT}
+
+  - step: PROC-001-S07
+    role: FD
+    operator: Dan Lee-Odinson
+    state: completed
+    branch: nominal
+    observation: >-
+      No annunciator read YELLOW or RED. EPS_BATT_SOC 61.199 percent, far above the
+      35 percent yellow limit; EPS_BATT_I +0.197 A, positive while ADM_ECLIPSE read
+      SUNLIT; EPS_LOAD_I 1.400 A below the 1.5 A yellow; EPS_MODE NOMINAL. The branch is
+      nominal on every alarmed limit the step checks. It is recorded knowingly alongside
+      a dead solar string: EPS_SA1_I read 0.00 A against EPS_SA2_I 1.70 A for all 329
+      frames of this contact, and no step of PROC-001 branches on string asymmetry
+      (OF-017). This contact detects the fault and has no procedural authority to act on
+      it. That authority arrives on contact B, where the limit is crossed.
+
+  - step: PROC-001-S08
+    state: not_applicable
+    basis: >-
+      The pass plan contains no payload activation. PLD_STATE already read ON at
+      acquisition, the scenario having commanded the payload on at MET 120, inside the
+      pre-roll.
+  - step: PROC-001-S09
+    state: not_applicable
+    basis: The pass plan contains no payload activation; there was no authorization to give
+  - step: PROC-001-S10
+    state: not_applicable
+    basis: PROC-001-S09 not applicable; no activation was planned or sent
+  - step: PROC-001-S11
+    state: not_applicable
+    basis: PROC-001-S09 not applicable; there was no command to verify
+  - step: PROC-001-S12
+    state: not_applicable
+    basis: PROC-001-S09 not applicable; there was no command outcome to determine
+  - step: PROC-001-S13
+    state: not_applicable
+    basis: PROC-001-S09 not applicable; no rate command was planned
+  - step: PROC-001-S14
+    state: not_applicable
+    basis: PROC-001-S09 not applicable; there was no rate command to verify
+
+  - step: PROC-001-S15
+    role: EPS
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {soc_pct_at_los: 61.293, mode_at_los: NOMINAL, load_i_at_los: 1.400,
+              batt_v_at_los: 7.6006}
+
+  - step: PROC-001-S16
+    role: PLAN
+    operator: Dan Lee-Odinson
+    state: completed
+    records: {observed_los_utc: '2026-09-20T21:48:29Z',
+              computed_los_utc: '2026-09-20T21:48:29Z', last_cdh_frame_cnt: 2520}
+
+  - step: PROC-001-S17
+    role: PLAN
+    operator: Dan Lee-Odinson
+    state: completed
+
+  - step: PROC-001-S18
+    role: PLAN
+    operator: Dan Lee-Odinson
+    state: completed
+    branch: complete
+    observation: >-
+      tools/pass_report.py named no step as having no entry. Every step of PROC-001 is
+      recorded: eight completed, seven not applicable with their basis stated, none
+      omitted.
+
+anomalies: []

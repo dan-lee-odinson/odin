@@ -1,0 +1,624 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>HUGINN Console Card</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a flight-controller's console card — one column, dense scannable blocks,
+   data in mono, limit thresholds carried as chips. Accent is steel blue so it never
+   competes with the yellow/red the limit system owns. */
+:root {
+  --bg:#f5f7f8; --surface:#ffffff; --surface-2:#eef2f4;
+  --fg:#15191d; --muted:#5d6771; --line:#d7dde2;
+  --accent:#2d6c8c; --accent-soft:#e6eff4;
+  --warn:#8a5c00; --warn-bg:#fdf1d3; --warn-line:#e3bd62;
+  --crit:#9d2429; --crit-bg:#fbe4e6; --crit-line:#dd949a;
+  --ok:#176542; --ok-bg:#e1f2ea; --ok-line:#7fc0a3;
+  --stale:#6f4a9c; --stale-bg:#f0e8f8; --stale-line:#b595d8;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#13161a; --surface:#1a1e23; --surface-2:#222830;
+    --fg:#e5eaef; --muted:#98a3af; --line:#2a3037;
+    --accent:#72b4d3; --accent-soft:#1b2c37;
+    --warn:#e6c069; --warn-bg:#3a2f11; --warn-line:#6d5a22;
+    --crit:#ef8b90; --crit-bg:#3c191c; --crit-line:#73333a;
+    --ok:#69c59a; --ok-bg:#133228; --ok-line:#2d6b51;
+    --stale:#c7a1e7; --stale-bg:#291d36; --stale-line:#55406e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#13161a; --surface:#1a1e23; --surface-2:#222830;
+  --fg:#e5eaef; --muted:#98a3af; --line:#2a3037;
+  --accent:#72b4d3; --accent-soft:#1b2c37;
+  --warn:#e6c069; --warn-bg:#3a2f11; --warn-line:#6d5a22;
+  --crit:#ef8b90; --crit-bg:#3c191c; --crit-line:#73333a;
+  --ok:#69c59a; --ok-bg:#133228; --ok-line:#2d6b51;
+  --stale:#c7a1e7; --stale-bg:#291d36; --stale-line:#55406e;
+  color-scheme: dark;
+}
+
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.5;
+     -webkit-font-smoothing:antialiased}
+.wrap{max-width:60rem;margin:0 auto;padding-inline:20px;padding-block:32px 72px;
+      display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:clamp(1.6rem,1.2rem + 1.6vw,2.2rem);font-weight:700;letter-spacing:-.015em}
+h2{font-size:1.18rem;font-weight:600;letter-spacing:-.005em}
+h3{font-size:.95rem;font-weight:600}
+p{margin:0}
+code,.m{font-family:var(--mono);font-size:.875em;font-variant-numeric:tabular-nums}
+
+/* masthead */
+.head{display:flex;flex-direction:column;gap:12px;border-bottom:2px solid var(--fg);
+      padding-bottom:18px}
+.eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--accent);font-weight:600}
+.sub{color:var(--muted);max-width:62ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-family:var(--mono);font-size:.74rem;
+      color:var(--muted)}
+.meta b{color:var(--fg);font-weight:600}
+
+/* section shell */
+section{display:flex;flex-direction:column;gap:16px}
+.shead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.snum{font-family:var(--mono);font-size:.74rem;font-weight:600;color:var(--accent);
+      border:1px solid var(--accent);border-radius:3px;padding:1px 6px;flex:none}
+.note{color:var(--muted);font-size:.9rem;max-width:68ch}
+
+/* question blocks */
+.qs{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:14px}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;
+   display:flex;flex-direction:column;gap:9px;min-width:0}
+.q h3{color:var(--accent)}
+.q .where{font-family:var(--mono);font-size:.74rem;color:var(--muted);
+          text-transform:uppercase;letter-spacing:.06em}
+.q p{font-size:.9rem}
+
+/* tool list */
+.tools{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:6px;
+       overflow:hidden;background:var(--surface)}
+.tool{display:grid;grid-template-columns:11rem 1fr;gap:4px 18px;padding:13px 16px;
+      border-top:1px solid var(--line);min-width:0}
+.tool:first-child{border-top:0}
+.tool .nm{font-family:var(--mono);font-weight:600;font-size:.84rem;color:var(--fg)}
+.tool .ds{font-size:.9rem;color:var(--muted);min-width:0}
+.tool .ds b{color:var(--fg);font-weight:600}
+@media (max-width:620px){.tool{grid-template-columns:1fr}}
+
+/* telemetry points */
+.grp{display:flex;flex-direction:column;gap:0}
+.grplbl{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;
+        color:var(--muted);font-weight:600;padding:18px 0 7px}
+.ptbl{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+.pthead,.pt{display:grid;grid-template-columns:10.5rem 1fr 8.5rem 10.5rem;gap:4px 16px;
+            padding:11px 16px;min-width:0}
+.pthead{background:var(--surface-2);border-bottom:1px solid var(--line);
+        font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+        color:var(--muted);font-weight:600}
+.pt{border-top:1px solid var(--line);align-items:start}
+.pt:first-of-type{border-top:0}
+.pt .mn{font-family:var(--mono);font-size:.82rem;font-weight:600;color:var(--fg);
+        word-break:break-word}
+.pt .mean{font-size:.88rem;color:var(--muted);min-width:0}
+.pt .nom,.pt .lim{font-family:var(--mono);font-size:.78rem;min-width:0}
+.pt .nom{color:var(--fg)}
+.pt .lim{color:var(--muted)}
+@media (max-width:760px){
+  .pthead{display:none}
+  .pt{grid-template-columns:1fr;gap:5px;padding:14px 16px}
+  .pt .nom::before{content:"NOMINAL  ";color:var(--muted);font-weight:600}
+  .pt .lim::before{content:"LIMITS  ";color:var(--muted);font-weight:600}
+}
+
+/* chips */
+.chip{display:inline-block;font-family:var(--mono);font-size:.7rem;font-weight:600;
+      padding:1px 6px;border-radius:3px;border:1px solid;white-space:nowrap;margin-right:4px}
+.c-warn{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.c-crit{color:var(--crit);background:var(--crit-bg);border-color:var(--crit-line)}
+.c-ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.c-stale{color:var(--stale);background:var(--stale-bg);border-color:var(--stale-line)}
+.c-none{color:var(--muted);background:var(--surface-2);border-color:var(--line)}
+
+/* callout */
+.call{background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;
+      padding:15px 18px;display:flex;flex-direction:column;gap:8px}
+.call h3{color:var(--accent)}
+.call p{font-size:.9rem}
+
+/* verification steps */
+.ver{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:12px}
+.vstep{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:15px;
+       display:flex;flex-direction:column;gap:7px;min-width:0}
+.vstep .n{font-family:var(--mono);font-size:.7rem;font-weight:600;color:var(--accent);
+          letter-spacing:.08em}
+.vstep .t{font-family:var(--mono);font-size:.82rem;font-weight:600;word-break:break-word}
+.vstep .d{font-size:.86rem;color:var(--muted)}
+
+/* worked example */
+.ex{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow-x:auto}
+.ex table{border-collapse:collapse;width:100%;min-width:30rem}
+.ex th,.ex td{text-align:left;padding:9px 16px;border-top:1px solid var(--line);
+              font-family:var(--mono);font-size:.78rem;font-variant-numeric:tabular-nums}
+.ex th{background:var(--surface-2);border-top:0;font-size:.68rem;letter-spacing:.1em;
+       text-transform:uppercase;color:var(--muted);font-weight:600}
+.ex td:first-child{font-weight:600}
+.ex .after{color:var(--ok);font-weight:600}
+
+/* command list */
+.cmds{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;
+      overflow:hidden;background:var(--surface)}
+.cmd{display:grid;grid-template-columns:13rem 1fr auto;gap:5px 16px;padding:12px 16px;
+     border-top:1px solid var(--line);align-items:center;min-width:0}
+.cmd:first-child{border-top:0}
+.cmd .cn{font-family:var(--mono);font-size:.82rem;font-weight:600;word-break:break-word}
+.cmd .cd{font-size:.88rem;color:var(--muted);min-width:0}
+@media (max-width:680px){.cmd{grid-template-columns:1fr;align-items:start}}
+
+/* colour key */
+.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:12px}
+.key{border:1px solid var(--line);border-radius:6px;padding:14px;background:var(--surface);
+     display:flex;flex-direction:column;gap:7px;min-width:0}
+.key .kd{font-size:.86rem;color:var(--muted)}
+
+/* pass-3 */
+.p3{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:12px}
+.p3 .card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:15px;
+          display:flex;flex-direction:column;gap:6px;min-width:0}
+.p3 .lbl{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+         color:var(--muted);font-weight:600}
+.p3 .val{font-family:var(--mono);font-size:1.05rem;font-weight:600;font-variant-numeric:tabular-nums}
+.p3 .d{font-size:.85rem;color:var(--muted)}
+
+footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:.82rem;
+       display:flex;flex-direction:column;gap:6px}
+a{color:var(--accent)}
+</style>
+
+<div class="wrap">
+
+  <header class="head">
+    <div class="eyebrow">HUGINN · Mission Operations</div>
+    <h1>Console Card</h1>
+    <p class="sub">What every number on the housekeeping packet means, what it reads on a healthy
+      pass, and the threshold that makes it an alarm. Keep this open in a fourth tab.</p>
+    <div class="meta">
+      <span>Dictionary <b>v0.5</b></span>
+      <span>Ground system <b>OpenC3 COSMOS Core 7.2.1</b></span>
+      <span>Console <b>localhost:2910</b></span>
+      <span>HK packet <b>16 points at 1 Hz</b></span>
+    </div>
+  </header>
+
+  <section>
+    <div class="shead"><span class="snum">1</span><h2>The three questions</h2></div>
+    <p class="note">Everything on the console answers one of these. When you lose the thread
+      mid-pass, come back here rather than scanning all 23 rows.</p>
+    <div class="qs">
+      <div class="q">
+        <h3>Am I receiving?</h3>
+        <div class="where">CmdTlmServer · Packet Viewer</div>
+        <p>Interface <span class="m">HUGINN_INT</span> reads CONNECTED, and
+          <span class="m">CDH_FRAME_CNT</span> advances by exactly 1 every second.
+          A counter that stops while the interface stays CONNECTED is a spacecraft problem.
+          An interface that drops is a ground problem.</p>
+      </div>
+      <div class="q">
+        <h3>Is the spacecraft healthy?</h3>
+        <div class="where">Packet Viewer · Telemetry Grapher</div>
+        <p>Nothing yellow, nothing red, <span class="m">EPS_MODE</span> reads NOMINAL, and
+          <span class="m">EPS_BATT_I</span> is positive while <span class="m">ADM_ECLIPSE</span>
+          reads SUNLIT. In eclipse the battery discharges and that is correct, not an alarm.</p>
+      </div>
+      <div class="q">
+        <h3>Did my command work?</h3>
+        <div class="where">Packet Viewer</div>
+        <p>Never one number. The accept counter moved <em>and</em> the thing you commanded
+          actually changed. Section 5 is the whole check, and it fits in three lines.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><span class="snum">2</span><h2>The four screens</h2></div>
+    <p class="note">These are the ones the procedures send you to — Packet Viewer 21 times,
+      Command Sender 7, Telemetry Grapher twice, the interface state once.</p>
+    <div class="tools">
+      <div class="tool">
+        <div class="nm">CmdTlmServer</div>
+        <div class="ds"><b>Is the link up?</b> The Interfaces tab shows
+          <span class="m">HUGINN_INT</span> as ATTEMPTING before you start the simulator and
+          CONNECTED after. <span class="m">ConnectionRefusedError</span> on
+          <span class="m">host.docker.internal:7801</span> before acquisition is the expected
+          state, not a fault — COSMOS is dialling a socket nobody is listening on yet.</div>
+      </div>
+      <div class="tool">
+        <div class="nm">Packet Viewer</div>
+        <div class="ds"><b>Every value, once a second.</b> Target HUGINN, packet HK. This is the
+          screen you live on. Use the <b>Search box</b> to pull up one point instead of scrolling
+          23 rows — type <span class="m">PLD</span> or <span class="m">ACC</span> and the list
+          filters.</div>
+      </div>
+      <div class="tool">
+        <div class="nm">Telemetry Grapher</div>
+        <div class="ds"><b>Trends, not readings.</b> A single sample cannot tell you whether
+          charge is falling. PROC-002 sends you here for exactly that reason. Put
+          <span class="m">EPS_BATT_SOC</span> and <span class="m">EPS_BATT_I</span> on it before
+          acquisition.</div>
+      </div>
+      <div class="tool">
+        <div class="nm">Command Sender</div>
+        <div class="ds"><b>Stage before acquisition, send during.</b> Select target, packet and
+          argument ahead of the pass and then leave it alone. It remembers the last packet you
+          had open between sessions, which has put it on the wrong one at acquisition twice —
+          check the packet name every time.</div>
+      </div>
+      <div class="tool">
+        <div class="nm">Limits Monitor</div>
+        <div class="ds"><b>Not a procedure step.</b> No procedure sends you here, so nothing you
+          record comes from it. It is built to show items that are out of limits, which is the
+          one thing you cannot do by scanning. Open it alongside Packet Viewer on PASS-3 and
+          judge for yourself whether it earns a place in the layout.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><span class="snum">3</span><h2>The housekeeping packet</h2></div>
+    <p class="note">Sixteen points in dictionary order, plus the frame header and the counters
+      COSMOS adds. Nominal figures are from <span class="m">2026-09-13-P1</span>, the clean
+      nominal pass — real readings, not estimates. Blank limits mean the point carries no alarm
+      and is read for context only.</p>
+
+    <div class="grp">
+      <div class="grplbl">Power — EPS</div>
+      <div class="ptbl">
+        <div class="pthead">
+          <div>Mnemonic</div><div>What it is</div><div>Nominal</div><div>Limits</div>
+        </div>
+        <div class="pt">
+          <div class="mn">EPS_BATT_V</div>
+          <div class="mean">Battery voltage, 2S lithium-ion. Sags under load and in eclipse.</div>
+          <div class="nom">7.72–7.76 V</div>
+          <div class="lim"><span class="chip c-crit">RL 6.8</span><span class="chip c-warn">YL 7.2</span><br><span class="chip c-warn">YH 8.3</span><span class="chip c-crit">RH 8.5</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">EPS_BATT_I</div>
+          <div class="mean">Battery current. <b>Positive is charging, negative is discharging.</b>
+            The sign is the whole story.</div>
+          <div class="nom">+1.29 to +1.69 A<br>(sunlit, charging)</div>
+          <div class="lim"><span class="chip c-crit">RL −2.5</span><span class="chip c-warn">YL −2.0</span><br><span class="chip c-warn">YH +2.0</span><span class="chip c-crit">RH +2.5</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">EPS_BATT_SOC</div>
+          <div class="mean">State of charge, percent. The number that decides whether a limit
+            response is authorised.</div>
+          <div class="nom">70–73 %</div>
+          <div class="lim"><span class="chip c-crit">RL 20</span><span class="chip c-warn">YL 35</span><br><span class="chip c-none">no high limit</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">EPS_SA1_I</div>
+          <div class="mean">Solar-array string 1 current. Reads <span class="m">0.00</span> in
+            eclipse, which is correct and not a fault.</div>
+          <div class="nom">1.70 A sunlit<br>0.00 A eclipse</div>
+          <div class="lim"><span class="chip c-none">unalarmed</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">EPS_SA2_I</div>
+          <div class="mean">Solar-array string 2 current. <b>Reported separately from string 1 so
+            you can see asymmetry</b> — one at zero while the other holds is a dead string.</div>
+          <div class="nom">1.70 A sunlit<br>0.00 A eclipse</div>
+          <div class="lim"><span class="chip c-none">unalarmed</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">EPS_BUS_V</div>
+          <div class="mean">Regulated 5 V bus. Rock steady in every pass flown so far; movement
+            here means the regulator is in trouble.</div>
+          <div class="nom">5.00 V</div>
+          <div class="lim"><span class="chip c-crit">RL 4.75</span><span class="chip c-warn">YL 4.9</span><br><span class="chip c-warn">YH 5.1</span><span class="chip c-crit">RH 5.25</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">EPS_LOAD_I</div>
+          <div class="mean">Total load current. The payload draws exactly <b>0.600 A</b>, so this
+            reads 0.800 with it off and 1.400 with it on.</div>
+          <div class="nom">0.800 A payload off<br>1.400 A payload on</div>
+          <div class="lim"><span class="chip c-none">no low limit</span><br><span class="chip c-warn">YH 1.5</span><span class="chip c-crit">RH 2.0</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">EPS_MODE</div>
+          <div class="mean">NOMINAL → LOW_POWER → SAFE. The spacecraft steps <b>down</b> this
+            ladder by itself at 30 % and 20 % charge; every step back up is a ground command.</div>
+          <div class="nom">NOMINAL</div>
+          <div class="lim"><span class="chip c-crit">annunciates on SAFE</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grplbl">Environment</div>
+      <div class="ptbl">
+        <div class="pthead">
+          <div>Mnemonic</div><div>What it is</div><div>Nominal</div><div>Limits</div>
+        </div>
+        <div class="pt">
+          <div class="mn">ADM_ECLIPSE</div>
+          <div class="mean">SUNLIT or ECLIPSE. <b>Read this before judging any power number</b> —
+            it is the context that makes a negative battery current normal or alarming.</div>
+          <div class="nom">SUNLIT</div>
+          <div class="lim"><span class="chip c-none">context only</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grplbl">Payload</div>
+      <div class="ptbl">
+        <div class="pthead">
+          <div>Mnemonic</div><div>What it is</div><div>Nominal</div><div>Limits</div>
+        </div>
+        <div class="pt">
+          <div class="mn">PLD_STATE</div>
+          <div class="mean">Payload power, OFF or ON. This is the point that proves a
+            <span class="m">CMD_PLD_SET_STATE</span> actually did something.</div>
+          <div class="nom">OFF before activation<br>ON after</div>
+          <div class="lim"><span class="chip c-none">none</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">PLD_RATE</div>
+          <div class="mean">Payload sampling rate in hertz. Rejected outside its range, and
+            rejected outright while the payload is off.</div>
+          <div class="nom">1.0 Hz default<br>2.0 Hz after set</div>
+          <div class="lim"><span class="chip c-none">range 0.1–10</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grplbl">Command &amp; data handling</div>
+      <div class="ptbl">
+        <div class="pthead">
+          <div>Mnemonic</div><div>What it is</div><div>Nominal</div><div>Limits</div>
+        </div>
+        <div class="pt">
+          <div class="mn">CDH_MET</div>
+          <div class="mean">Mission elapsed time in seconds. <b>Your clock.</b> It also prints in
+            the simulator terminal every ten seconds, which is easier to read mid-pass than a
+            refreshing table.</div>
+          <div class="nom">counts up 1/s<br>from the start MET</div>
+          <div class="lim"><span class="chip c-none">none</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">CDH_FRAME_CNT</div>
+          <div class="mean">Frames generated. Advances by 1 each second. <b>Frozen while the
+            interface stays CONNECTED is the halt fault</b> that PROC-003 exists for.</div>
+          <div class="nom">+1 every second</div>
+          <div class="lim"><span class="chip c-warn">stale 10 s</span><span class="chip c-crit">stale 30 s</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">CDH_CMD_ACC_CNT</div>
+          <div class="mean">Commands accepted, cumulative. Goes up by exactly 1 per accepted
+            command. <b>It counts the mission, not your session</b> — arriving at a contact with
+            a non-zero value is normal.</div>
+          <div class="nom">+1 per command<br>you send</div>
+          <div class="lim"><span class="chip c-none">none</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">CDH_CMD_REJ_CNT</div>
+          <div class="mean">Commands rejected, cumulative. Every command increments exactly one
+            of accepted or rejected, never both and never neither.</div>
+          <div class="nom">0</div>
+          <div class="lim"><span class="chip c-warn">any increase</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">CDH_REJ_REASON</div>
+          <div class="mean">Why the last rejection happened: UNKNOWN_OPCODE, ARG_RANGE or
+            MODE_INHIBIT. <b>MODE_INHIBIT is the spacecraft protecting itself</b>, not a failure.</div>
+          <div class="nom">NONE</div>
+          <div class="lim"><span class="chip c-none">none</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grplbl">Frame header and ground-side counters</div>
+      <div class="ptbl">
+        <div class="pthead">
+          <div>Mnemonic</div><div>What it is</div><div>Nominal</div><div>Limits</div>
+        </div>
+        <div class="pt">
+          <div class="mn">SYNC</div>
+          <div class="mean">Frame sync marker. A constant. If it ever reads anything else the
+            ground is decoding something that is not a HUGINN frame.</div>
+          <div class="nom">18517</div>
+          <div class="lim"><span class="chip c-none">none</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">LENGTH</div>
+          <div class="mean">Frame length in bytes. Also a constant for this packet.</div>
+          <div class="nom">46</div>
+          <div class="lim"><span class="chip c-none">none</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">RECEIVED_COUNT</div>
+          <div class="mean">COSMOS's own tally of frames received since the ground system started
+            — not a spacecraft value. It runs continuously across contacts, so it does not reset
+            at acquisition.</div>
+          <div class="nom">+1 per frame</div>
+          <div class="lim"><span class="chip c-none">ground-side</span></div>
+        </div>
+        <div class="pt">
+          <div class="mn">PACKET_TIME…<br>RECEIVED_TIME…</div>
+          <div class="mean">Wall-clock timestamps COSMOS attaches. Useful afterwards for setting
+            the Data Extractor window; not something to watch during a pass.</div>
+          <div class="nom">UTC</div>
+          <div class="lim"><span class="chip c-none">ground-side</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><span class="snum">4</span><h2>Colour</h2></div>
+    <div class="call">
+      <h3>A colour is a prompt to look, not the finding</h3>
+      <p>The record is the value against the threshold, and those thresholds are in section 3.
+        Read the number, compare it, write down the number. A pass report that says "it went
+        yellow" is not a record of anything; one that says
+        <span class="m">EPS_BATT_SOC 34.996 %, YELLOW, at CDH_MET 21894</span> is.</p>
+    </div>
+    <div class="keys">
+      <div class="key">
+        <div><span class="chip c-ok">GREEN</span></div>
+        <div class="kd">Inside its limits. Most alarmed points sit here for a whole nominal pass.</div>
+      </div>
+      <div class="key">
+        <div><span class="chip c-warn">YELLOW</span></div>
+        <div class="kd">Past the warning threshold. On a power point this is what authorises the
+          limit-response branch of PROC-001-S07.</div>
+      </div>
+      <div class="key">
+        <div><span class="chip c-crit">RED</span></div>
+        <div class="kd">Past the critical threshold. No pass flown so far has produced one.</div>
+      </div>
+      <div class="key">
+        <div><span class="chip c-stale">STALE</span></div>
+        <div class="kd">Values turn violet when nothing new has arrived. After loss of signal the
+          whole packet goes this colour and freezes on the last frame received. That is the
+          contact ending, not an alarm.</div>
+      </div>
+    </div>
+    <p class="note">One caveat worth knowing before PASS-4: PROC-003 refers to a separate
+      STALENESS target carrying the annunciator, and that target was not present in the loaded
+      configuration when you looked for it on 13 September. The staleness thresholds above are
+      the dictionary's; whether the annunciator exists on your console is a question PASS-4 will
+      force. It does not affect PASS-3.</p>
+  </section>
+
+  <section>
+    <div class="shead"><span class="snum">5</span><h2>Verifying a command</h2></div>
+    <p class="note">The record requires a counter delta <b>and</b> the affected telemetry point.
+      Either one alone is insufficient, because a counter can move on a command that did nothing
+      and a value can change for reasons that were not yours.</p>
+    <div class="ver">
+      <div class="vstep">
+        <div class="n">BEFORE YOU SEND</div>
+        <div class="t">read the counter</div>
+        <div class="d">Note <span class="m">CDH_CMD_ACC_CNT</span> and the point you are about to
+          change. A delta needs a before.</div>
+      </div>
+      <div class="vstep">
+        <div class="n">WITHIN ONE FRAME</div>
+        <div class="t">counter +1, rejects flat</div>
+        <div class="d"><span class="m">CDH_CMD_ACC_CNT</span> up by exactly one,
+          <span class="m">CDH_CMD_REJ_CNT</span> unchanged.</div>
+      </div>
+      <div class="vstep">
+        <div class="n">SAME FRAME</div>
+        <div class="t">the thing actually moved</div>
+        <div class="d">The commanded point reads its new value, and anything downstream of it
+          moved too.</div>
+      </div>
+    </div>
+    <h3 style="margin-top:8px">Worked example — the PASS-2 payload shed</h3>
+    <p class="note">One command at <span class="m">CDH_MET 22006</span>. Everything below landed
+      in a single frame, 57 milliseconds after the send.</p>
+    <div class="ex">
+      <table>
+        <thead><tr><th>Point</th><th>MET 22005</th><th>MET 22006</th><th>Means</th></tr></thead>
+        <tbody>
+          <tr><td>CDH_CMD_ACC_CNT</td><td>1</td><td class="after">2</td><td>accepted</td></tr>
+          <tr><td>CDH_CMD_REJ_CNT</td><td>0</td><td class="after">0</td><td>nothing refused</td></tr>
+          <tr><td>PLD_STATE</td><td>ON</td><td class="after">OFF</td><td>the payload switched</td></tr>
+          <tr><td>EPS_LOAD_I</td><td>1.400 A</td><td class="after">0.800 A</td><td>the load actually left</td></tr>
+          <tr><td>EPS_BATT_I</td><td>−0.9631 A</td><td class="after">−0.5504 A</td><td>discharge slowed 43 %</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">If the counter moves but the point does not, stop and say so — that is a real
+      finding, not a mistake to hide. If neither moves within 10 seconds of a verified send, that
+      is the loss-of-commandability threshold and PROC-003 takes over.</p>
+  </section>
+
+  <section>
+    <div class="shead"><span class="snum">6</span><h2>The five commands</h2></div>
+    <div class="cmds">
+      <div class="cmd">
+        <div class="cn">CMD_PLD_SET_STATE</div>
+        <div class="cd">Payload on or off. Argument <span class="m">state</span>, which opens on
+          OFF because that is first in the enum. <b>ON is refused below 40 % charge</b> or in SAFE.</div>
+        <div><span class="chip c-ok">routine</span></div>
+      </div>
+      <div class="cmd">
+        <div class="cn">CMD_PLD_SET_RATE</div>
+        <div class="cd">Payload sampling rate, 0.1 to 10 Hz. Refused out of range, and refused
+          while the payload is off.</div>
+        <div><span class="chip c-ok">routine</span></div>
+      </div>
+      <div class="cmd">
+        <div class="cn">CMD_SAFE_ENTER</div>
+        <div class="cd">Force the spacecraft to SAFE. Two-step confirmation.</div>
+        <div><span class="chip c-crit">hazardous</span></div>
+      </div>
+      <div class="cmd">
+        <div class="cn">CMD_SYS_RESET</div>
+        <div class="cd">The only thing that clears a latched housekeeping halt. Afterwards the
+          counters restart at accepted&nbsp;1, rejected&nbsp;0 — the one place delta arithmetic
+          does not apply.</div>
+        <div><span class="chip c-crit">hazardous</span></div>
+      </div>
+      <div class="cmd">
+        <div class="cn">CMD_MODE_SET</div>
+        <div class="cd">Commanded mode recovery, NOMINAL or LOW_POWER. Gated on a recovery floor
+          above the autonomous entry, so a recovery cannot immediately re-trip the ladder.</div>
+        <div><span class="chip c-crit">hazardous</span></div>
+      </div>
+    </div>
+    <p class="note">Hazardous commands carry a two-step confirmation in the ground system. If the
+      Command Sender shows a hazardous banner and you did not expect one, you are on the wrong
+      packet.</p>
+  </section>
+
+  <section>
+    <div class="shead"><span class="snum">7</span><h2>What changes on PASS-3</h2></div>
+    <p class="note">Stuck-on load, procedure PROC-002, single contact. The fault is a load that
+      will not go away, so the point to watch is the one PASS-2 barely moved.</p>
+    <div class="p3">
+      <div class="card">
+        <div class="lbl">Watch</div>
+        <div class="val">EPS_LOAD_I</div>
+        <div class="d">Steps from 1.400 to 1.800 A in a single frame at the fault onset. Past the
+          1.5 A yellow, short of the 2.0 A red.</div>
+      </div>
+      <div class="card">
+        <div class="lbl">Expect</div>
+        <div class="val">YELLOW before RED</div>
+        <div class="d">The dictionary's disposition ledger asserts this ordering for a stuck load.
+          This pass is where you watch it hold on live telemetry.</div>
+      </div>
+      <div class="card">
+        <div class="lbl">Illumination</div>
+        <div class="val">SUNLIT</div>
+        <div class="d">Both strings read 1.70 A and charge is <em>rising</em>. The fault is in the
+          load, not in generation — nothing about the strings will look wrong.</div>
+      </div>
+      <div class="card">
+        <div class="lbl">Routing</div>
+        <div class="val">PROC-001-S07</div>
+        <div class="d">Takes the limit-response branch on load current rather than on state of
+          charge, which is the first time that has happened.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>Limits and command definitions are read from <span class="m">defs/tlm_cmd.yaml</span>,
+      dictionary v0.5. Nominal figures are measured from the committed extract of
+      <span class="m">2026-09-13-P1</span>. The worked example is from
+      <span class="m">2026-09-20-P2b</span>.</div>
+    <div>This card is an operator aid. The procedures and the pass report are the record.</div>
+  </footer>
+
+</div>
+
+</body></html>
