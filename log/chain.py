@@ -99,9 +99,14 @@ def verify_bytes(data, *, expected_head=None, check=None):
 def verify_chain(path, *, expected_head=None, check=None):
     """verify_bytes on the log at path, and against its head file when that is present. With
     expected_head, from an evaluation report say, the last record's hash must equal that too."""
-    data = Path(path).read_bytes()
+    return verify_held(Path(path).read_bytes(), head_file(path), expected_head=expected_head, check=check)
+
+
+def verify_held(data, head, *, expected_head=None, check=None):
+    """verify_chain on a log's bytes read some other way, such as from a compressed file, with the path
+    of its head file."""
     problems = verify_bytes(data, expected_head=expected_head, check=check)
-    head = head_file(path)
+    head = Path(head)
     if head.exists():
         held = head.read_bytes()
         lines = _split(data)

@@ -1,0 +1,272 @@
+"""ODIN's COSMOS: OpenC3 COSMOS 7.2.1 with HUGINN's plugin, run as its own Compose project, odin
+(00_HANDOFF.md §3.4; S4, S5).
+
+    python -m connector.cosmos credentials   once: make COSMOS's credentials, kept as environment variables
+    python -m connector.cosmos up            start it
+    python -m connector.cosmos plugin        once it is up: install HUGINN's plugin, dialing the link
+    python -m connector.cosmos status        its containers
+    python -m connector.cosmos stop          stop its containers, keeping everything
+    python -m connector.cosmos down          remove its containers and network, keeping its volumes
+
+Every Compose command here names the project odin, with HUGINN's compose file unchanged and
+connector/compose/odin.yaml over it. None removes a volume: there is no down -v, volume rm or prune,
+here or anywhere (00_HANDOFF.md §3.4). Before starting, it checks that no other install holds ODIN's
+COSMOS ports, and stops rather than touch one that does.
+
+The settings file and the Redis ACL are rendered from HUGINN's own templates, read as they are, into a
+folder outside the repository. The settings file holds no credential: Compose passes each one through
+from the environment it runs in, which this module builds from ODIN_COSMOS_* variables.
+"""
+
+import hashlib
+import os
+import re
+import secrets
+import socket
+import subprocess
+import sys
+from pathlib import Path
+
+from wrapper.huginn import HUGINN
+from wrapper.link import link_address
+
+PROJECT = "odin"
+GROUND = HUGINN / "gnd" / "openc3"
+COMPOSE_FILES = (GROUND / "compose.yaml", Path(__file__).resolve().parent / "compose" / "odin.yaml")
+SETTINGS_TEMPLATE = GROUND / ".env.template"
+ACL_TEMPLATE = GROUND / "openc3-redis" / "users.acl.template"
+WEB_PORTS = (2920, 2963)
+EXTERNAL_URL = f"http://localhost:{WEB_PORTS[0]}"
+NEVER = ("-v", "--volumes", "prune", "rm")
+
+# COSMOS's credential settings, as its services read them. Each is kept under an ODIN_COSMOS_ name, never
+# its own: an OPENC3_ name in the Director's environment would override his HUGINN install's .env.
+CREDENTIALS = ("OPENC3_TSDB_USERNAME", "OPENC3_TSDB_PASSWORD", "OPENC3_REDIS_USERNAME", "OPENC3_REDIS_PASSWORD",
+               "OPENC3_BUCKET_USERNAME", "OPENC3_BUCKET_PASSWORD", "OPENC3_SR_REDIS_USERNAME",
+               "OPENC3_SR_REDIS_PASSWORD", "OPENC3_SR_BUCKET_USERNAME", "OPENC3_SR_BUCKET_PASSWORD",
+               "OPENC3_REDIS_ADMIN_PASSWORD", "OPENC3_SERVICE_PASSWORD", "SECRET_KEY_BASE")
+GENERATED = "__GENERATE__"
+PLACEHOLDER = re.compile(r"__[A-Z0-9_]+__")
+
+# COSMOS's credentials live only as the Director's user environment variables, ODIN_COSMOS_*, made once
+# by the credentials command without being shown (the Director's ruling on U38, 27 October 2026). ODIN
+# holds no ground-system credential (CONTRACT.md §9): Muse Code's start command removes every
+# ODIN_COSMOS_* variable, and whatever launches ODIN's process passes it no ODIN_COSMOS_* or OPENC3_*
+# variable.
+
+
+def kept_name(name):
+    return "ODIN_COSMOS_" + name.removeprefix("OPENC3_")
+
+
+def state_folder():
+    """Where the rendered settings and ACL go: outside the repository and outside OneDrive."""
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / ".local" / "share")
+    return Path(base) / "odin" / "cosmos"
+
+
+# -- credentials -------------------------------------------------------------------------------
+
+def _user_environment(name):
+    """A user environment variable set after this process started (Windows keeps them in the registry)."""
+    if sys.platform != "win32":
+        return None
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+            return winreg.QueryValueEx(key, name)[0]
+    except OSError:
+        return None
+
+
+def credentials(environ=None, user_environment=_user_environment):
+    """{OPENC3 name: value} from the ODIN_COSMOS_* variables. Raises naming any that are missing, never
+    a value."""
+    environ = os.environ if environ is None else environ
+    found = {name: environ.get(kept_name(name)) or user_environment(kept_name(name)) for name in CREDENTIALS}
+    missing = [kept_name(name) for name, value in found.items() if not value]
+    if missing:
+        raise SystemExit(f"missing {', '.join(missing)}; run python -m connector.cosmos credentials once")
+    return found
+
+
+def make_credentials():
+    """Fresh credentials, {ODIN_COSMOS name: value}."""
+    made = {}
+    for name in CREDENTIALS:
+        if name.endswith("USERNAME"):
+            made[kept_name(name)] = "odin_" + secrets.token_hex(4)
+        elif name.startswith("SECRET"):   # Rails's secret key base, 128 hex characters
+            made[kept_name(name)] = secrets.token_hex(64)
+        else:
+            made[kept_name(name)] = secrets.token_urlsafe(24)
+    return made
+
+
+def keep_credentials(made):
+    """Store them as the user's environment variables. Windows only; nothing is printed or written to a
+    file."""
+    import ctypes
+    import winreg
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_SET_VALUE) as key:
+        for name, value in made.items():
+            winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
+    # Tell running programs that the environment changed, so new terminals see the variables.
+    ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x001A, 0, "Environment", 0x0002, 5000, None)
+
+
+# -- what Compose is given ---------------------------------------------------------------------
+
+def render_settings(template):
+    """HUGINN's .env.template as ODIN's settings: the project named odin, its own address, and every
+    credential line left out. Comments and blank lines are dropped."""
+    lines = []
+    for line in template.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        name, _, value = line.partition("=")
+        if value == GENERATED or name in CREDENTIALS:
+            continue
+        if name == "COMPOSE_PROJECT_NAME":
+            value = PROJECT
+        elif name == "OPENC3_EXTERNAL_URL":
+            value = EXTERNAL_URL
+        lines.append(f"{name}={value}")
+    if any(line.startswith("OPENC3_DEMO=") for line in lines):
+        raise ValueError("OPENC3_DEMO is set; any value installs COSMOS's demo plugin")
+    return "\n".join(lines) + "\n"
+
+
+def render_acl(template, found):
+    """HUGINN's Redis ACL template with each user's name and the SHA-256 of its password. Only user
+    lines are kept: Valkey refuses comments."""
+    def sha(name):
+        return hashlib.sha256(found[name].encode("utf-8")).hexdigest()
+
+    filled = {"__REDIS_USERNAME__": found["OPENC3_REDIS_USERNAME"], "__SR_USERNAME__": found["OPENC3_SR_REDIS_USERNAME"],
+              "__REDIS_PASSWORD_SHA256__": sha("OPENC3_REDIS_PASSWORD"),
+              "__SR_PASSWORD_SHA256__": sha("OPENC3_SR_REDIS_PASSWORD"),
+              "__ADMIN_PASSWORD_SHA256__": sha("OPENC3_REDIS_ADMIN_PASSWORD")}
+    lines = [line for line in template.splitlines() if line.startswith("user ")]
+    text = "\n".join(lines) + "\n"
+    for placeholder, value in filled.items():
+        text = text.replace(placeholder, value)
+    if PLACEHOLDER.search(text):
+        raise ValueError(f"the ACL template has a placeholder this module does not fill: {PLACEHOLDER.search(text)[0]}")
+    return text
+
+
+def compose(*args, folder=None):
+    """The docker compose command for ODIN's project. Refuses anything that would remove a volume."""
+    refused = [arg for arg in args if arg in NEVER]
+    if refused:
+        raise ValueError(f"refused: {' '.join(refused)} could remove a volume; ODIN's COSMOS keeps its volumes")
+    folder = folder or state_folder()
+    files = [part for path in COMPOSE_FILES for part in ("-f", str(path))]
+    return ["docker", "compose", "-p", PROJECT, *files, "--env-file", str(folder / "settings.env"), *args]
+
+
+def environment(found, folder=None):
+    """The environment Compose runs in: this process's, with the credentials under their COSMOS names
+    and the paths of the rendered files."""
+    folder = folder or state_folder()
+    return {**os.environ, **found, "ODIN_COSMOS_SETTINGS": (folder / "settings.env").as_posix(),
+            "ODIN_COSMOS_ACL": (folder / "users.acl").as_posix()}
+
+
+def ports_held(ports=WEB_PORTS):
+    """The ports something on this machine already listens on."""
+    held = []
+    for port in ports:
+        with socket.socket() as probe:
+            probe.settimeout(0.5)
+            if probe.connect_ex(("127.0.0.1", port)) == 0:
+                held.append(port)
+    return held
+
+
+def _run(command, env=None):
+    return subprocess.run(command, env=env, check=False).returncode
+
+
+def _ours_running(env):
+    result = subprocess.run(compose("ps", "-q", "openc3-traefik"), env=env, capture_output=True, text=True)
+    return bool(result.stdout.strip())
+
+
+def up():
+    found = credentials()
+    folder = state_folder()
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "settings.env").write_text(render_settings(SETTINGS_TEMPLATE.read_text(encoding="utf-8")),
+                                         encoding="utf-8", newline="\n")
+    (folder / "users.acl").write_text(render_acl(ACL_TEMPLATE.read_text(encoding="utf-8"), found),
+                                      encoding="utf-8", newline="\n")
+    env = environment(found, folder)
+    held = ports_held()
+    if held and not _ours_running(env):
+        raise SystemExit(f"ports {held} are already held by something other than ODIN's COSMOS; "
+                         f"nothing was started or stopped. Ask the Director before going on.")
+    # The COSMOS 7.2.1 images are already on this machine; nothing is downloaded.
+    return _run(compose("up", "-d", "--pull", "never"), env)
+
+
+# -- HUGINN's plugin ---------------------------------------------------------------------------
+
+PLUGIN_FOLDER = "/plugins/openc3-cosmos-huginn"   # HUGINN's plugin folder, mounted read-only
+PLUGIN_GEMSPEC = GROUND / "plugins" / "openc3-cosmos-huginn" / "openc3-cosmos-huginn.gemspec"
+API_SERVICE = "openc3-cosmos-cmd-tlm-api"
+PLUGIN_HASH = "/tmp/odin-huginn-plugin.json"
+
+
+def plugin_gem():
+    """The gem's path in the container, named by the version HUGINN's gemspec gives."""
+    version = re.search(r's\.version\s*=\s*"([^"]+)"', PLUGIN_GEMSPEC.read_text(encoding="utf-8"))[1]
+    return f"/tmp/openc3-cosmos-huginn-{version}.gem"
+
+
+def plugin_commands(link_port=None):
+    """Build HUGINN's plugin from its read-only folder into the container's /tmp, then load it with
+    huginn_sim_port set to the link's port, so that HUGINN_INT dials the link and never HUGINN's own
+    simulator on 7801. The plugin's other variables keep plugin.txt's defaults."""
+    link_port = link_port or link_address()[1]
+    gem, run_in_api = plugin_gem(), ("exec", "-T", API_SERVICE)
+    variables = (f'require "json"; require "openc3"; require "openc3/models/plugin_model"; '
+                 f'plugin = OpenC3::PluginModel.install_phase1("{gem}", scope: "DEFAULT"); '
+                 f'plugin["variables"]["huginn_sim_port"] = "{link_port}"; '
+                 f'File.write("{PLUGIN_HASH}", JSON.generate(plugin))')
+    return [compose(*run_in_api, "sh", "-c", f"cd {PLUGIN_FOLDER} && gem build openc3-cosmos-huginn.gemspec -o {gem}"),
+            compose(*run_in_api, "ruby", "-e", variables),
+            compose(*run_in_api, "ruby", "/openc3/bin/openc3cli", "load", gem, "DEFAULT", PLUGIN_HASH)]
+
+
+def install_plugin():
+    env = environment(credentials())
+    for command in plugin_commands():
+        returncode = _run(command, env)
+        if returncode:
+            return returncode
+    return 0
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    command = argv[0] if argv else "status"
+    if command == "credentials":
+        if any(os.environ.get(kept_name(n)) or _user_environment(kept_name(n)) for n in CREDENTIALS):
+            raise SystemExit("ODIN's COSMOS credentials already exist; nothing was changed")
+        keep_credentials(make_credentials())
+        print(f"made {len(CREDENTIALS)} ODIN_COSMOS_* user environment variables; their values were not shown")
+        return 0
+    if command == "up":
+        return up()
+    if command == "plugin":
+        return install_plugin()
+    if command in ("status", "stop", "down"):
+        env = environment(credentials())
+        return _run(compose({"status": "ps", "stop": "stop", "down": "down"}[command]), env)
+    raise SystemExit(f"unknown command {command!r}; use credentials, up, plugin, status, stop or down")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

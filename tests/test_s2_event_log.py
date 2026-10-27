@@ -279,7 +279,8 @@ def test_truth_goes_to_its_own_file(tmp_path):
     events = new_log(tmp_path)
     truth = new_log(tmp_path, name="truth.jsonl", kind=TruthLog)
     events.append("CONTACT", AOS)
-    truth.append("FAULT_ONSET", {"fault": "made up for this test"})
+    truth.append("FAULT_ONSET", {"onset_met_s": 600, "fault": "array_string_zero", "string": 1, "source": "SCENARIO",
+                                 "before_start": False})
     assert events.path.parent == truth.path.parent and events.path != truth.path
     assert head_file(truth.path).name == "truth.head"
     assert b"FAULT_ONSET" not in events.path.read_bytes()

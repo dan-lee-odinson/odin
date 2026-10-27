@@ -6,3 +6,4 @@ ports:
   harness: 8710   # GET /turn/next, GET /docs/lookup, GET /history (§8.1); POST /checkin (A-1)
   baldur0: 8711   # POST /request, POST /escalation (§8.2)
   log: 8712       # POST /log/agent, POST /report (§8.3)
+  link: 8713      # TCP, not HTTP: the link COSMOS's HUGINN_INT dials for frames down and commands up (S4)

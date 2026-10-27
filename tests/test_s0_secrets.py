@@ -1,6 +1,7 @@
 """No key, token or private signing key anywhere in the repository (CONTRACT.md §2.5,
 00_HANDOFF.md §3.5). Configuration names an environment variable, never its value."""
 
+import gzip
 import shutil
 import subprocess
 import zipfile
@@ -35,6 +36,9 @@ PLANTED = {
     "AWS access key": "aws = " + "AKIA" + "Q7XR2MK9PL4VT8NW" + "\n",
     "bearer token": "Authorization: " + "Bearer " + _fake(40) + "\n",
     "quoted secret assignment": "api_key = " + "'" + _fake(24) + "'\n",
+    "ODIN's COSMOS password with a value": "ODIN_COSMOS_" + "REDIS_PASSWORD" + "=" + _fake(32) + "\n",
+    "a COSMOS .env password": "OPENC3_" + "SR_BUCKET_PASSWORD" + "=" + _fake(32) + "\n",
+    "a COSMOS secret key base": "SECRET_KEY" + "_BASE" + ": " + _fake(64) + "\n",
 }
 
 
@@ -52,6 +56,20 @@ def test_red_secret_inside_a_deposit_zip_is_caught(tmp_path):
     with zipfile.ZipFile(tmp_path / "deposits" / "MC-M1-01.zip", "w") as archive:
         archive.writestr("odin/adapters/spark.py", PLANTED["META_API_KEY with a value"])
     assert check_no_secrets(tmp_path) != []
+
+
+def test_red_secret_inside_a_compressed_truth_file_is_caught(tmp_path):
+    (tmp_path / "runs" / "scored" / "run-1").mkdir(parents=True)
+    packed = gzip.compress(PLANTED["ODIN's COSMOS password with a value"].encode("utf-8"))
+    assert _fake(16).encode() not in packed   # compressed, the value does not show as text
+    (tmp_path / "runs" / "scored" / "run-1" / "truth.jsonl.gz").write_bytes(packed)
+    [problem] = check_no_secrets(tmp_path)
+    assert problem.startswith("runs/scored/run-1/truth.jsonl.gz!")
+
+
+def test_red_a_gzip_file_that_cannot_be_read_is_reported(tmp_path):
+    (tmp_path / "truth.jsonl.gz").write_bytes(b"\x1f\x8b not gzip")
+    assert check_no_secrets(tmp_path) == ["truth.jsonl.gz: gzip cannot be read, so it cannot be scanned"]
 
 
 @pytest.mark.skipif(shutil.which("ssh-keygen") is None, reason="ssh-keygen not on PATH")

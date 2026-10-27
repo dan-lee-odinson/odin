@@ -11,6 +11,7 @@ Some literals below are assembled from pieces so that this file does not trip it
 import ast
 import base64
 import binascii
+import gzip
 import hashlib
 import os
 import re
@@ -224,9 +225,11 @@ def check_truth_kept_apart(root):
 # Secret scan. A finding names the file, line and kind of secret, never the value.
 
 # AGENTS.md §2.5 names META_API_KEY and BASETEN_API_KEY. The Modal names stay covered while
-# Modal remains the Glimmer GPU fallback (CONTRACT.md §11.2).
+# Modal remains the Glimmer GPU fallback (CONTRACT.md §11.2). ODIN's COSMOS keeps its credentials
+# as ODIN_COSMOS_* variables, and COSMOS reads them under its own OPENC3_ and SECRET_KEY_BASE names (S4).
 SECRET_ENV_VARS = ["META_API_KEY", "BASETEN_API_KEY", "MODAL_ENDPOINT_URL",
-                   "MODAL_PROXY_TOKEN_ID", "MODAL_PROXY_TOKEN_SECRET"]
+                   "MODAL_PROXY_TOKEN_ID", "MODAL_PROXY_TOKEN_SECRET",
+                   r"ODIN_COSMOS_\w*(?:PASSWORD|USERNAME|SECRET_KEY_BASE)", r"OPENC3_\w*PASSWORD", "SECRET_KEY_BASE"]
 SECRET_PATTERNS = [
     ("private key", r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----"),
     ("value written for a secret environment variable",
@@ -265,6 +268,13 @@ def check_no_secrets(root):
                         problems += _secret_findings(text, f"{rel}!{member}")
             except zipfile.BadZipFile:
                 problems.append(f"{rel}: zip cannot be read, so it cannot be scanned")
+            continue
+        if path.suffix.lower() == ".gz":
+            # A scored run's truth file is committed gzip-compressed (the Director's ruling on U36).
+            try:
+                problems += _secret_findings(gzip.decompress(data).decode("latin-1"), f"{rel}!")
+            except (OSError, EOFError):
+                problems.append(f"{rel}: gzip cannot be read, so it cannot be scanned")
             continue
         problems += _secret_findings(data.decode("latin-1"), rel)
     return problems

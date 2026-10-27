@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Truth record",
+  "description": "One line of a run's truth file, runs/<run_id>/truth.jsonl (CONTRACT.md v0.6 §12), which ODIN never reads. The writer stamps record_id, utc, met_s and prev_hash as it does the event log's. What it holds, by the Director's rulings on U35 and U36 (27 October 2026): one TRUE_STATE per tick from the start of the run, the model's values whether or not a frame was generated; one FAULT_ONSET per fault, those the pre-roll passed through included; and one SCRIPTED_COMMAND_DROPPED per command a HUGINN scenario scripts inside one of the run's contact windows. Scored runs commit the file gzip-compressed; development runs keep it plain (U36). This schema lives beside its writer, not in contract/schemas/, because no contract field table defines the truth file.",
+  "type": "object",
+  "required": ["record_id", "utc", "met_s", "type", "body", "prev_hash"],
+  "additionalProperties": false,
+  "properties": {
+    "record_id": {"type": "integer", "minimum": 1},
+    "utc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}(Z|\\+00:00)$"},
+    "met_s": {"$ref": "#/definitions/met_s"},
+    "type": {"enum": ["TRUE_STATE", "FAULT_ONSET", "SCRIPTED_COMMAND_DROPPED"]},
+    "body": {"type": "object"},
+    "prev_hash": {"anyOf": [{"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, {"type": "null"}]}
+  },
+  "allOf": [
+    {"if": {"properties": {"type": {"const": "TRUE_STATE"}}},
+     "then": {"properties": {"body": {"$ref": "#/definitions/true_state"}}}},
+    {"if": {"properties": {"type": {"const": "FAULT_ONSET"}}},
+     "then": {"properties": {"body": {"$ref": "#/definitions/fault_onset"}}}},
+    {"if": {"properties": {"type": {"const": "SCRIPTED_COMMAND_DROPPED"}}},
+     "then": {"properties": {"body": {"$ref": "#/definitions/scripted_command_dropped"}}}}
+  ],
+  "definitions": {
+    "met_s": {"description": "HUGINN's mission elapsed time, in seconds.", "type": "number", "minimum": 0},
+    "true_state": {
+      "description": "The model's state after the tick, read from HUGINN's spacecraft.",
+      "type": "object",
+      "required": ["frame_generated", "downlink", "eps", "cdh", "faults_active"],
+      "additionalProperties": false,
+      "properties": {
+        "frame_generated": {"description": "false while the housekeeping halt is latched.", "type": "boolean"},
+        "downlink": {
+          "description": "What the link did with the frame: SENT, or why COSMOS did not receive it. null when no frame was generated, or when the run has no link, as in the onboard seat.",
+          "enum": ["SENT", "OUT_OF_CONTACT", "RECEIVER_DOWN", "NO_GROUND", null]
+        },
+        "eps": {
+          "type": "object",
+          "required": ["soc_pct", "energy_wh", "battery_v", "battery_i", "bus_v", "load_i", "string_i", "mode",
+                       "illuminated", "payload_on", "pld_rate_hz"],
+          "additionalProperties": false,
+          "properties": {
+            "soc_pct": {"type": "number"},
+            "energy_wh": {"type": "number"},
+            "battery_v": {"type": "number"},
+            "battery_i": {"type": "number"},
+            "bus_v": {"type": "number"},
+            "load_i": {"type": "number"},
+            "string_i": {"type": "array", "items": {"type": "number"}},
+            "mode": {"type": "string"},
+            "illuminated": {"type": "boolean"},
+            "payload_on": {"type": "boolean"},
+            "pld_rate_hz": {"type": "number"}
+          }
+        },
+        "cdh": {
+          "type": "object",
+          "required": ["hk_halted", "frame_count", "acc_count", "rej_count", "rej_reason"],
+          "additionalProperties": false,
+          "properties": {
+            "hk_halted": {"type": "boolean"},
+            "frame_count": {"type": "integer", "minimum": 0},
+            "acc_count": {"type": "integer", "minimum": 0},
+            "rej_count": {"type": "integer", "minimum": 0},
+            "rej_reason": {"type": "string"}
+          }
+        },
+        "faults_active": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "fault_onset": {
+      "type": "object",
+      "required": ["onset_met_s", "fault", "string", "source", "before_start"],
+      "additionalProperties": false,
+      "properties": {
+        "onset_met_s": {"$ref": "#/definitions/met_s"},
+        "fault": {"description": "The fault's name as the scenario file gives it.", "type": "string"},
+        "string": {"description": "The array string, for faults that name one; null otherwise.", "type": ["integer", "null"]},
+        "source": {"const": "SCENARIO"},
+        "before_start": {"description": "true when the onset fell before the run's start, in the pre-roll; the record is then written with the first tick.", "type": "boolean"}
+      }
+    },
+    "scripted_command_dropped": {
+      "type": "object",
+      "required": ["scheduled_met_s", "command", "parameters", "source", "contact_window", "before_start"],
+      "additionalProperties": false,
+      "properties": {
+        "scheduled_met_s": {"$ref": "#/definitions/met_s"},
+        "command": {"type": "string"},
+        "parameters": {"type": "object"},
+        "source": {"const": "SCENARIO"},
+        "contact_window": {
+          "description": "The run's contact window the command fell inside, [aos_met_s, los_met_s).",
+          "type": "object",
+          "required": ["aos_met_s", "los_met_s"],
+          "additionalProperties": false,
+          "properties": {"aos_met_s": {"$ref": "#/definitions/met_s"}, "los_met_s": {"$ref": "#/definitions/met_s"}}
+        },
+        "before_start": {"description": "true when the command fell before the run's start; the record is then written with the first tick.", "type": "boolean"}
+      }
+    }
+  }
+}

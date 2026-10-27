@@ -1,13 +1,14 @@
 """Show the repository tests failing on purpose in the real working tree, then put it back.
 
     python tests/show_red.py          every stage
-    python tests/show_red.py s1       one stage (s0, s1, s2, s3, deposits)
+    python tests/show_red.py s1       one stage (s0, s1, s2, s3, s4, deposits)
 
 For each case: run the real test (it passes), plant one defect, run it again (it must fail),
 restore the tree, confirm the restored bytes, and run it a third time (it passes). Planted
 files are named _red_probe* and are git-ignored. Exits 0 only if every case behaves.
 """
 
+import gzip
 import subprocess
 import sys
 from pathlib import Path
@@ -30,12 +31,16 @@ def change_file(rel, change):
 
 
 def add_file(rel, text):
+    """A planted file holding text, or bytes as they are."""
     path = ROOT / rel
 
     def plant():
         if path.exists():
             sys.exit(f"{rel} already exists; remove it before running this")
-        path.write_text(text, encoding="utf-8")
+        if isinstance(text, bytes):
+            path.write_bytes(text)
+        else:
+            path.write_text(text, encoding="utf-8")
 
     def restore():
         path.unlink(missing_ok=True)
@@ -239,6 +244,80 @@ CASES = {"s0": [
     ("BALDUR-0 answering a refused body before reading it",
      "tests/test_s3_server.py::test_every_refusal_is_answered_though_its_body_is_large",
      change_file("gateway/server.py", replace_once(b"if length.isdigit() else None", b"if False else None"))),
+], "s4": [
+    ("the link hanging up on COSMOS while the ground receiver drops frames",
+     "tests/test_s4_link.py::test_dropping_frames_at_the_receiver_leaves_cosmos_connected",
+     change_file("wrapper/link.py", replace_once(b'outcome = "RECEIVER_DOWN"',
+                                                 b'outcome = "RECEIVER_DOWN"; [c.close() for c in self._clients]'))),
+    ("contact windows closed at LOS, so a frame stamped at LOS goes down",
+     "tests/test_s4_link.py::test_a_window_runs_from_aos_up_to_but_not_including_los",
+     change_file("wrapper/link.py", replace_once(b"aos <= met_s < los for", b"aos <= met_s <= los for"))),
+    ("commands sent out of contact reaching the spacecraft",
+     "tests/test_s4_link.py::test_red_commands_sent_out_of_contact_never_reach_the_spacecraft",
+     change_file("wrapper/link.py", replace_once(b"if commands and not self.in_contact(met_s):", b"if False:"))),
+    ("each read taken as one command, so the second of two commands in one write is lost",
+     "tests/test_s4_link.py::test_two_commands_in_one_write_are_both_received",
+     change_file("wrapper/link.py", replace_once(b"        if length is None:\n", b"        if True:\n"))),
+    ("the onboard tap keeping the model's 64-bit values rather than the bytes COSMOS reads",
+     "tests/test_s4_simulator.py::test_the_onboard_tap_reads_the_values_cosmos_reads",
+     change_file("wrapper/simulator.py", replace_once(b"            self.tap.receive(raw)\n",
+                                                      b"            self.tap._frames.append(dict(frame))\n"))),
+    ("a limit compared at or below rather than below, so EPS_BATT_V at 6.8 reads RED_LOW (U7)",
+     "tests/test_s4_frames.py::test_limit_states_follow_cosmos_rule_from_the_dictionary[EPS_BATT_V=6.8]",
+     change_file("wrapper/frames.py", replace_once(b"if rl is not None and value < rl:", b"if rl is not None and value <= rl:"))),
+    ("real time paced one second per tick, so drift adds up",
+     "tests/test_s4_clock.py::test_real_time_steps_one_tick_per_wall_second_without_drift",
+     change_file("wrapper/clock.py", replace_once(
+         b"gap = wall0 + (self.simulator.spacecraft.t_s - t0) / self.rate - self._wall()",
+         b"gap = 1.0 / self.rate + 0 * (wall0 + t0 + self._wall())"))),
+    ("the simulator running on while ODIN takes a turn",
+     "tests/test_s4_clock.py::test_the_simulator_stays_paused_through_a_turn",
+     change_file("wrapper/clock.py", replace_once(b"while self._paused and not self._stopped:", b"while False:"))),
+    ("a turn's thinking time rounded down, so it costs less simulation time than it took",
+     "tests/test_s4_clock.py::test_a_turn_costs_its_thinking_time_rounded_up_to_whole_ticks[3.2-4]",
+     change_file("wrapper/clock.py", replace_once(b"ticks = math.ceil(", b"ticks = math.floor("))),
+    ("ODIN's COSMOS overlaying HUGINN's ports rather than replacing them, so it would also bind 2910 and 2953",
+     "tests/test_s4_cosmos.py::test_the_merged_project_is_odins_alone",
+     change_file("connector/compose/odin.yaml", replace_once(b"    ports: !override\n", b"    ports:\n"))),
+    ("ODIN's COSMOS settings keeping HUGINN's project name",
+     "tests/test_s4_cosmos.py::test_the_settings_are_huginns_with_the_project_named_odin_and_no_credential",
+     change_file("connector/cosmos.py", replace_once(b"            value = PROJECT\n", b"            value = value\n"))),
+    ("a compose command allowed to remove volumes",
+     "tests/test_s4_cosmos.py::test_red_no_compose_command_can_remove_a_volume[args0]",
+     change_file("connector/cosmos.py", replace_once(b'NEVER = ("-v", "--volumes", "prune", "rm")', b"NEVER = ()"))),
+    ("a file in runs/scored/ holding a COSMOS password",
+     "tests/test_s0_secrets.py::test_repository_has_no_secrets",
+     add_file("runs/scored/_red_probe_cosmos.env", "ODIN_COSMOS_" + "REDIS_PASSWORD=" + "Q7xR2mK9pL4vT8nW" * 2 + "\n")),
+    ("a gzip-compressed truth file in runs/scored/ hiding a COSMOS password",
+     "tests/test_s0_secrets.py::test_repository_has_no_secrets",
+     add_file("runs/scored/_red_probe_truth.jsonl.gz",
+              gzip.compress(("ODIN_COSMOS_" + "REDIS_PASSWORD=" + "Q7xR2mK9pL4vT8nW" * 2 + "\n").encode(), mtime=0))),
+    ("HUGINN's scripted commands kept inside a contact window, so P1's payload ON and rate reach the spacecraft (U35)",
+     "tests/test_s4_simulator.py::test_p1_sees_no_command_at_180_or_240",
+     change_file("wrapper/simulator.py", replace_once(b'if not in_window(int(c["t_s"]), windows)]', b"if True]"))),
+    ("every scripted command dropped, as the draft did, so P3 reaches AOS with its payload OFF (U35)",
+     "tests/test_s4_simulator.py::test_p3_at_aos_reads_payload_on_and_a_1_4_a_load",
+     change_file("wrapper/simulator.py", replace_once(b'if not in_window(int(c["t_s"]), windows)]', b"if False]"))),
+    ("a scripted command dropped at LOS and kept at AOS (U35)",
+     "tests/test_s4_simulator.py::test_a_window_drops_commands_from_aos_up_to_but_not_including_los",
+     change_file("wrapper/link.py", replace_once(b"aos <= met_s < los for", b"aos < met_s <= los for"))),
+    ("a dropped scripted command left out of the truth file (U35)",
+     "tests/test_s4_simulator.py::test_p4s_halt_persists_past_1320_with_no_reset",
+     change_file("wrapper/simulator.py", replace_once(b"                self._command_dropped(command, before_start=False)\n",
+                                                      b"                pass\n"))),
+    ("the truth schema accepting a TRUE_STATE with no eps (U36)",
+     "tests/test_s4_truth.py::test_red_a_record_the_schema_does_not_describe_is_refused[a TRUE_STATE with no eps]",
+     change_file("log/truth_record.schema.json", replace_once(b'"downlink", "eps", "cdh"', b'"downlink", "cdh"'))),
+    ("a compressed truth file carrying its file name, so a run's bytes depend on how it was written (U36)",
+     "tests/test_s4_truth.py::test_the_same_truth_file_always_compresses_to_the_same_bytes",
+     change_file("log/event_log.py", replace_once(b'gzip.GzipFile(filename="",', b'gzip.GzipFile(filename="truth.jsonl",'))),
+    ("ODIN's COSMOS allowed to pull images on up",
+     "tests/test_s4_cosmos.py::test_up_downloads_nothing",
+     change_file("connector/cosmos.py", replace_once(b'compose("up", "-d", "--pull", "never")', b'compose("up", "-d")'))),
+    ("HUGINN's plugin left dialing its default port, HUGINN's own simulator on 7801",
+     "tests/test_s4_cosmos.py::test_the_plugin_is_built_outside_its_read_only_folder_and_dials_the_link",
+     change_file("connector/cosmos.py", replace_once(b"""f'plugin["variables"]["huginn_sim_port"] = "{link_port}"; '""",
+                                                     b"''"))),
 ], "deposits": [
     ("one byte changed in the committed deposit deposits/MC-M1-01.zip",
      "tests/test_deposits.py::test_each_committed_deposit_is_odin_at_its_commit",

@@ -6,17 +6,23 @@ the bodies of POST /log/agent and POST /report, and the writer stamps the record
 hash.
 
 Fault onsets and the simulator's true state go to runs/<run_id>/truth.jsonl instead, through a
-TruthLog. The event log refuses every type §12 does not list, so truth cannot be written into it.
+TruthLog. The event log refuses every type §12 does not list, so truth cannot be written into it. A
+scored run's truth file is committed gzip-compressed, as truth.jsonl.gz; a development run's stays
+plain (the Director's ruling on U36, 27 October 2026).
 """
 
+import gzip
 import json
 from pathlib import Path
 
 from contract.validate import SCHEMA_DIR, check
-from log.chain import ChainWriter, LogError, utc_now, verify_chain
+from log.chain import ChainWriter, LogError, head_file, utc_now, verify_chain, verify_held
 
 EVENTS = "events.jsonl"
 TRUTH = "truth.jsonl"
+TRUTH_COMPRESSED = TRUTH + ".gz"
+
+
 def _types(schema):
     return tuple(json.loads((SCHEMA_DIR / f"{schema}.schema.json").read_text(encoding="utf-8"))
                  ["properties"]["type"]["enum"])
@@ -34,14 +40,9 @@ def check_record(record):
 
 
 def check_truth_record(record):
-    """The truth file's record types and bodies come with the wrapper that writes them (S4). Until
-    then a truth record needs only a named type and an object body."""
-    problems = []
-    if not isinstance(record.get("type"), str) or not record["type"]:
-        problems.append(f"type: {record.get('type')!r} is not a name")
-    if not isinstance(record.get("body"), dict):
-        problems.append("body: not an object")
-    return problems
+    """A record against the truth file's schema, log/truth_record.schema.json: TRUE_STATE, FAULT_ONSET
+    and SCRIPTED_COMMAND_DROPPED, as the wrapper writes them (the Director's rulings on U35 and U36)."""
+    return check("truth_record", record, schema_dir=Path(__file__).resolve().parent)
 
 
 def _named(path, name):
@@ -120,3 +121,32 @@ class TruthLog(_Log):
 def verify_event_log(path, *, expected_head=None):
     """Every way an event log fails: its chain, and each record against the schema."""
     return verify_chain(path, expected_head=expected_head, check=check_record)
+
+
+def compress_truth(path):
+    """A scored run's truth file made ready for its commit: truth.jsonl compressed to truth.jsonl.gz
+    beside it and its head file, truth.head (U36). The gzip header holds no file name or time, so a
+    file always compresses to the same bytes. The plain file is removed only once the compressed one
+    reads back to its bytes, and an existing truth.jsonl.gz is never overwritten."""
+    path = Path(path)
+    _named(path, TRUTH)
+    data = path.read_bytes()
+    packed = path.with_name(TRUTH_COMPRESSED)
+    with open(packed, "xb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as out:
+        out.write(data)
+    if gzip.decompress(packed.read_bytes()) != data:
+        packed.unlink()
+        raise LogError([f"{packed.name} did not read back to the bytes of {path.name}; {path.name} is kept"])
+    path.unlink()
+    return packed
+
+
+def verify_truth(path, *, expected_head=None):
+    """Every way a truth file fails, plain or compressed: its chain, its head file truth.head, and each
+    record against the truth schema."""
+    path = Path(path)
+    if path.name == TRUTH_COMPRESSED:
+        return verify_held(gzip.decompress(path.read_bytes()), head_file(path.with_name(TRUTH)),
+                           expected_head=expected_head, check=check_truth_record)
+    _named(path, TRUTH)
+    return verify_chain(path, expected_head=expected_head, check=check_truth_record)

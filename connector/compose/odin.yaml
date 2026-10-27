@@ -1,0 +1,71 @@
+# ODIN's COSMOS (00_HANDOFF.md §3.4, S4): HUGINN's ground-segment compose file, used unchanged
+# (deps/huginn/gnd/openc3/compose.yaml), with this file over it. Run it only through
+# python -m connector.cosmos, which always names the Compose project odin, so no command reaches the
+# Director's HUGINN install (project huginn) or his training demo (cosmos-project).
+#
+# What differs from HUGINN's own install:
+# - the web ports, 2920 and 2963, beside HUGINN's 2910 and 2953 and the demo's 2900 and 2943;
+# - the settings file, rendered from HUGINN's .env.template with the project named odin and no
+#   credential in it;
+# - the credentials, passed through from the environment connector/cosmos.py runs Compose in;
+# - the Redis ACL, rendered outside the repository from the same credentials;
+# - HUGINN's plugin folder, mounted read-only, so that nothing is ever written into HUGINN.
+# Relative paths are HUGINN's folder, the first compose file's. Named volumes take the project's name
+# (odin_openc3-object-v and the rest), so they are ODIN's own.
+
+x-credentials: &credentials
+  - OPENC3_TSDB_USERNAME
+  - OPENC3_TSDB_PASSWORD
+  - OPENC3_REDIS_USERNAME
+  - OPENC3_REDIS_PASSWORD
+  - OPENC3_BUCKET_USERNAME
+  - OPENC3_BUCKET_PASSWORD
+  - OPENC3_SR_REDIS_USERNAME
+  - OPENC3_SR_REDIS_PASSWORD
+  - OPENC3_SR_BUCKET_USERNAME
+  - OPENC3_SR_BUCKET_PASSWORD
+  - OPENC3_REDIS_ADMIN_PASSWORD
+  - OPENC3_SERVICE_PASSWORD
+  - SECRET_KEY_BASE
+
+services:
+  openc3-traefik:
+    ports: !override
+      - "127.0.0.1:2920:2900"
+      - "127.0.0.1:2963:2943"
+
+  openc3-redis:
+    volumes:
+      - "${ODIN_COSMOS_ACL:?run ODIN's COSMOS through python -m connector.cosmos}:/config/users.acl:ro"
+
+  openc3-redis-ephemeral:
+    volumes:
+      - "${ODIN_COSMOS_ACL:?run ODIN's COSMOS through python -m connector.cosmos}:/config/users.acl:ro"
+
+  openc3-cosmos-cmd-tlm-api:
+    env_file: !override
+      - "${ODIN_COSMOS_SETTINGS:?run ODIN's COSMOS through python -m connector.cosmos}"
+    environment: *credentials
+    volumes:
+      - "./plugins:/plugins:ro"
+
+  openc3-cosmos-script-runner-api:
+    env_file: !override
+      - "${ODIN_COSMOS_SETTINGS:?run ODIN's COSMOS through python -m connector.cosmos}"
+    environment: *credentials
+    volumes:
+      - "./plugins:/plugins:ro"
+
+  openc3-operator:
+    env_file: !override
+      - "${ODIN_COSMOS_SETTINGS:?run ODIN's COSMOS through python -m connector.cosmos}"
+    environment: *credentials
+    volumes:
+      - "./plugins:/plugins:ro"
+
+  openc3-cosmos-init:
+    env_file: !override
+      - "${ODIN_COSMOS_SETTINGS:?run ODIN's COSMOS through python -m connector.cosmos}"
+    environment: *credentials
+    volumes:
+      - "./plugins:/plugins:ro"

@@ -2,5 +2,7 @@
 pytest>=8
 PyYAML>=6
 jsonschema>=3.2
+# HUGINN's simulator, which the wrapper runs, at HUGINN's own pin (deps/huginn/requirements.txt)
+sgp4==2.27
 # ODIN's own requirements, so each deposit's tests in odin/tests run too
 -r odin/requirements.txt
