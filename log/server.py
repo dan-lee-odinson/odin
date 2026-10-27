@@ -29,12 +29,18 @@ def make_server(event_log, address=None):
 
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
+            # The body is read before any reply, a refusal included: a reply sent while the request is
+            # still unread can reach the client as a reset connection instead, as it does on Windows.
+            length = self.headers.get("Content-Length", "")
+            data = self.rfile.read(int(length)) if length.isdigit() else None
             submit = routes.get(self.path)
             if submit is None:
                 self._reply(404, {"problems": [f"no endpoint {self.path}; the log takes /log/agent and /report"]})
                 return
             try:
-                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", ""))))
+                if data is None:
+                    raise ValueError(f"Content-Length is {length!r}, not a length")
+                body = json.loads(data)
             except ValueError as error:
                 self._reply(400, {"problems": [f"the body is not one JSON value ({error})"]})
                 return

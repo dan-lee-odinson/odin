@@ -83,3 +83,13 @@ def test_red_an_unknown_endpoint_writes_nothing(served):
     status, reply = post(base + "/log/system", {"type": "DECISION", "body": {}})
     assert status == 404 and reply["problems"]
     assert log.path.read_bytes() == b""
+
+
+def test_every_refusal_is_answered_though_its_body_is_large(served):
+    # A reply sent before the body is read can reach the client as a reset connection instead. On
+    # Windows, with a body this size, the server that did so lost 42 of 50 replies.
+    log, base = served
+    body = b"x" * 4_000_000
+    for _ in range(50):
+        assert post(base + "/log/system", body)[0] == 404
+    assert log.path.read_bytes() == b""
