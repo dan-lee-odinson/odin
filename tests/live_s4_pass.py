@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from connector.cosmos import EXTERNAL_URL, credentials  # noqa: E402
+from connector.cosmos import API_URL, credentials  # noqa: E402
 from log.event_log import TruthLog, verify_truth  # noqa: E402
 from wrapper.clock import RunClock  # noqa: E402
 from wrapper.huginn import load_scenario  # noqa: E402
@@ -46,7 +46,7 @@ class Cosmos:
     def call(self, method, *params):
         body = json.dumps({"jsonrpc": "2.0", "method": method, "params": list(params), "id": next(_ids),
                            "keyword_params": {"scope": "DEFAULT"}}).encode("utf-8")
-        request = urllib.request.Request(f"{EXTERNAL_URL}/openc3-api/api", data=body, headers={
+        request = urllib.request.Request(f"{API_URL}/openc3-api/api", data=body, headers={
             "Content-Type": "application/json-rpc", "Authorization": self._password})
         with urllib.request.urlopen(request, timeout=10) as reply:
             answer = json.loads(reply.read())

@@ -322,6 +322,10 @@ CASES = {"s0": [
      "tests/test_s4_cosmos.py::test_the_plugin_is_loaded_with_local_mode_off_so_nothing_is_copied_into_huginns_folder",
      change_file("connector/cosmos.py",
                  replace_once(b'"env", "-u", "OPENC3_LOCAL_MODE",\n                    ', b""))),
+    ("ODIN's code calling COSMOS's API on localhost, so each call waits 2 s for ::1 to be refused",
+     "tests/test_s4_cosmos.py::test_odins_code_calls_cosmos_on_the_address_it_is_published_on",
+     change_file("connector/cosmos.py", replace_once(b'API_URL = f"http://127.0.0.1:{WEB_PORTS[0]}"',
+                                                     b'API_URL = f"http://localhost:{WEB_PORTS[0]}"'))),
 ], "inputs": [
     ("PASS-3's plan with its acquisition a second late, so its window is not one the U35 tests use",
      "tests/test_inputs_plans_acts.py::test_each_plans_contact_window_is_one_the_u35_tests_use[TYR0-P2-PASS3-v1]",

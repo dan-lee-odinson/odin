@@ -3,7 +3,9 @@ holds, on OpenC3 COSMOS 7.2.1 as HUGINN pins it, with HUGINN's files read and ne
 command that could remove a volume. Nothing here needs Docker running; the merge test needs only the
 docker CLI."""
 
+import io
 import json
+import re
 import shutil
 import subprocess
 
@@ -127,6 +129,22 @@ def test_the_plugin_is_built_outside_its_read_only_folder_and_dials_the_link():
 def test_the_plugin_is_loaded_with_local_mode_off_so_nothing_is_copied_into_huginns_folder():
     load = cosmos.plugin_commands()[-1]
     assert load[load.index("exec") + 3:][:4] == ["env", "-u", "OPENC3_LOCAL_MODE", "ruby"]
+
+
+def test_odins_code_calls_cosmos_on_the_address_it_is_published_on(monkeypatch):
+    from tests import live_s4_pass
+    published = re.findall(r'"([0-9.]+):2920:2900"', cosmos.COMPOSE_FILES[1].read_text(encoding="utf-8"))
+    assert published == ["127.0.0.1"] and cosmos.API_URL == "http://127.0.0.1:2920"
+    seen = []
+
+    def urlopen(request, timeout):
+        seen.append(request.full_url)
+        return io.BytesIO(b'{"jsonrpc": "2.0", "result": 409, "id": 1}')
+
+    monkeypatch.setattr(live_s4_pass, "credentials", lambda: DUMMY)
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    assert live_s4_pass.Cosmos().tlm("CDH_MET") == 409
+    assert seen == ["http://127.0.0.1:2920/openc3-api/api"]
 
 
 @pytest.mark.skipif(shutil.which("docker") is None, reason="docker CLI not on PATH")

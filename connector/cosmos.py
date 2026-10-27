@@ -37,6 +37,10 @@ SETTINGS_TEMPLATE = GROUND / ".env.template"
 ACL_TEMPLATE = GROUND / "openc3-redis" / "users.acl.template"
 WEB_PORTS = (2920, 2963)
 EXTERNAL_URL = f"http://localhost:{WEB_PORTS[0]}"
+# Where ODIN's code calls COSMOS's API: the address odin.yaml publishes it on, 127.0.0.1 alone. "localhost"
+# names ::1 first, and on Windows each call then waits 2 s for that connection to be refused (found in
+# S4's live pass, 27 October 2026). EXTERNAL_URL stays COSMOS's own setting, for browsers.
+API_URL = f"http://127.0.0.1:{WEB_PORTS[0]}"
 NEVER = ("-v", "--volumes", "prune", "rm")
 
 # COSMOS's credential settings, as its services read them. Each is kept under an ODIN_COSMOS_ name, never
