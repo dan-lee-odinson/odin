@@ -1,7 +1,7 @@
 """Show the repository tests failing on purpose in the real working tree, then put it back.
 
     python tests/show_red.py          every stage
-    python tests/show_red.py s1       one stage
+    python tests/show_red.py s1       one stage (s0, s1, s2, deposits)
 
 For each case: run the real test (it passes), plant one defect, run it again (it must fail),
 restore the tree, confirm the restored bytes, and run it a third time (it passes). Planted
@@ -158,6 +158,11 @@ CASES = {"s0": [
     ("a Python file in gateway/ that opens a run's truth file",
      "tests/test_s2_truth_guard.py::test_only_the_writers_and_eval_name_the_truth_file",
      add_file("gateway/_red_probe_truth.py", 'open("runs/dev-run-0001/' + "truth" + '.jsonl")\n')),
+], "deposits": [
+    ("one byte changed in the committed deposit deposits/MC-M1-01.zip",
+     "tests/test_deposits.py::test_each_committed_deposit_is_odin_at_its_commit",
+     change_file("deposits/MC-M1-01.zip", lambda data: data[:len(data) // 2] + bytes([data[len(data) // 2] ^ 0x01])
+                 + data[len(data) // 2 + 1:])),
 ]}
 
 

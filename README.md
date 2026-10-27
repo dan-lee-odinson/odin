@@ -13,9 +13,10 @@ Everything in this table is new, written from 26 October 2026 on. Rows are added
 | What | Where | Built by |
 |---|---|---|
 | Repository skeleton: folder layout, configuration, keys, licenses | repository root, `config/`, `keys/` | Claude Code |
-| Repository tests: contract and rules hashes, signer fingerprint, HUGINN guard, secret scan, schema conformance, no unsettled schema field, canonical JSON vectors, event log chain and head file, the log's endpoints, truth file kept apart | `tests/` | Claude Code |
+| Repository tests: contract and rules hashes, signer fingerprint, HUGINN guard, secret scan, schema conformance, no unsettled schema field, canonical JSON vectors, event log chain and head file, the log's endpoints, truth file kept apart, each Muse Code deposit committed as deposited | `tests/` | Claude Code |
 | Contract schemas: JSON Schema for the records and messages of the contract's §4–§9 and §16 and Addendum A-1, with examples, and the code that checks documents against them | `contract/` | Claude Code |
 | Event log: each run's append-only, hash-chained record with its head file, its chain check, canonical JSON, the log's two HTTP endpoints, and the truth file kept apart | `log/` | Claude Code |
+| ODIN's turn loop, answer check, input saving, request signing, model adapters, and a fake harness and fake BALDUR-0 for testing (milestone M1, deposit `MC-M1-01.zip`) | `odin/`, `keys/odin.pub` | Muse Code |
 
 ## Existed before
 
