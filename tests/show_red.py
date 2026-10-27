@@ -318,6 +318,10 @@ CASES = {"s0": [
      "tests/test_s4_cosmos.py::test_the_plugin_is_built_outside_its_read_only_folder_and_dials_the_link",
      change_file("connector/cosmos.py", replace_once(b"""f'plugin["variables"]["huginn_sim_port"] = "{link_port}"; '""",
                                                      b"''"))),
+    ("the plugin loaded with local mode on, so COSMOS copies it into HUGINN's read-only folder",
+     "tests/test_s4_cosmos.py::test_the_plugin_is_loaded_with_local_mode_off_so_nothing_is_copied_into_huginns_folder",
+     change_file("connector/cosmos.py",
+                 replace_once(b'"env", "-u", "OPENC3_LOCAL_MODE",\n                    ', b""))),
 ], "inputs": [
     ("PASS-3's plan with its acquisition a second late, so its window is not one the U35 tests use",
      "tests/test_inputs_plans_acts.py::test_each_plans_contact_window_is_one_the_u35_tests_use[TYR0-P2-PASS3-v1]",

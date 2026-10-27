@@ -124,6 +124,11 @@ def test_the_plugin_is_built_outside_its_read_only_folder_and_dials_the_link():
     assert "7801" not in " ".join(build + variables + load)
 
 
+def test_the_plugin_is_loaded_with_local_mode_off_so_nothing_is_copied_into_huginns_folder():
+    load = cosmos.plugin_commands()[-1]
+    assert load[load.index("exec") + 3:][:4] == ["env", "-u", "OPENC3_LOCAL_MODE", "ruby"]
+
+
 @pytest.mark.skipif(shutil.which("docker") is None, reason="docker CLI not on PATH")
 def test_the_merged_project_is_odins_alone(tmp_path):
     (tmp_path / "settings.env").write_text(settings(), encoding="utf-8")

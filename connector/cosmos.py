@@ -228,7 +228,12 @@ def plugin_gem():
 def plugin_commands(link_port=None):
     """Build HUGINN's plugin from its read-only folder into the container's /tmp, then load it with
     huginn_sim_port set to the link's port, so that HUGINN_INT dials the link and never HUGINN's own
-    simulator on 7801. The plugin's other variables keep plugin.txt's defaults."""
+    simulator on 7801. The plugin's other variables keep plugin.txt's defaults.
+
+    The load runs with OPENC3_LOCAL_MODE unset. HUGINN's settings turn local mode on, and after an install
+    it copies the plugin into /plugins/DEFAULT, which here is HUGINN's folder, read-only: the copy fails
+    and the load exits 1 (found in S4's live pass, 27 October 2026). Without it the plugin is kept in
+    ODIN's COSMOS's own volumes, as any plugin installed from the Admin tool is."""
     link_port = link_port or link_address()[1]
     gem, run_in_api = plugin_gem(), ("exec", "-T", API_SERVICE)
     variables = (f'require "json"; require "openc3"; require "openc3/models/plugin_model"; '
@@ -237,7 +242,8 @@ def plugin_commands(link_port=None):
                  f'File.write("{PLUGIN_HASH}", JSON.generate(plugin))')
     return [compose(*run_in_api, "sh", "-c", f"cd {PLUGIN_FOLDER} && gem build openc3-cosmos-huginn.gemspec -o {gem}"),
             compose(*run_in_api, "ruby", "-e", variables),
-            compose(*run_in_api, "ruby", "/openc3/bin/openc3cli", "load", gem, "DEFAULT", PLUGIN_HASH)]
+            compose(*run_in_api, "env", "-u", "OPENC3_LOCAL_MODE",
+                    "ruby", "/openc3/bin/openc3cli", "load", gem, "DEFAULT", PLUGIN_HASH)]
 
 
 def install_plugin():
