@@ -4,6 +4,7 @@ The last tests send requests with ODIN's own loop code, signing and transport bo
 
 import json
 import threading
+import time
 
 import pytest
 
@@ -28,6 +29,33 @@ def served(tmp_path):
     server.server_close()
 
 
+def after_reply(replies, timeout=5.0):
+    """What after_request was given. It runs once the reply has been sent, so a client can hold the reply
+    before it has run."""
+    deadline = time.monotonic() + timeout
+    while not replies and time.monotonic() < deadline:
+        time.sleep(0.01)
+    return replies
+
+
+def test_after_request_runs_only_once_the_reply_is_sent(tmp_path):
+    world = World(tmp_path)
+    assert world.start()
+    release, replies = threading.Event(), []
+    server = make_server(world.gateway, ("127.0.0.1", 0),
+                         after_request=lambda record: release.wait(5) and replies.append(record))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        status, record = post(f"http://127.0.0.1:{server.server_address[1]}/request",
+                              world.request("CMD_SAFE_ENTER", {}))
+        assert status == 200 and replies == []   # the client has the reply; the hook has not run
+        release.set()
+        assert after_reply(replies) == [record]
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_baldur0_listens_where_config_ports_yaml_says():
     assert baldur0_address() == ("127.0.0.1", 8711)
     assert (REPO_ROOT / "config" / "ports.yaml").read_text(encoding="utf-8").count("baldur0: 8711") == 1
@@ -39,14 +67,14 @@ def test_an_allowed_request_is_answered_with_its_decision_record(served):
     assert status == 200 and record["decision"] == "ALLOW"
     assert check("decision_record", record) == []
     assert world.bodies("DECISION") == [record]
-    assert replies == [record]
+    assert after_reply(replies) == [record]
 
 
 def test_a_refused_request_is_answered_with_its_decision_record_too(served):
     world, base, replies = served
     status, record = post(base + "/request", world.request("CMD_PLD_SET_RATE", {"rate": 1.0}))
     assert status == 200 and record["decision"] == "REFUSE"
-    assert replies == [record]
+    assert after_reply(replies) == [record]
 
 
 BAD_BODIES = {
