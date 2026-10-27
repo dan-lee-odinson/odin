@@ -1,0 +1,7 @@
+{
+  "turn_id": 3,
+  "turn_kind": "ACT",
+  "report_kind": null,
+  "triggers": [{"type": "PERIODIC", "met_s": 596, "detail": {}}],
+  "bundle_sha256": "sha256:97b9abe339a4a8d65af67a0b81a35400234f26012596b26fa1ca541d04b201dc"
+}

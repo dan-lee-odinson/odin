@@ -1,6 +1,6 @@
 # Contract schemas
 
-JSON Schema (Draft 7) for the records and messages of `CONTRACT.md` v0.6 §4–§9, settled in its §16, plus Addendum A-1's check-in. These files are the single source for the fields; the contract points to them (its preamble).
+JSON Schema (Draft 7) for the records and messages of `CONTRACT.md` v0.6 §4–§9 and §12, settled in its §16, plus Addendum A-1's check-in. These files are the single source for the fields; the contract points to them (its preamble).
 
 | Schema | What it checks | Contract |
 |---|---|---|
@@ -18,7 +18,7 @@ JSON Schema (Draft 7) for the records and messages of `CONTRACT.md` v0.6 §4–�
 | `escalation.schema.json` | The body of `POST /escalation` | §8.2, §16.5 |
 | `escalation_reply.schema.json` | `POST /escalation`'s reply | §8.2, §16.5 |
 | `report.schema.json` | A report to `POST /report` | §7.5, §8.3, §16.3 |
-| `log_agent.schema.json` | The body of `POST /log/agent`: one of ODIN's records, as `{type, body}` | §8.3, §12 |
+| `log_agent.schema.json` | The body of `POST /log/agent`: one of ODIN's seven record types, as `{type, body}` | §8.3, §12, U21 |
 | `agent_input.schema.json` | ODIN's `AGENT_INPUT` record | §6.3, §16.5 |
 | `model_call.schema.json` | ODIN's `MODEL_CALL` record | §11, §16.5 |
 | `candidate.schema.json` | ODIN's `CANDIDATE` record | §8.3, §16.5 |
@@ -32,8 +32,22 @@ JSON Schema (Draft 7) for the records and messages of `CONTRACT.md` v0.6 §4–�
 | `history_reply.schema.json` | `GET /history`'s reply | §8.1, §16.5 |
 | `tool_use.schema.json` | The harness's `TOOL_USE` record | §12, §16.5 |
 | `checkin.schema.json` | The check-in to `POST /checkin` | A-1 |
+| `log_record.schema.json` | One line of a run's event log, `runs/<run_id>/events.jsonl` | §12 |
+| `run_start.schema.json` | The harness's `RUN_START` record | §10.2, §12, U21 |
+| `plan_chain_verified.schema.json` | BALDUR-0's `PLAN_CHAIN_VERIFIED` record | §5.3, §12, U21 |
+| `arming_verified.schema.json` | BALDUR-0's `ARMING_VERIFIED` record | §5.4, §12, U21 |
+| `plan_in_force.schema.json` | BALDUR-0's `PLAN_IN_FORCE` record | §5.1, §12, U21 |
+| `contact.schema.json` | The harness's `CONTACT` record | §6.1, §12, U21 |
+| `trigger_record.schema.json` | The harness's `TRIGGER` record, with the hash of the bundle it served | §6.1, §12, U21 |
+| `revoke.schema.json` | The harness's `REVOKE` record | §9.4, §12, U21 |
+| `restore_record.schema.json` | BALDUR-0's `RESTORE` record | §9.4, §12, U21 |
+| `spend.schema.json` | ODIN's `SPEND` record | §11.3, §12, U21 |
+| `spend_stop.schema.json` | ODIN's `SPEND_STOP` record | §11.3, §12, U21 |
+| `run_end.schema.json` | The harness's `RUN_END` record | §12, U21 |
+| `log_reply.schema.json` | `POST /log/agent`'s and `POST /report`'s reply when the record is written (HTTP 200) | §8.3, U24 |
+| `log_refusal.schema.json` | Their reply when it is refused (HTTP 400) | §8.3, U24 |
 
-References between schemas are relative file references, such as `common.schema.json#/definitions/utc`. Load the folder as a whole.
+References between schemas are relative file references, such as `common.schema.json#/definitions/utc`. Load the folder as a whole, as `contract/validate.py` does.
 
 Point names, units, value types and limit states, and the commands with their arguments, are those of HUGINN's pinned dictionary, `deps/huginn/defs/tlm_cmd.yaml` at commit `b4dbe61`. A repository test fails if the two drift apart.
 
@@ -41,6 +55,8 @@ Point names, units, value types and limit states, and the commands with their ar
 
 **UNSETTLED.** A description containing `UNSETTLED (Un)` marks a field the contract names without settling its type or shape. Such a field accepts more than it should until the Director rules, and `tests/test_s1_settled.py` fails while any marker remains.
 
-**Not here.** The event log's own record format (§12) comes with stage S2. The contract gives no reply body for `POST /report`, `POST /log/agent` or `POST /checkin`, so none is defined here.
+**Canonical JSON.** `canonical_vectors.json` holds values with their exact canonical bytes (§4, as the Director ruled on U22) and the SHA-256 of those bytes. Every canonical JSON writer in the build, ODIN's request signer included, must reproduce every vector.
+
+**Not here.** The contract gives no reply body for `POST /checkin`, so none is defined here.
 
 `examples/` holds the good examples. The bad ones are in `tests/test_s1_schemas.py`.

@@ -1,12 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ODIN's log submission",
-  "description": "The body of POST /log/agent: one of ODIN's own records, as its type and body (CONTRACT.md v0.6 §8.3, §12). The log writer stamps the record ID, time and chain hash; ODIN submits records and never writes the log.",
+  "description": "The body of POST /log/agent: one of ODIN's own records, as its type and body (CONTRACT.md v0.6 §8.3, §12). ODIN submits seven types: its five turn records, and the spend meter's SPEND and SPEND_STOP (the Director's ruling on U21, 26 October 2026). The log writer stamps the record ID, time and chain hash; ODIN submits records and never writes the log. The reply is log_reply.schema.json or log_refusal.schema.json.",
   "type": "object",
   "required": ["type", "body"],
   "additionalProperties": false,
   "properties": {
-    "type": {"enum": ["AGENT_INPUT", "MODEL_CALL", "CANDIDATE", "ANSWER", "MALFORMED"]},
+    "type": {"enum": ["AGENT_INPUT", "MODEL_CALL", "CANDIDATE", "ANSWER", "MALFORMED", "SPEND", "SPEND_STOP"]},
     "body": {"type": "object"}
   },
   "allOf": [
@@ -19,6 +19,10 @@
     {"if": {"required": ["type"], "properties": {"type": {"const": "ANSWER"}}},
      "then": {"properties": {"body": {"$ref": "answer_record.schema.json"}}}},
     {"if": {"required": ["type"], "properties": {"type": {"const": "MALFORMED"}}},
-     "then": {"properties": {"body": {"$ref": "malformed.schema.json"}}}}
+     "then": {"properties": {"body": {"$ref": "malformed.schema.json"}}}},
+    {"if": {"required": ["type"], "properties": {"type": {"const": "SPEND"}}},
+     "then": {"properties": {"body": {"$ref": "spend.schema.json"}}}},
+    {"if": {"required": ["type"], "properties": {"type": {"const": "SPEND_STOP"}}},
+     "then": {"properties": {"body": {"$ref": "spend_stop.schema.json"}}}}
   ]
 }

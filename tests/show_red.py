@@ -58,6 +58,24 @@ def replace_once(old, new):
     return change
 
 
+def flip_one_byte_in_line(index):
+    """Change one byte in the middle of a JSON Lines file's line (counting from 0)."""
+    def change(data):
+        lines = data.split(b"\n")
+        line = bytearray(lines[index])
+        line[len(line) // 2] ^= 0x01
+        lines[index] = bytes(line)
+        return b"\n".join(lines)
+    return change
+
+
+def drop_line(index):
+    def change(data):
+        lines = data.split(b"\n")
+        return b"\n".join(lines[:index] + lines[index + 1:])
+    return change
+
+
 # The planted text is assembled from pieces so that this file does not trip the scans.
 CASES = {"s0": [
     ("CONTRACT.md with one byte appended",
@@ -116,6 +134,30 @@ CASES = {"s0": [
      change_file("contract/schemas/model_call.schema.json",
                  replace_once(b'2026).",\n      "$ref": "common.schema.json#/definitions/count_from_1"',
                               b'2026).",\n      "type": "integer", "minimum": 0'))),
+], "s2": [
+    ("one byte changed in the middle of the example log's REQUEST record",
+     "tests/test_s2_event_log.py::test_example_log_verifies",
+     change_file("log/examples/events.jsonl", flip_one_byte_in_line(6))),
+    ("the example log's REQUEST record deleted",
+     "tests/test_s2_event_log.py::test_example_log_verifies",
+     change_file("log/examples/events.jsonl", drop_line(6))),
+    ("the last record's met_s changed, which only the head file can catch (U23)",
+     "tests/test_s2_event_log.py::test_example_log_verifies",
+     change_file("log/examples/events.jsonl", replace_once(b'"met_s":604,"prev_hash"', b'"met_s":605,"prev_hash"'))),
+    ("the example log's head file holding another hash (U23)",
+     "tests/test_s2_event_log.py::test_example_log_verifies",
+     change_file("log/examples/events.head", lambda data: b"sha256:" + b"0" * 64 + b"\n")),
+    ("one hex digit changed in the canonical vector for negative zero (U22)",
+     "tests/test_s2_canonical.py::test_canonical_json_reproduces_every_vector",
+     change_file("contract/schemas/canonical_vectors.json",
+                 replace_once(b'"canonical_hex": "2d302e30"', b'"canonical_hex": "2d302e31"'))),
+    ("the log server answering a refused record with 200 (U24)",
+     "tests/test_s2_server.py::test_red_a_refused_submission_gets_400_and_writes_nothing[a decision on /log/agent]",
+     change_file("log/server.py", replace_once(b'self._reply(400, {"problems": refusal.problems})',
+                                               b'self._reply(200, {"problems": refusal.problems})'))),
+    ("a Python file in gateway/ that opens a run's truth file",
+     "tests/test_s2_truth_guard.py::test_only_the_writers_and_eval_name_the_truth_file",
+     add_file("gateway/_red_probe_truth.py", 'open("runs/dev-run-0001/' + "truth" + '.jsonl")\n')),
 ]}
 
 

@@ -1,0 +1,16 @@
+{
+  "run_id": "dev-run-0001",
+  "scenario_id": "DEV-S01",
+  "phase": 2,
+  "mode": "DEVELOPMENT",
+  "seed": 1,
+  "model_config": "spark",
+  "provider": "Meta Model API, Standard mode",
+  "model_id": "muse-spark-1.3",
+  "reasoning_effort": "medium",
+  "answer_method": "STRUCTURED_OUTPUT",
+  "config_sha256": "sha256:53af1538c69ae5ab8a127b5cc3f346b9c4d3665b6487b4cf8114a5a146f4b4df",
+  "prompt_template_sha256": "sha256:ea966d0fd6f0ff567fe36a4cd943bf3199e89b4cb5603760a3bb1f207da7ee90",
+  "plan_chain_sha256": "sha256:d75d24be28a658b069fd0df43e9778785755541b90b31b312cebf7cb0c082a7b",
+  "reference_sha256": "sha256:9159bf99fe60896830132fc452d307736239b0b9f3713fee475f571d7459bd05"
+}

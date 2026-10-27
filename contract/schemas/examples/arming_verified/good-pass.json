@@ -1,0 +1,8 @@
+{
+  "result": "PASS",
+  "act_id": "ARM-DEV-01",
+  "sha256": "sha256:706fd0202734cba9d34dcfdb5fd75ae7e2624b1ed67c69068de794de1c1db2fe",
+  "rung": "AI_AUTONOMOUS",
+  "reason": null,
+  "detail": null
+}

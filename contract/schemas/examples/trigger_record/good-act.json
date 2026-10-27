@@ -1,0 +1,14 @@
+{
+  "turn_id": 4,
+  "turn_kind": "ACT",
+  "report_kind": null,
+  "triggers": [
+    {
+      "type": "DECISION",
+      "met_s": 603,
+      "detail": {"request_id": "3f2b8c1e-9a4d-4f6b-8e2a-7c5d1b0e9f34", "decision": "ALLOW"}
+    },
+    {"type": "OUTCOME", "met_s": 604, "detail": {"request_id": "3f2b8c1e-9a4d-4f6b-8e2a-7c5d1b0e9f34"}}
+  ],
+  "bundle_sha256": "sha256:3b159be9bfe2bf65e71c910cf2a8ace24dc88e9343dea1e8f8d90a411d978a96"
+}

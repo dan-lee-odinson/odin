@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Arming verified",
+  "description": "BALDUR-0's ARMING_VERIFIED record: the verification of the arming act that covers the run, before it starts (CONTRACT.md v0.6 §5.4, §12; the Director's ruling on U21, 26 October 2026). Without a valid act, ODIN's rung is HUMAN_ONLY and the run does not start. Fields with no subject are null (§16 U15).",
+  "type": "object",
+  "required": ["result", "act_id", "sha256", "rung", "reason", "detail"],
+  "additionalProperties": false,
+  "properties": {
+    "result": {"enum": ["PASS", "FAIL"]},
+    "act_id": {"anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]},
+    "sha256": {
+      "description": "The act file's exact signed bytes.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]
+    },
+    "rung": {
+      "description": "The rung the act sets.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/rung"}, {"type": "null"}]
+    },
+    "reason": {
+      "description": "Null when the act passes. PLAN_NOT_LISTED: a plan of the run's chain is not in the act's plan_chain_hashes (§16.2 U18).",
+      "enum": [null, "UNSIGNED", "BAD_SIGNATURE", "EXPIRED", "RUN_NOT_COVERED", "PLAN_NOT_LISTED", "SCHEMA_VIOLATION"]
+    },
+    "detail": {"type": ["string", "null"]}
+  },
+  "if": {"required": ["result"], "properties": {"result": {"const": "PASS"}}},
+  "then": {
+    "properties": {
+      "reason": {"type": "null"},
+      "act_id": {"$ref": "common.schema.json#/definitions/identifier"},
+      "sha256": {"$ref": "common.schema.json#/definitions/sha256"},
+      "rung": {"$ref": "arming_act.schema.json#/properties/rung"}
+    }
+  },
+  "else": {"properties": {"reason": {"type": "string"}}}
+}

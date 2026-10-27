@@ -1,0 +1,9 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Log reply",
+  "description": "The reply of POST /log/agent and POST /report when the record is written: HTTP 200 with its record ID (CONTRACT.md v0.6 §8.3; the Director's ruling on U24, 26 October 2026).",
+  "type": "object",
+  "required": ["record_id"],
+  "additionalProperties": false,
+  "properties": {"record_id": {"$ref": "common.schema.json#/definitions/count_from_1"}}
+}

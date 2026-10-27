@@ -1,4 +1,5 @@
-# A made-up development arming act, for schema conformance only. The plan hashes are made up.
+# A made-up development arming act, for schema conformance only. Its plan hashes are those of
+# the two example plans, tyr0_plan/good-plan.yaml and tyr0_plan/good-plan-pass2.yaml, in chain order.
 act_id: ARM-DEV-01
 kind: ARM
 rung: AI_AUTONOMOUS
@@ -6,6 +7,6 @@ runs:
   - dev-run-0001
   - dev-run-0002
 plan_chain_hashes:
-  - sha256:c026a88203408eeec3015b97a40e6f7e1d5ed4e10bdd7c050a75ab956cf952b5
-  - sha256:f8bf6f5a72752b559b7d975bab27c46513a13bebe48435718e78029750fa9d71
+  - sha256:672b5cfb091939df30886445d8b16a08f59b4f081e9f58e1f39ab9e02e05e3c1
+  - sha256:c381e593694fa6984bf78a7b49c2c99fd0881876e42a30202e56fe81e61b6560
 expires_utc: "2026-11-04T23:59:59.000Z"

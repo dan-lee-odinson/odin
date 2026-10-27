@@ -1,0 +1,7 @@
+{
+  "turn_id": 5,
+  "turn_kind": "REPORT",
+  "report_kind": "CHECK_IN",
+  "triggers": [{"type": "CHECK_IN", "met_s": 658, "detail": {}}],
+  "bundle_sha256": "sha256:f08fa878d60cbfc0992566795f56c61e01345b6386c3ccdb133060bd6f2d1c04"
+}

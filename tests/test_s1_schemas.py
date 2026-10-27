@@ -122,6 +122,22 @@ HISTORY = "history_reply/good-history.json"
 TOOL_USE = "tool_use/good-history.json"
 DOCS_USE = "tool_use/good-docs-lookup.json"
 CHECKIN = "checkin/good-recorded.json"
+FIRST = "log_record/good-first-record.json"
+LOGGED = "log_record/good-decision.json"
+RUN_SPARK = "run_start/good-spark.json"
+RUN_STAND_IN = "run_start/good-stand-in.json"
+CHAIN_PASS = "plan_chain_verified/good-pass.json"
+CHAIN_UNSIGNED = "plan_chain_verified/good-unsigned.json"
+ARMED = "arming_verified/good-pass.json"
+EXPIRED = "arming_verified/good-expired.json"
+IN_FORCE = "plan_in_force/good-in-force.json"
+LEFT_CHAIN = "plan_in_force/good-left-chain.json"
+TRIGGER = "trigger_record/good-act.json"
+TRIGGER_CHECK_IN = "trigger_record/good-check-in.json"
+RESTORED = "restore_record/good-accepted.json"
+RESTORE_REFUSED = "restore_record/good-already-used.json"
+SPEND = "spend/good-after-call.json"
+SPEND_STOP = "spend_stop/good-baseten.json"
 
 UUID1 = str(uuid.UUID("3f2b8c1e-9a4d-1f6b-8e2a-7c5d1b0e9f34"))
 BARE_HEX = "4e086337f7dfd018dde67cf48b14feb8390b59d741d0c2c4c90bd96dfa0cae1e"
@@ -434,6 +450,80 @@ BAD = [
     ("tool_use", "a history argument the call does not take", TOOL_USE, setting("arguments", "q", to="battery")),
     ("tool_use", "a docs lookup without q", DOCS_USE, dropping("arguments", "q")),
     ("tool_use", "a docs lookup recorded as the history call", DOCS_USE, setting("tool", to="history")),
+    # §12: the event log record (S2)
+    ("log_record", "record_id 0", FIRST, setting("record_id", to=0)),
+    ("log_record", "the first record with a prev_hash", FIRST, setting("prev_hash", to=SHA)),
+    ("log_record", "a later record with no prev_hash", LOGGED, setting("prev_hash", to=None)),
+    ("log_record", "a prev_hash without sha256:", LOGGED, setting("prev_hash", to=BARE_HEX)),
+    ("log_record", "a type §12 does not list", LOGGED, setting("type", to="FAULT_ONSET")),
+    ("log_record", "a field §12 does not list", LOGGED, setting("writer", to="BALDUR-0")),
+    ("log_record", "a body that does not fit its type", LOGGED, setting("type", to="DISPATCH")),
+    ("log_record", "a trigger whose body is missing its bundle hash", FIRST, dropping("body", "bundle_sha256")),
+    ("log_record", "a decision whose checks are wrong", LOGGED, setting("body", "checks", 5, "result", to="FAIL")),
+    ("log_record", "met_s missing", LOGGED, dropping("met_s")),
+    ("log_record", "utc without milliseconds", LOGGED, setting("utc", to="2026-10-28T14:10:03Z")),
+    ("log_record", "a body that is not an object", LOGGED, setting("body", to="ALLOW")),
+    ("log_record", "a trigger whose bundle hash is bare hex", FIRST, setting("body", "bundle_sha256", to=BARE_HEX)),
+    ("log_record", "a spend total below zero", "log_record/good-spend.json",
+     setting("body", "meta_credit_usd", to=-1)),
+    # §10.2, §11, §12: the records U21 settled
+    ("run_start", "a phase the build does not have", RUN_SPARK, setting("phase", to=4)),
+    ("run_start", "a mode neither DEVELOPMENT nor SCORED", RUN_SPARK, setting("mode", to="PRACTICE")),
+    ("run_start", "a seed that is not an integer", RUN_SPARK, setting("seed", to="1")),
+    ("run_start", "a model configuration §11.1 does not list", RUN_SPARK, setting("model_config", to="spark_pro")),
+    ("run_start", "spark answering by answer tools", RUN_SPARK, setting("answer_method", to="ANSWER_TOOLS")),
+    ("run_start", "the stand-in answering by structured output", RUN_STAND_IN,
+     setting("answer_method", to="STRUCTURED_OUTPUT")),
+    ("run_start", "a real model with no model ID", RUN_SPARK, setting("model_id", to=None)),
+    ("run_start", "no configuration hash", RUN_SPARK, setting("config_sha256", to=None)),
+    ("run_start", "a plan chain named instead of hashed", RUN_SPARK, setting("plan_chain_sha256", to="TYR0-DEV-PASS1-v1")),
+    ("run_start", "reference_sha256 left out rather than null", RUN_STAND_IN, dropping("reference_sha256")),
+    ("plan_chain_verified", "a pass with a reason", CHAIN_PASS, setting("reason", to="GAP")),
+    ("plan_chain_verified", "a failure without a reason", CHAIN_UNSIGNED, setting("reason", to=None)),
+    ("plan_chain_verified", "a pass with a missing signature", CHAIN_PASS, setting("plans", 1, "signature", to="MISSING")),
+    ("plan_chain_verified", "a pass with no plans", CHAIN_PASS, setting("plans", to=[])),
+    ("plan_chain_verified", "UNSIGNED with every plan signed", CHAIN_UNSIGNED, setting("plans", 1, "signature", to="GOOD")),
+    ("plan_chain_verified", "a reason U21 does not list", CHAIN_UNSIGNED, setting("reason", to="EXPIRED")),
+    ("plan_chain_verified", "a plan hash without sha256:", CHAIN_PASS, setting("plans", 0, "sha256", to=BARE_HEX)),
+    ("plan_chain_verified", "a pass with a plan whose ID could not be read", CHAIN_PASS, setting("plans", 0, "plan_id", to=None)),
+    ("arming_verified", "a pass with a reason", ARMED, setting("reason", to="EXPIRED")),
+    ("arming_verified", "a failure without a reason", EXPIRED, setting("reason", to=None)),
+    ("arming_verified", "a pass at HUMAN_ONLY", ARMED, setting("rung", to="HUMAN_ONLY")),
+    ("arming_verified", "a pass with no act", ARMED, setting("act_id", to=None)),
+    ("arming_verified", "a reason U21 does not list", EXPIRED, setting("reason", to="ALREADY_USED")),
+    ("plan_in_force", "a plan ID with no hash", IN_FORCE, setting("sha256", to=None)),
+    ("plan_in_force", "leaving the chain with a span left over", LEFT_CHAIN, setting("valid_from_met_s", to=10800)),
+    ("plan_in_force", "a validity span in fractions", IN_FORCE, setting("valid_until_met_s", to=5400.5)),
+    ("contact", "a state other than AOS or LOS", "contact/good-aos.json", setting("state", to="IN_CONTACT")),
+    ("trigger_record", "a REPORT turn with no report_kind", TRIGGER_CHECK_IN, setting("report_kind", to=None)),
+    ("trigger_record", "an ACT turn with a report_kind", TRIGGER, setting("report_kind", to="PASS_START")),
+    ("trigger_record", "a trigger type §16.1 does not list", TRIGGER, setting("triggers", 0, "type", to="ALARM")),
+    ("trigger_record", "the bundle hash missing", TRIGGER, dropping("bundle_sha256")),
+    ("trigger_record", "the bundle itself instead of its hash", TRIGGER, setting("bundle", to={"turn_id": 4})),
+    ("revoke", "a revocation from a source other than the script", "revoke/good-script.json",
+     setting("source", to="DIRECTOR")),
+    ("restore_record", "accepted with a reason", RESTORED, setting("reason", to="EXPIRED")),
+    ("restore_record", "refused without a reason", RESTORE_REFUSED, setting("reason", to=None)),
+    ("restore_record", "accepted with no act", RESTORED, setting("act_id", to=None)),
+    ("restore_record", "a reason U21 does not list", RESTORE_REFUSED, setting("reason", to="NOT_ARMED")),
+    ("spend", "a total below zero", SPEND, setting("baseten_credit_usd", to=-0.01)),
+    ("spend", "an amount U21 does not list", SPEND, setting("total_usd", to=0.0412318)),
+    ("spend", "call_index counting from 0", SPEND, setting("call_index", to=0)),
+    ("spend", "a total left out", SPEND, dropping("modal_credit_usd")),
+    ("spend_stop", "spark_open stopped at the Meta stop", SPEND_STOP, setting("stop", to="META")),
+    ("spend_stop", "a stop U21 does not list", SPEND_STOP, setting("stop", to="OUT_OF_POCKET")),
+    ("spend_stop", "a limit of zero", SPEND_STOP, setting("limit_usd", to=0)),
+    ("spend_stop", "the reservation missing", SPEND_STOP, dropping("reserved_usd")),
+    ("run_end", "a reason U21 does not list", "run_end/good-complete.json", setting("reason", to="TIMEOUT")),
+    ("run_end", "turns below zero", "run_end/good-complete.json", setting("turns", to=-1)),
+    # §8.3, U24: the log's replies
+    ("log_reply", "record_id 0", "log_reply/good-reply.json", setting("record_id", to=0)),
+    ("log_reply", "problems on a success", "log_reply/good-reply.json", setting("problems", to=["none"])),
+    ("log_refusal", "a refusal with no problems", "log_refusal/good-refusal.json", setting("problems", to=[])),
+    ("log_refusal", "a refusal with a record_id", "log_refusal/good-refusal.json", setting("record_id", to=7)),
+    ("log_refusal", "problems as one string", "log_refusal/good-refusal.json", setting("problems", to="bad type")),
+    ("log_agent", "a spend stop whose body is a spend", "log_agent/good-spend.json", setting("type", to="SPEND_STOP")),
+    ("log_agent", "ODIN submitting RUN_END", "log_agent/good-spend.json", setting("type", to="RUN_END")),
     # A-1: the check-in
     ("checkin", "a source A-1 does not list", CHECKIN, setting("source", to="PHONE")),
     ("checkin", "audio hash without sha256:", CHECKIN, setting("audio_sha256", to=BARE_HEX)),

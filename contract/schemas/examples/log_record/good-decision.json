@@ -1,0 +1,29 @@
+{
+  "record_id": 8,
+  "utc": "2026-10-28T14:10:03.190Z",
+  "met_s": 603,
+  "type": "DECISION",
+  "body": {
+    "arming_act_id": "ARM-DEV-01",
+    "base_class": "C1",
+    "checks": [
+      {"check": "PLAN", "detail": null, "reason": null, "result": "PASS"},
+      {"check": "ARMING", "detail": null, "reason": null, "result": "PASS"},
+      {"check": "ORIGIN", "detail": null, "reason": null, "result": "PASS"},
+      {"check": "CEILING", "detail": null, "reason": null, "result": "PASS"},
+      {"check": "PROHIBITED", "detail": null, "reason": null, "result": "PASS"},
+      {"check": "CLASS", "detail": null, "reason": null, "result": "PASS"},
+      {"check": "LEASE", "detail": null, "reason": null, "result": "PASS"},
+      {"check": "RECORD", "detail": null, "reason": null, "result": "PASS"}
+    ],
+    "class": "C1",
+    "decision": "ALLOW",
+    "lease_id": null,
+    "met_s": 603,
+    "plan_id": "TYR0-DEV-PASS1-v1",
+    "request_id": "3f2b8c1e-9a4d-4f6b-8e2a-7c5d1b0e9f34",
+    "rung": "AI_AUTONOMOUS",
+    "utc": "2026-10-28T14:10:03.180Z"
+  },
+  "prev_hash": "sha256:a41966b724f97bfbc60faec91cebbfc8858c46c9d440f780b7d9bd6172db9a57"
+}

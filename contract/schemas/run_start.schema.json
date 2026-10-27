@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Run start",
+  "description": "The harness's RUN_START record: what the run flies with (CONTRACT.md v0.6 §10.2, §11.1, §12; the Director's ruling on U21, 26 October 2026). A field with no subject is null (§16 U15): the stand-in has no provider, model or reasoning setting, and a run may fly without a plan chain or a study reference.",
+  "type": "object",
+  "required": [
+    "run_id",
+    "scenario_id",
+    "phase",
+    "mode",
+    "seed",
+    "model_config",
+    "provider",
+    "model_id",
+    "reasoning_effort",
+    "answer_method",
+    "config_sha256",
+    "prompt_template_sha256",
+    "plan_chain_sha256",
+    "reference_sha256"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "scenario_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "phase": {"type": "integer", "enum": [1, 2, 3]},
+    "mode": {
+      "description": "DEVELOPMENT accepts plans and acts signed with the test key; SCORED accepts only the Director's (§11.4).",
+      "enum": ["DEVELOPMENT", "SCORED"]
+    },
+    "seed": {"type": "integer"},
+    "model_config": {
+      "description": "The model configuration (§11.1).",
+      "enum": ["spark", "spark_open", "glimmer_local", "stand_in"]
+    },
+    "provider": {"type": ["string", "null"]},
+    "model_id": {"description": "The model ID sent to the provider, exactly.", "type": ["string", "null"]},
+    "reasoning_effort": {"type": ["string", "null"]},
+    "answer_method": {
+      "description": "How the model answers (§11.1): structured output for spark, one answer-tool call for spark_open, scripted answers for the stand-in.",
+      "enum": ["STRUCTURED_OUTPUT", "ANSWER_TOOLS", "SCRIPTED"]
+    },
+    "config_sha256": {"description": "The run's frozen configuration (§11.1).", "$ref": "common.schema.json#/definitions/sha256"},
+    "prompt_template_sha256": {"anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]},
+    "plan_chain_sha256": {
+      "description": "The SHA-256 of the canonical JSON (§4) list of the chain's plan-file hashes, in chain order; null for a run with no plan chain.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]
+    },
+    "reference_sha256": {
+      "description": "The frozen COSMOS reference (§10.4); null for a run flown without it.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]
+    }
+  },
+  "allOf": [
+    {
+      "if": {"required": ["model_config"], "properties": {"model_config": {"const": "spark"}}},
+      "then": {"properties": {"answer_method": {"const": "STRUCTURED_OUTPUT"}}}
+    },
+    {
+      "if": {"required": ["model_config"], "properties": {"model_config": {"const": "spark_open"}}},
+      "then": {"properties": {"answer_method": {"const": "ANSWER_TOOLS"}}}
+    },
+    {
+      "if": {"required": ["model_config"], "properties": {"model_config": {"const": "stand_in"}}},
+      "then": {"properties": {"answer_method": {"const": "SCRIPTED"}}}
+    },
+    {
+      "if": {
+        "required": ["model_config"],
+        "properties": {"model_config": {"enum": ["spark", "spark_open", "glimmer_local"]}}
+      },
+      "then": {
+        "properties": {"provider": {"type": "string"}, "model_id": {"type": "string"}, "reasoning_effort": {"type": "string"}}
+      }
+    }
+  ]
+}

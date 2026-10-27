@@ -1,0 +1,5 @@
+{
+  "problems": [
+    "type: 'DECISION' is not one of ['AGENT_INPUT', 'MODEL_CALL', 'CANDIDATE', 'ANSWER', 'MALFORMED', 'SPEND', 'SPEND_STOP']"
+  ]
+}

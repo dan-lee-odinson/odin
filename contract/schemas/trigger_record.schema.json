@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Trigger record",
+  "description": "The harness's TRIGGER record: why a turn happened, and the hash of the bundle served for it (CONTRACT.md v0.6 §6.1, §12; the Director's ruling on U21, 26 October 2026). The trigger list is recorded with each turn (§6.1). bundle_sha256 is what the turn's COMMAND_REQUEST carries as agent_input_hash, so evaluation can match a request to the bundle ODIN saw.",
+  "type": "object",
+  "required": ["turn_id", "turn_kind", "report_kind", "triggers", "bundle_sha256"],
+  "additionalProperties": false,
+  "properties": {
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "turn_kind": {"$ref": "turn_bundle.schema.json#/properties/turn_kind"},
+    "report_kind": {"$ref": "turn_bundle.schema.json#/properties/report_kind"},
+    "triggers": {
+      "description": "As the bundle carries them (§16.1 U1).",
+      "$ref": "turn_bundle.schema.json#/properties/triggers"
+    },
+    "bundle_sha256": {
+      "description": "The SHA-256 of the exact turn-bundle bytes the harness served.",
+      "$ref": "common.schema.json#/definitions/sha256"
+    }
+  },
+  "if": {"required": ["turn_kind"], "properties": {"turn_kind": {"const": "REPORT"}}},
+  "then": {"properties": {"report_kind": {"$ref": "report.schema.json#/properties/report_kind"}}},
+  "else": {"properties": {"report_kind": {"type": "null"}}}
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Revoke",
+  "description": "The harness's REVOKE record: ODIN's authority revoked at the scripted moment, in the one revoke scenario. Revocation is instant and needs no signature (CONTRACT.md v0.6 §9.4, §12; the Director's ruling on U21, 26 October 2026).",
+  "type": "object",
+  "required": ["source"],
+  "additionalProperties": false,
+  "properties": {"source": {"const": "SCRIPT"}}
+}

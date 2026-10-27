@@ -1,0 +1,17 @@
+{
+  "about": "The records of one turn, ODIN's turn 3 of dev-run-0001, written as a log of their own by tests/test_s2_event_log.py into events.jsonl and events.head beside this file. Each entry gives the time the writer stamps and the record's type and body; body_from names a good example in contract/schemas/examples/. ODIN's types go through submit_agent, as POST /log/agent sends them; the rest through append, as the harness and BALDUR-0 write them. The REQUEST's agent_input_hash is the TRIGGER's bundle_sha256. Made up for development, with no fault content.",
+  "entries": [
+    {"utc": "2026-10-28T14:09:56.200Z", "met_s": 596, "type": "TRIGGER", "body_from": "trigger_record/good-periodic.json"},
+    {"utc": "2026-10-28T14:09:56.250Z", "met_s": 596, "type": "AGENT_INPUT", "body_from": "agent_input/good-input.json"},
+    {"utc": "2026-10-28T14:10:03.060Z", "met_s": 603, "type": "MODEL_CALL", "body_from": "model_call/good-spark.json"},
+    {"utc": "2026-10-28T14:10:03.065Z", "met_s": 603, "type": "SPEND", "body_from": "spend/good-after-call.json"},
+    {"utc": "2026-10-28T14:10:03.070Z", "met_s": 603, "type": "CANDIDATE", "body_from": "candidate/good-content.json"},
+    {"utc": "2026-10-28T14:10:03.080Z", "met_s": 603, "type": "ANSWER", "body_from": "answer_record/good-command.json"},
+    {"utc": "2026-10-28T14:10:03.150Z", "met_s": 603, "type": "REQUEST", "body_from": "command_request/good-request.json"},
+    {"utc": "2026-10-28T14:10:03.190Z", "met_s": 603, "type": "DECISION", "body_from": "decision_record/good-allow.json"},
+    {"utc": "2026-10-28T14:10:03.210Z", "met_s": 603, "type": "DISPATCH", "body": {
+      "request_id": "3f2b8c1e-9a4d-4f6b-8e2a-7c5d1b0e9f34", "command": "CMD_PLD_SET_STATE", "parameters": {"state": "ON"},
+      "route": "COSMOS", "lease_id": null, "met_s": 603, "utc": "2026-10-28T14:10:03.200Z"}},
+    {"utc": "2026-10-28T14:10:04.170Z", "met_s": 604, "type": "OUTCOME", "body_from": "outcome/good-accepted.json"}
+  ]
+}

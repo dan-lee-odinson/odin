@@ -1,0 +1,14 @@
+{
+  "record_id": 1,
+  "utc": "2026-10-28T14:09:56.200Z",
+  "met_s": 596,
+  "type": "TRIGGER",
+  "body": {
+    "bundle_sha256": "sha256:97b9abe339a4a8d65af67a0b81a35400234f26012596b26fa1ca541d04b201dc",
+    "report_kind": null,
+    "triggers": [{"detail": {}, "met_s": 596, "type": "PERIODIC"}],
+    "turn_id": 3,
+    "turn_kind": "ACT"
+  },
+  "prev_hash": null
+}

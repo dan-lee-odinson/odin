@@ -1,0 +1,9 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Contact",
+  "description": "The harness's CONTACT record: acquisition or loss of signal (CONTRACT.md v0.6 §6.1, §12; the Director's ruling on U21, 26 October 2026).",
+  "type": "object",
+  "required": ["state"],
+  "additionalProperties": false,
+  "properties": {"state": {"enum": ["AOS", "LOS"]}}
+}

@@ -197,6 +197,30 @@ def check_no_forbidden_huginn_paths(root):
 
 
 # ---------------------------------------------------------------------------------------
+# Truth kept apart: runs/<run_id>/truth.jsonl holds fault onsets and the simulator's true state,
+# for evaluation only, and ODIN never reads it (CONTRACT.md §12). Only the folders that write it
+# (the log, the wrapper and the harness) and the one that scores with it (eval) may name it in
+# code. runs/ holds data, not code.
+
+TRUTH_FILE = re.compile(r"truth\.jsonl")
+TRUTH_FOLDERS = {"log", "wrapper", "harness", "eval", "tests", "runs"}
+
+
+def check_truth_kept_apart(root):
+    root = Path(root)
+    problems = []
+    for path in iter_files(root):
+        rel = _rel(path, root)
+        if rel.split("/")[0] in TRUTH_FOLDERS or not _is_code(path):
+            continue
+        text = path.read_bytes().decode("utf-8-sig", errors="replace")
+        for m in TRUTH_FILE.finditer(text):
+            problems.append(f"{rel}:{_line_of(text, m.start())}: names the truth file, which only "
+                            f"{', '.join(sorted(TRUTH_FOLDERS - {'tests', 'runs'}))} may")
+    return problems
+
+
+# ---------------------------------------------------------------------------------------
 # Secret scan. A finding names the file, line and kind of secret, never the value.
 
 # AGENTS.md §2.5 names META_API_KEY and BASETEN_API_KEY. The Modal names stay covered while

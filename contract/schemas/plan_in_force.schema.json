@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Plan in force",
+  "description": "BALDUR-0's PLAN_IN_FORCE record: the simulation clock has selected a plan of the chain, or has left the chain, when every field is null (CONTRACT.md v0.6 §5.1, §12; the Director's ruling on U21, 26 October 2026).",
+  "type": "object",
+  "required": ["plan_id", "sha256", "valid_from_met_s", "valid_until_met_s"],
+  "additionalProperties": false,
+  "properties": {
+    "plan_id": {"anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]},
+    "sha256": {
+      "description": "The plan file's exact signed bytes.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]
+    },
+    "valid_from_met_s": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+    "valid_until_met_s": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]}
+  },
+  "if": {"required": ["plan_id"], "properties": {"plan_id": {"type": "null"}}},
+  "then": {
+    "properties": {"sha256": {"type": "null"}, "valid_from_met_s": {"type": "null"}, "valid_until_met_s": {"type": "null"}}
+  },
+  "else": {
+    "properties": {
+      "sha256": {"type": "string"},
+      "valid_from_met_s": {"type": "integer"},
+      "valid_until_met_s": {"type": "integer"}
+    }
+  }
+}

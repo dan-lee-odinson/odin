@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Plan chain verified",
+  "description": "BALDUR-0's PLAN_CHAIN_VERIFIED record: the verification of the run's whole plan chain before it starts (CONTRACT.md v0.6 §5.1, §5.3, §5.5, §12; the Director's ruling on U21, 26 October 2026). A chain that fails stops the run before it starts.",
+  "type": "object",
+  "required": ["result", "plans", "reason", "detail"],
+  "additionalProperties": false,
+  "properties": {
+    "result": {"enum": ["PASS", "FAIL"]},
+    "plans": {
+      "description": "Each plan of the chain, in chain order.",
+      "type": "array",
+      "items": {"$ref": "#/definitions/plan"}
+    },
+    "reason": {
+      "description": "Null when the chain passes. PROTECTIVE_RESTRICTED: a plan prohibits or restricts CMD_SAFE_ENTER or CMD_SYS_RESET (§5.5).",
+      "enum": [
+        null,
+        "UNSIGNED",
+        "BAD_SIGNATURE",
+        "WRONG_SCENARIO",
+        "GAP",
+        "OVERLAP",
+        "SCHEMA_VIOLATION",
+        "PROTECTIVE_RESTRICTED"
+      ]
+    },
+    "detail": {"description": "A short string naming what failed, or null.", "type": ["string", "null"]}
+  },
+  "allOf": [
+    {
+      "if": {"required": ["result"], "properties": {"result": {"const": "PASS"}}},
+      "then": {
+        "properties": {"reason": {"type": "null"}, "plans": {"minItems": 1, "items": {"$ref": "#/definitions/verified_plan"}}}
+      },
+      "else": {"properties": {"reason": {"type": "string"}}}
+    },
+    {
+      "if": {"required": ["reason"], "properties": {"reason": {"const": "UNSIGNED"}}},
+      "then": {"properties": {"plans": {"contains": {"properties": {"signature": {"const": "MISSING"}}}}}}
+    },
+    {
+      "if": {"required": ["reason"], "properties": {"reason": {"const": "BAD_SIGNATURE"}}},
+      "then": {"properties": {"plans": {"contains": {"properties": {"signature": {"const": "BAD"}}}}}}
+    }
+  ],
+  "definitions": {
+    "plan": {
+      "description": "One plan file. Fields that could not be read from a plan that fails its schema are null (§16 U15).",
+      "type": "object",
+      "required": ["plan_id", "sha256", "valid_from_met_s", "valid_until_met_s", "signature"],
+      "additionalProperties": false,
+      "properties": {
+        "plan_id": {"anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]},
+        "sha256": {
+          "description": "The plan file's exact signed bytes (§16.2 U18).",
+          "$ref": "common.schema.json#/definitions/sha256"
+        },
+        "valid_from_met_s": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+        "valid_until_met_s": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+        "signature": {"enum": ["GOOD", "BAD", "MISSING"]}
+      }
+    },
+    "verified_plan": {
+      "description": "A plan in a chain that passed: every field read, its signature good.",
+      "properties": {
+        "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
+        "valid_from_met_s": {"type": "integer"},
+        "valid_until_met_s": {"type": "integer"},
+        "signature": {"const": "GOOD"}
+      }
+    }
+  }
+}

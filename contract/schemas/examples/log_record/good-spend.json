@@ -1,0 +1,15 @@
+{
+  "record_id": 4,
+  "utc": "2026-10-28T14:10:03.065Z",
+  "met_s": 603,
+  "type": "SPEND",
+  "body": {
+    "baseten_credit_usd": 0,
+    "call_index": 1,
+    "meta_credit_usd": 0.0412318,
+    "modal_credit_usd": 0,
+    "out_of_pocket_usd": 0,
+    "turn_id": 3
+  },
+  "prev_hash": "sha256:f7b0a75950bbd833ab76546450f656544c4d08c75ffe32e3c7969062e47db213"
+}

@@ -1,0 +1,158 @@
+{
+  "description": "CONTRACT.md \u00a74 canonical JSON, as the Director ruled on 26 October 2026 (U22): the UTF-8 encoding of Python's json.dumps(value, sort_keys=True, separators=(\",\", \":\"), ensure_ascii=False, allow_nan=False), with no trailing newline. NaN and infinity are not JSON and are refused. Each vector gives a value, its exact canonical bytes in hex, and the SHA-256 of those bytes written sha256:<hex>. Every canonical JSON writer in this build, ODIN's request signer included, must reproduce every vector. This file is ASCII: the values' other characters are written here as \\u escapes, which a JSON reader turns back into them.",
+  "vectors": [
+    {
+      "name": "keys sorted at every level of nesting",
+      "value": {
+        "b": {
+          "d": [
+            3,
+            {
+              "z": 1,
+              "y": 2
+            }
+          ],
+          "c": null
+        },
+        "a": 0
+      },
+      "canonical_hex": "7b2261223a302c2262223a7b2263223a6e756c6c2c2264223a5b332c7b2279223a322c227a223a317d5d7d7d",
+      "sha256": "sha256:f50ba501b08bbaefe8307044889a550971c4e3fd9b888f4bd35bb7f075f04086"
+    },
+    {
+      "name": "keys sorted by code point: capitals, underscore, lower case, then accented",
+      "value": {
+        "\u00e9": 1,
+        "z": 2,
+        "a": 3,
+        "A": 4,
+        "_": 5
+      },
+      "canonical_hex": "7b2241223a342c225f223a352c2261223a332c227a223a322c22c3a9223a317d",
+      "sha256": "sha256:e5e860276d3cb30674056e7e79e9e0cce09f450c89e8c34baf95840731e13367"
+    },
+    {
+      "name": "a key beyond the Basic Multilingual Plane sorts after U+FF21 by code point",
+      "value": {
+        "\ud83d\ude00": 1,
+        "\uff21": 2
+      },
+      "canonical_hex": "7b22efbca1223a322c22f09f9880223a317d",
+      "sha256": "sha256:6cef0afd30106b4123fc5ac38c23ea55cee992126f3779eadd6d5fc305b6d287"
+    },
+    {
+      "name": "accented characters written as themselves",
+      "value": "Caf\u00e9, na\u00efve, Z\u00fcrich, S\u00e3o Paulo",
+      "canonical_hex": "22436166c3a92c206e61c3af76652c205ac3bc726963682c2053c3a36f205061756c6f22",
+      "sha256": "sha256:40ed649333e67a07329f47b3601349bc5340d20354f2ccf09b54665f77e129d7"
+    },
+    {
+      "name": "characters beyond the Basic Multilingual Plane written as themselves",
+      "value": "rocket \ud83d\ude80, double-struck \ud835\udd38",
+      "canonical_hex": "22726f636b657420f09f9a802c20646f75626c652d73747275636b20f09d94b822",
+      "sha256": "sha256:f6f96f910655ecf3ff0de780d178603ce26cefbd1ed6149f1aba8ede8edca7fc"
+    },
+    {
+      "name": "quotes and backslashes escaped",
+      "value": "say \"hi\" \\ C:\\path\\",
+      "canonical_hex": "22736179205c2268695c22205c5c20433a5c5c706174685c5c22",
+      "sha256": "sha256:75b582907924378f7ecd9da92ac800470b15241baa463db5b33723d6fc6fed18"
+    },
+    {
+      "name": "control characters escaped; DEL written as itself",
+      "value": "tab\tnewline\nreturn\rbackspace\bformfeed\fnul\u0000unit-separator\u001fdel\u007f",
+      "canonical_hex": "227461625c746e65776c696e655c6e72657475726e5c726261636b73706163655c62666f726d666565645c666e756c5c7530303030756e69742d736570617261746f725c753030316664656c7f22",
+      "sha256": "sha256:7d56c2f3de04a6bf4e45a16c4beea783b42c431ba7d0e0c9e9fac51bf2aab194"
+    },
+    {
+      "name": "line and paragraph separators written as themselves",
+      "value": "a\u2028b\u2029c",
+      "canonical_hex": "2261e280a862e280a96322",
+      "sha256": "sha256:18c6bee2c10cadf5dec772e4b216f9060a21814a302ce989e183178afcf43e1a"
+    },
+    {
+      "name": "integers, including beyond 2**53",
+      "value": [
+        0,
+        1,
+        -1,
+        42,
+        9007199254740993,
+        -9007199254740993
+      ],
+      "canonical_hex": "5b302c312c2d312c34322c393030373139393235343734303939332c2d393030373139393235343734303939335d",
+      "sha256": "sha256:4a11193d0c9ecad989659e87102fdbd3833599d94bf2ae31f015d7a02d6b77a1"
+    },
+    {
+      "name": "floats as Python writes them",
+      "value": [
+        2.0,
+        0.1,
+        1e-07,
+        1e+16,
+        1.5e+300,
+        -2.5,
+        123.456,
+        100.0
+      ],
+      "canonical_hex": "5b322e302c302e312c31652d30372c31652b31362c312e35652b3330302c2d322e352c3132332e3435362c3130302e305d",
+      "sha256": "sha256:912a526e2b9b3160b14201346be86eae64cf2d0aca4a52617a144412402a4909"
+    },
+    {
+      "name": "negative zero",
+      "value": -0.0,
+      "canonical_hex": "2d302e30",
+      "sha256": "sha256:c26617c7ccbcaa6631b45d851b8cf56e21d2ca624bdb1193afdbd4b560702cec"
+    },
+    {
+      "name": "booleans and null",
+      "value": [
+        true,
+        false,
+        null
+      ],
+      "canonical_hex": "5b747275652c66616c73652c6e756c6c5d",
+      "sha256": "sha256:4d0f18de2133118249c26acc481838d4f6bb6bc1de882d99abbd19ae9397e8df"
+    },
+    {
+      "name": "empty object, array and string",
+      "value": {
+        "object": {},
+        "array": [],
+        "string": ""
+      },
+      "canonical_hex": "7b226172726179223a5b5d2c226f626a656374223a7b7d2c22737472696e67223a22227d",
+      "sha256": "sha256:160df1cb7c08864a4d113733fe02cfbc06a3e39c4ce0e0273ca7f2bb42e0facc"
+    },
+    {
+      "name": "a plan chain's hash list, whose SHA-256 is RUN_START's plan_chain_sha256",
+      "value": [
+        "sha256:672b5cfb091939df30886445d8b16a08f59b4f081e9f58e1f39ab9e02e05e3c1",
+        "sha256:c381e593694fa6984bf78a7b49c2c99fd0881876e42a30202e56fe81e61b6560"
+      ],
+      "canonical_hex": "5b227368613235363a36373262356366623039313933396466333038383634343564386231366130386635396234663038316539663538653166333961623965303265303565336331222c227368613235363a63333831653539333639346661363938346266373861376234396332633939666430383831383736653432613330323032653536666538316536316236353630225d",
+      "sha256": "sha256:d75d24be28a658b069fd0df43e9778785755541b90b31b312cebf7cb0c082a7b"
+    },
+    {
+      "name": "a command request without its signature: the bytes ODIN signs (\u00a77.3, \u00a716.3 U13)",
+      "value": {
+        "request_id": "3f2b8c1e-9a4d-4f6b-8e2a-7c5d1b0e9f34",
+        "origin": "ODIN",
+        "utc": "2026-10-28T14:10:03.120Z",
+        "met_s": 603,
+        "nonce": "6d1f0c3a9b2e4f5781a6c0d9e3b7f214",
+        "run_id": "dev-run-0001",
+        "turn_id": 3,
+        "plan_id": "TYR0-DEV-PASS1-v1",
+        "agent_input_hash": "sha256:97b9abe339a4a8d65af67a0b81a35400234f26012596b26fa1ca541d04b201dc",
+        "command": "CMD_PLD_SET_STATE",
+        "parameters": {
+          "state": "ON"
+        },
+        "rationale": "State of charge is 78 percent, well above the payload's 40 percent floor."
+      },
+      "canonical_hex": "7b226167656e745f696e7075745f68617368223a227368613235363a39376239616265333339613461386436356166363761306238316133353430303233346632363031323539366232366661316361353431643034623230316463222c22636f6d6d616e64223a22434d445f504c445f5345545f5354415445222c226d65745f73223a3630332c226e6f6e6365223a223664316630633361396232653466353738316136633064396533623766323134222c226f726967696e223a224f44494e222c22706172616d6574657273223a7b227374617465223a224f4e227d2c22706c616e5f6964223a22545952302d4445562d50415353312d7631222c22726174696f6e616c65223a225374617465206f66206368617267652069732037382070657263656e742c2077656c6c2061626f766520746865207061796c6f616427732034302070657263656e7420666c6f6f722e222c22726571756573745f6964223a2233663262386331652d396134642d346636622d386532612d376335643162306539663334222c2272756e5f6964223a226465762d72756e2d30303031222c227475726e5f6964223a332c22757463223a22323032362d31302d32385431343a31303a30332e3132305a227d",
+      "sha256": "sha256:54235bd00dd08537808250d011e155d3b68368dd65d97e15b150e3cb02cef17c"
+    }
+  ]
+}

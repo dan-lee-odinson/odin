@@ -1,0 +1,21 @@
+{
+  "result": "FAIL",
+  "plans": [
+    {
+      "plan_id": "TYR0-DEV-PASS1-v1",
+      "sha256": "sha256:672b5cfb091939df30886445d8b16a08f59b4f081e9f58e1f39ab9e02e05e3c1",
+      "valid_from_met_s": 0,
+      "valid_until_met_s": 5400,
+      "signature": "GOOD"
+    },
+    {
+      "plan_id": "TYR0-DEV-PASS2-v1",
+      "sha256": "sha256:c381e593694fa6984bf78a7b49c2c99fd0881876e42a30202e56fe81e61b6560",
+      "valid_from_met_s": 5400,
+      "valid_until_met_s": 10800,
+      "signature": "MISSING"
+    }
+  ],
+  "reason": "UNSIGNED",
+  "detail": "TYR0-DEV-PASS2-v1 has no signature file"
+}

@@ -51,7 +51,7 @@
       "run_id": "dev-run-0001",
       "turn_id": 3,
       "plan_id": "TYR0-DEV-PASS1-v1",
-      "agent_input_hash": "sha256:b3f95fae08f826efc8867b6a54c59bf6a42156ebfbffe69b3033390842e1e382",
+      "agent_input_hash": "sha256:97b9abe339a4a8d65af67a0b81a35400234f26012596b26fa1ca541d04b201dc",
       "command": "CMD_PLD_SET_STATE",
       "parameters": {"state": "ON"},
       "rationale": "State of charge is 78 percent, well above the payload's 40 percent floor.",

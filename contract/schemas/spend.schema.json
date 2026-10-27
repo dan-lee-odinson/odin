@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Spend",
+  "description": "ODIN's SPEND record, submitted to POST /log/agent: the meter's four running totals after a call's actual cost replaces its reservation, in US dollars (CONTRACT.md v0.6 §11.2, §11.3, §12; the Director's ruling on U21, 26 October 2026).",
+  "type": "object",
+  "required": ["turn_id", "call_index", "meta_credit_usd", "baseten_credit_usd", "modal_credit_usd", "out_of_pocket_usd"],
+  "additionalProperties": false,
+  "properties": {
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "call_index": {"$ref": "model_call.schema.json#/properties/call_index"},
+    "meta_credit_usd": {"description": "Meta hackathon credit used.", "type": "number", "minimum": 0},
+    "baseten_credit_usd": {"description": "Baseten hackathon credit used.", "type": "number", "minimum": 0},
+    "modal_credit_usd": {"description": "Modal plan credit used.", "type": "number", "minimum": 0},
+    "out_of_pocket_usd": {"description": "Charges paid out of pocket.", "type": "number", "minimum": 0}
+  }
+}

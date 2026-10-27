@@ -24,7 +24,10 @@
       "description": "The plan in force when ODIN sent the request; null when none is.",
       "anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]
     },
-    "agent_input_hash": {"$ref": "common.schema.json#/definitions/sha256"},
+    "agent_input_hash": {
+      "description": "The SHA-256 of the exact turn-bundle bytes the harness served for the turn the request answers (the Director's ruling, 26 October 2026). BALDUR-0 does not check it; the turn's TRIGGER record holds the same hash as bundle_sha256, so evaluation can match them.",
+      "$ref": "common.schema.json#/definitions/sha256"
+    },
     "command": {},
     "parameters": {},
     "rationale": {"description": "If the model gave one.", "type": "string"},

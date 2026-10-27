@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Run end",
+  "description": "The harness's RUN_END record, the run's last (CONTRACT.md v0.6 §11.3, §12; the Director's ruling on U21, 26 October 2026).",
+  "type": "object",
+  "required": ["reason", "turns"],
+  "additionalProperties": false,
+  "properties": {
+    "reason": {"enum": ["COMPLETE", "SPEND_STOP", "PLAN_CHAIN_FAILED", "NOT_ARMED", "ERROR", "ABORTED"]},
+    "turns": {"description": "The turns ODIN took.", "type": "integer", "minimum": 0}
+  }
+}

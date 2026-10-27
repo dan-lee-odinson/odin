@@ -1,0 +1,9 @@
+{
+  "turn_id": 12,
+  "call_index": 1,
+  "config": "spark_open",
+  "stop": "BASETEN",
+  "spent_usd": 89.98,
+  "reserved_usd": 0.0402005,
+  "limit_usd": 90
+}

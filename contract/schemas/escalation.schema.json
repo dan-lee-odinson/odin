@@ -23,6 +23,6 @@
       "description": "The plan in force; null when none is.",
       "anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]
     },
-    "agent_input_hash": {"$ref": "common.schema.json#/definitions/sha256"}
+    "agent_input_hash": {"description": "As in a command request: the SHA-256 of the exact turn-bundle bytes the harness served.", "$ref": "command_request.schema.json#/properties/agent_input_hash"}
   }
 }

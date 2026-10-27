@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Restore record",
+  "description": "BALDUR-0's RESTORE record: a restore act presented after the revocation, accepted once or refused (CONTRACT.md v0.6 §5.4, §9.4, §12; the Director's ruling on U21, 26 October 2026).",
+  "type": "object",
+  "required": ["act_id", "sha256", "result", "reason", "detail"],
+  "additionalProperties": false,
+  "properties": {
+    "act_id": {
+      "description": "Null for an act that could not be read (§16 U15).",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]
+    },
+    "sha256": {"description": "The act file's exact signed bytes.", "$ref": "common.schema.json#/definitions/sha256"},
+    "result": {"enum": ["ACCEPTED", "REFUSED"]},
+    "reason": {
+      "description": "Null when accepted.",
+      "enum": [
+        null,
+        "UNSIGNED",
+        "BAD_SIGNATURE",
+        "EXPIRED",
+        "WRONG_RUN",
+        "ALREADY_USED",
+        "NOT_REVOKED",
+        "SCHEMA_VIOLATION"
+      ]
+    },
+    "detail": {"type": ["string", "null"]}
+  },
+  "if": {"required": ["result"], "properties": {"result": {"const": "ACCEPTED"}}},
+  "then": {"properties": {"reason": {"type": "null"}, "act_id": {"$ref": "common.schema.json#/definitions/identifier"}}},
+  "else": {"properties": {"reason": {"type": "string"}}}
+}

@@ -1,22 +1,21 @@
 """Loading the contract schemas and checking documents against them (00_HANDOFF.md §4, S1).
 
 Like tests/repo_checks.py, each check returns a list of problems; an empty list means it passed.
+Documents are checked through contract/validate.py, as the build's own code checks them.
 """
 
 import json
 import re
-from functools import lru_cache
 from pathlib import Path
 
 import yaml
-from jsonschema import Draft7Validator, RefResolver
 
+from contract.validate import SCHEMA_DIR, SUFFIX
+from contract.validate import check as check_document
 from tests.repo_checks import REPO_ROOT
 
-SCHEMA_DIR = REPO_ROOT / "contract" / "schemas"
 EXAMPLE_DIR = SCHEMA_DIR / "examples"
 DICTIONARY = REPO_ROOT / "deps" / "huginn" / "defs" / "tlm_cmd.yaml"
-SUFFIX = ".schema.json"
 
 # Schemas that only hold definitions for the others, so no document is checked against them.
 DEFINITIONS_ONLY = {"common"}
@@ -35,41 +34,6 @@ def load_document(path):
     path = Path(path)
     text = path.read_text(encoding="utf-8")
     return yaml.safe_load(text) if path.suffix in {".yaml", ".yml"} else json.loads(text)
-
-
-@lru_cache(maxsize=None)
-def _validator(name, schema_dir):
-    folder = Path(schema_dir).resolve()
-    # Every schema in the folder, keyed by its file URI, so relative $refs resolve without I/O.
-    store = {p.as_uri(): json.loads(p.read_text(encoding="utf-8")) for p in folder.glob("*" + SUFFIX)}
-    uri = (folder / (name + SUFFIX)).as_uri()
-    return Draft7Validator(store[uri], resolver=RefResolver(uri, store[uri], store=store))
-
-
-def _leaves(error):
-    """The errors that say what is wrong. When none of a oneOf's or anyOf's shapes fits, the
-    shape the document came closest to, the one with the fewest errors, explains it."""
-    if not error.context:
-        return [error]
-    shapes = {}
-    for sub in error.context:
-        shapes.setdefault(sub.relative_schema_path[0], []).append(sub)
-    candidates = [[leaf for sub in subs for leaf in _leaves(sub)] for subs in shapes.values()]
-    # A shape the value is not even the type of (null, say, for an object) explains nothing.
-    fitting = [leaves for leaves in candidates
-               if not all(e.validator == "type" and e.absolute_path == error.absolute_path for e in leaves)]
-    return min(fitting, key=len) if fitting else candidates[0]
-
-
-def check_document(name, document, schema_dir=SCHEMA_DIR):
-    """Every way the document fails the named schema."""
-    problems = []
-    for error in _validator(name, str(schema_dir)).iter_errors(document):
-        for leaf in _leaves(error):
-            problem = f"{'/'.join(map(str, leaf.absolute_path)) or '(top)'}: {leaf.message}"
-            if problem not in problems:
-                problems.append(problem)
-    return problems
 
 
 # ---------------------------------------------------------------------------------------

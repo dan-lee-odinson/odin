@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Spend stop",
+  "description": "ODIN's SPEND_STOP record, submitted to POST /log/agent: a call refused because spent plus reserved would pass a stop (CONTRACT.md v0.6 §11.3, §12; the Director's ruling on U21, 26 October 2026). spark draws on the Meta credit, spark_open on the Baseten credit, and Glimmer's GPU fallback on the Modal credit (§11.1, §11.2).",
+  "type": "object",
+  "required": ["turn_id", "call_index", "config", "stop", "spent_usd", "reserved_usd", "limit_usd"],
+  "additionalProperties": false,
+  "properties": {
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "call_index": {"$ref": "model_call.schema.json#/properties/call_index"},
+    "config": {"$ref": "model_call.schema.json#/properties/config"},
+    "stop": {"enum": ["META", "BASETEN", "MODAL"]},
+    "spent_usd": {"description": "Spent so far against this stop.", "type": "number", "minimum": 0},
+    "reserved_usd": {"description": "The refused call's worst-case cost.", "type": "number", "minimum": 0},
+    "limit_usd": {"description": "The stop, read from configuration.", "type": "number", "exclusiveMinimum": 0}
+  },
+  "allOf": [
+    {
+      "if": {"required": ["config"], "properties": {"config": {"const": "spark"}}},
+      "then": {"properties": {"stop": {"const": "META"}}}
+    },
+    {
+      "if": {"required": ["config"], "properties": {"config": {"const": "spark_open"}}},
+      "then": {"properties": {"stop": {"const": "BASETEN"}}}
+    },
+    {
+      "if": {"required": ["config"], "properties": {"config": {"const": "glimmer_local"}}},
+      "then": {"properties": {"stop": {"const": "MODAL"}}}
+    }
+  ]
+}
