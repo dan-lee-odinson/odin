@@ -52,6 +52,18 @@ def test_the_settings_are_huginns_with_the_project_named_odin_and_no_credential(
     assert cosmos.GENERATED not in text and "OPENC3_DEMO" not in pairs
 
 
+def test_local_mode_is_the_one_setting_that_differs_from_huginns():
+    template = dict(line.split("=", 1) for line in cosmos.SETTINGS_TEMPLATE.read_text(encoding="utf-8").splitlines()
+                    if line.strip() and not line.lstrip().startswith("#"))
+    pairs = dict(line.split("=", 1) for line in settings().splitlines())
+    assert template["OPENC3_LOCAL_MODE"] == "1" and "OPENC3_LOCAL_MODE" not in pairs
+    left_out = {name for name, value in template.items()
+                if name not in pairs and value != cosmos.GENERATED and name not in cosmos.CREDENTIALS}
+    assert left_out == {"OPENC3_LOCAL_MODE"}
+    # Beside it, only the project's name and its address differ, as ODIN's own install needs.
+    assert {name for name in pairs if pairs[name] != template[name]} == {"COMPOSE_PROJECT_NAME", "OPENC3_EXTERNAL_URL"}
+
+
 def test_red_a_template_that_sets_the_demo_is_refused():
     with pytest.raises(ValueError):
         cosmos.render_settings("COMPOSE_PROJECT_NAME=huginn\nOPENC3_DEMO=0\n")

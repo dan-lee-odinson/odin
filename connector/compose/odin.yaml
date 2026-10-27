@@ -5,8 +5,8 @@
 #
 # What differs from HUGINN's own install:
 # - the web ports, 2920 and 2963, beside HUGINN's 2910 and 2953 and the demo's 2900 and 2943;
-# - the settings file, rendered from HUGINN's .env.template with the project named odin and no
-#   credential in it;
+# - the settings file, rendered from HUGINN's .env.template with the project named odin, local mode
+#   off and no credential in it;
 # - the credentials, passed through from the environment connector/cosmos.py runs Compose in;
 # - the Redis ACL, rendered outside the repository from the same credentials;
 # - HUGINN's plugin folder, mounted read-only, so that nothing is ever written into HUGINN.

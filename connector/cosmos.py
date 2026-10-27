@@ -121,15 +121,22 @@ def keep_credentials(made):
 
 # -- what Compose is given ---------------------------------------------------------------------
 
+# The one COSMOS setting where ODIN's COSMOS differs from HUGINN's (the Director's ruling, 27 October 2026).
+# Local mode copies installed plugins, edited targets and saved tool settings into /plugins/DEFAULT, which
+# in ODIN's COSMOS is HUGINN's plugin folder, mounted read-only, so every such copy would fail. HUGINN's
+# template says to disable it by leaving the variable out, never by setting it to 0.
+LOCAL_MODE = "OPENC3_LOCAL_MODE"
+
+
 def render_settings(template):
-    """HUGINN's .env.template as ODIN's settings: the project named odin, its own address, and every
-    credential line left out. Comments and blank lines are dropped."""
+    """HUGINN's .env.template as ODIN's settings: the project named odin, its own address, local mode off,
+    and every credential line left out. Comments and blank lines are dropped."""
     lines = []
     for line in template.splitlines():
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         name, _, value = line.partition("=")
-        if value == GENERATED or name in CREDENTIALS:
+        if value == GENERATED or name in CREDENTIALS or name == LOCAL_MODE:
             continue
         if name == "COMPOSE_PROJECT_NAME":
             value = PROJECT
@@ -234,10 +241,11 @@ def plugin_commands(link_port=None):
     huginn_sim_port set to the link's port, so that HUGINN_INT dials the link and never HUGINN's own
     simulator on 7801. The plugin's other variables keep plugin.txt's defaults.
 
-    The load runs with OPENC3_LOCAL_MODE unset. HUGINN's settings turn local mode on, and after an install
-    it copies the plugin into /plugins/DEFAULT, which here is HUGINN's folder, read-only: the copy fails
-    and the load exits 1 (found in S4's live pass, 27 October 2026). Without it the plugin is kept in
-    ODIN's COSMOS's own volumes, as any plugin installed from the Admin tool is."""
+    The load runs with OPENC3_LOCAL_MODE unset. With local mode on, as HUGINN's settings have it, an install
+    copies the plugin into /plugins/DEFAULT, which here is HUGINN's folder, read-only: the copy fails and
+    the load exits 1 (found in S4's live pass, 27 October 2026). ODIN's settings now leave local mode off
+    (LOCAL_MODE); the load unsets it as well, so a COSMOS started before that change installs the same way.
+    The plugin is kept in ODIN's COSMOS's own volumes, as any plugin installed from the Admin tool is."""
     link_port = link_port or link_address()[1]
     gem, run_in_api = plugin_gem(), ("exec", "-T", API_SERVICE)
     variables = (f'require "json"; require "openc3"; require "openc3/models/plugin_model"; '

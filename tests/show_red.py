@@ -326,6 +326,9 @@ CASES = {"s0": [
      "tests/test_s4_cosmos.py::test_odins_code_calls_cosmos_on_the_address_it_is_published_on",
      change_file("connector/cosmos.py", replace_once(b'API_URL = f"http://127.0.0.1:{WEB_PORTS[0]}"',
                                                      b'API_URL = f"http://localhost:{WEB_PORTS[0]}"'))),
+    ("ODIN's COSMOS settings keeping HUGINN's local mode, which copies into HUGINN's read-only plugin folder",
+     "tests/test_s4_cosmos.py::test_local_mode_is_the_one_setting_that_differs_from_huginns",
+     change_file("connector/cosmos.py", replace_once(b" or name == LOCAL_MODE:", b":"))),
 ], "inputs": [
     ("PASS-3's plan with its acquisition a second late, so its window is not one the U35 tests use",
      "tests/test_inputs_plans_acts.py::test_each_plans_contact_window_is_one_the_u35_tests_use[TYR0-P2-PASS3-v1]",
