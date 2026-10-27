@@ -2,7 +2,7 @@
 
 ODIN is Project AESIR's operational intelligence. In this build it flies a simulated CubeSat, HUGINN, through OpenC3 COSMOS. It acts inside an authority that deterministic code enforces (BALDUR-0, the gateway) and records that ODIN cannot write. Built for the Meta hackathon, 26 October to 4 November 2026.
 
-> **Status: stage S4, the wrapper and link.** This README is a stub. The full README, with reproduction instructions and the held-out wording, comes at stage S10.
+> **Status: stage S4, the wrapper and link, closed 27 October 2026 after its live pass against ODIN's COSMOS.** This README is a stub. The full README, with reproduction instructions and the held-out wording, comes at stage S10.
 
 The build contract is [`CONTRACT.md`](CONTRACT.md) (v0.6, 26 October 2026).
 
