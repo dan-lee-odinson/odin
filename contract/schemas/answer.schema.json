@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Answer on an action turn",
+  "description": "The model's answer on an ACT turn: exactly one JSON object of one form, and nothing else (CONTRACT.md v0.6 §7.1, §7.2, §16.3). Every field of the form is present and no other; rationale is optional. Text around the object or a code fence fails before this schema is reached. spark_open gives the same object as one answer-tool call, which its adapter converts (§11.1). The model never writes request_id, origin, utc, met_s, nonce, run_id, turn_id, plan_id, agent_input_hash or signature (§7.3).",
+  "oneOf": [
+    {"$ref": "#/definitions/command"},
+    {"$ref": "#/definitions/escalation"},
+    {"$ref": "#/definitions/none"}
+  ],
+  "definitions": {
+    "rationale": {"description": "One or two sentences (§7.1). Prose goes here.", "type": "string"},
+    "command": {
+      "description": "Becomes a signed COMMAND_REQUEST to BALDUR-0.",
+      "type": "object",
+      "required": ["kind", "command", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"const": "command"},
+        "command": {},
+        "parameters": {},
+        "rationale": {"$ref": "#/definitions/rationale"}
+      },
+      "allOf": [{"$ref": "common.schema.json#/definitions/command_and_parameters"}]
+    },
+    "escalation": {
+      "description": "Becomes an ESCALATION in the log and on the console, through POST /escalation. It asks nothing of anyone in this build; it records ODIN's judgment.",
+      "type": "object",
+      "required": ["kind", "escalation_kind", "refs", "proposed", "urgency"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"const": "escalation"},
+        "escalation_kind": {"enum": ["OFF_COURSE", "MALFUNCTION", "DECISION_NEEDED", "LEASE_NEEDED", "AUTHORITY_NEEDED", "CONFLICT"]},
+        "refs": {
+          "description": "Strings naming the evidence: point mnemonics, request IDs, log record IDs, procedure steps (PROC-002 step 5) or plan fields. May be empty (§16.3 U11).",
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "proposed": {
+          "description": "The command ODIN proposes, checked like any command, or null when it proposes none (§16.3 U11).",
+          "anyOf": [{"$ref": "common.schema.json#/definitions/command_with_parameters"}, {"type": "null"}]
+        },
+        "urgency": {"enum": ["ROUTINE", "URGENT"]},
+        "rationale": {"$ref": "#/definitions/rationale"}
+      }
+    },
+    "none": {
+      "description": "No action. Becomes nothing.",
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"const": "none"},
+        "rationale": {"$ref": "#/definitions/rationale"}
+      }
+    }
+  }
+}

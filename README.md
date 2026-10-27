@@ -2,9 +2,9 @@
 
 ODIN is Project AESIR's operational intelligence. In this build it flies a simulated CubeSat, HUGINN, through OpenC3 COSMOS. It acts inside an authority that deterministic code enforces (BALDUR-0, the gateway) and records that ODIN cannot write. Built for the Meta hackathon, 26 October to 4 November 2026.
 
-> **Status: stage S0, the repository skeleton.** This README is a stub. The full README, with reproduction instructions and the held-out wording, comes at stage S10.
+> **Status: stage S1, the contract schemas.** This README is a stub. The full README, with reproduction instructions and the held-out wording, comes at stage S10.
 
-The build contract is [`CONTRACT.md`](CONTRACT.md) (v0.5, 26 October 2026).
+The build contract is [`CONTRACT.md`](CONTRACT.md) (v0.6, 26 October 2026).
 
 ## Built Oct 26–Nov 4
 
@@ -13,7 +13,8 @@ Everything in this table is new, written from 26 October 2026 on. Rows are added
 | What | Where | Built by |
 |---|---|---|
 | Repository skeleton: folder layout, configuration, keys, licenses | repository root, `config/`, `keys/` | Claude Code |
-| Repository tests: contract and rules hashes, signer fingerprint, HUGINN guard, secret scan | `tests/` | Claude Code |
+| Repository tests: contract and rules hashes, signer fingerprint, HUGINN guard, secret scan, schema conformance, no unsettled schema field | `tests/` | Claude Code |
+| Contract schemas: JSON Schema for the records and messages of the contract's §4–§9 and §16 and Addendum A-1, with examples | `contract/schemas/` | Claude Code |
 
 ## Existed before
 

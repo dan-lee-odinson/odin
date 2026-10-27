@@ -1,0 +1,25 @@
+{
+  "source": "ONBOARD",
+  "frame_met_s": 3000,
+  "received_utc": "2026-10-28T14:50:00.120Z",
+  "age_s": 0.1,
+  "staleness_state": null,
+  "points": {
+    "EPS_BATT_V": {"value": 7.6, "units": "V", "limit_state": "GREEN"},
+    "EPS_BATT_I": {"value": -0.5, "units": "A", "limit_state": "GREEN"},
+    "EPS_BATT_SOC": {"value": 64.0, "units": "%", "limit_state": "GREEN"},
+    "EPS_SA1_I": {"value": 0.0, "units": "A", "limit_state": "NONE"},
+    "EPS_SA2_I": {"value": 0.0, "units": "A", "limit_state": "NONE"},
+    "EPS_BUS_V": {"value": 5.0, "units": "V", "limit_state": "GREEN"},
+    "EPS_LOAD_I": {"value": 0.5, "units": "A", "limit_state": "GREEN"},
+    "EPS_MODE": {"value": "NOMINAL", "units": "n/a", "limit_state": "GREEN"},
+    "ADM_ECLIPSE": {"value": "ECLIPSE", "units": "n/a", "limit_state": "NONE"},
+    "PLD_STATE": {"value": "ON", "units": "n/a", "limit_state": "NONE"},
+    "PLD_RATE": {"value": 1.0, "units": "Hz", "limit_state": "NONE"},
+    "CDH_MET": {"value": 3000, "units": "s", "limit_state": "NONE"},
+    "CDH_FRAME_CNT": {"value": 3000, "units": "n/a", "limit_state": "NONE"},
+    "CDH_CMD_ACC_CNT": {"value": 4, "units": "n/a", "limit_state": "NONE"},
+    "CDH_CMD_REJ_CNT": {"value": 0, "units": "n/a", "limit_state": "NONE"},
+    "CDH_REJ_REASON": {"value": "NONE", "units": "n/a", "limit_state": "NONE"}
+  }
+}

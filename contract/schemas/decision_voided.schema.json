@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Decision voided",
+  "description": "BALDUR-0's DECISION_VOIDED record (CONTRACT.md v0.6 §9.3, §16.4 U17). Immediately before an allowed command goes out, BALDUR-0 re-runs the whole decision; if a check now fails, or every check passes on a different plan, arming act, class or lease, the decision is voided and nothing is sent. ODIN receives this record in gateway_feedback (§16.1 U6).",
+  "type": "object",
+  "required": ["request_id", "decision_record_id", "check", "reason", "detail", "met_s", "utc"],
+  "additionalProperties": false,
+  "properties": {
+    "request_id": {"$ref": "common.schema.json#/definitions/uuid4"},
+    "decision_record_id": {
+      "description": "The record_id of the DECISION record this voids, in the run's event log.",
+      "$ref": "common.schema.json#/definitions/count_from_1"
+    },
+    "check": {
+      "description": "The check that now fails, or whose basis changed. RECORD always passes, so it is never named.",
+      "enum": ["PLAN", "ARMING", "ORIGIN", "CEILING", "PROHIBITED", "CLASS", "LEASE"]
+    },
+    "reason": {"description": "That check's reason code, or BASIS_CHANGED when every check passes but on a different plan, arming act, class or lease."},
+    "detail": {"$ref": "decision_record.schema.json#/definitions/detail"},
+    "met_s": {"$ref": "common.schema.json#/definitions/met_s"},
+    "utc": {"$ref": "common.schema.json#/definitions/utc"}
+  },
+  "allOf": [
+    {"if": {"required": ["check"], "properties": {"check": {"const": "PLAN"}}},
+     "then": {"properties": {"reason": {"anyOf": [{"$ref": "decision_record.schema.json#/definitions/reasons_PLAN"}, {"const": "BASIS_CHANGED"}]}}}},
+    {"if": {"required": ["check"], "properties": {"check": {"const": "ARMING"}}},
+     "then": {"properties": {"reason": {"anyOf": [{"$ref": "decision_record.schema.json#/definitions/reasons_ARMING"}, {"const": "BASIS_CHANGED"}]}}}},
+    {"if": {"required": ["check"], "properties": {"check": {"const": "ORIGIN"}}},
+     "then": {"properties": {"reason": {"$ref": "decision_record.schema.json#/definitions/reasons_ORIGIN"}}}},
+    {"if": {"required": ["check"], "properties": {"check": {"const": "CEILING"}}},
+     "then": {"properties": {"reason": {"$ref": "decision_record.schema.json#/definitions/reasons_CEILING"}}}},
+    {"if": {"required": ["check"], "properties": {"check": {"const": "PROHIBITED"}}},
+     "then": {"properties": {"reason": {"$ref": "decision_record.schema.json#/definitions/reasons_PROHIBITED"}}}},
+    {"if": {"required": ["check"], "properties": {"check": {"const": "CLASS"}}},
+     "then": {"properties": {"reason": {"anyOf": [{"$ref": "decision_record.schema.json#/definitions/reasons_CLASS"}, {"const": "BASIS_CHANGED"}]}}}},
+    {"if": {"required": ["check"], "properties": {"check": {"const": "LEASE"}}},
+     "then": {"properties": {"reason": {"anyOf": [{"$ref": "decision_record.schema.json#/definitions/reasons_LEASE"}, {"const": "BASIS_CHANGED"}]}}}}
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ODIN's log submission",
+  "description": "The body of POST /log/agent: one of ODIN's own records, as its type and body (CONTRACT.md v0.6 §8.3, §12). The log writer stamps the record ID, time and chain hash; ODIN submits records and never writes the log.",
+  "type": "object",
+  "required": ["type", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "type": {"enum": ["AGENT_INPUT", "MODEL_CALL", "CANDIDATE", "ANSWER", "MALFORMED"]},
+    "body": {"type": "object"}
+  },
+  "allOf": [
+    {"if": {"required": ["type"], "properties": {"type": {"const": "AGENT_INPUT"}}},
+     "then": {"properties": {"body": {"$ref": "agent_input.schema.json"}}}},
+    {"if": {"required": ["type"], "properties": {"type": {"const": "MODEL_CALL"}}},
+     "then": {"properties": {"body": {"$ref": "model_call.schema.json"}}}},
+    {"if": {"required": ["type"], "properties": {"type": {"const": "CANDIDATE"}}},
+     "then": {"properties": {"body": {"$ref": "candidate.schema.json"}}}},
+    {"if": {"required": ["type"], "properties": {"type": {"const": "ANSWER"}}},
+     "then": {"properties": {"body": {"$ref": "answer_record.schema.json"}}}},
+    {"if": {"required": ["type"], "properties": {"type": {"const": "MALFORMED"}}},
+     "then": {"properties": {"body": {"$ref": "malformed.schema.json"}}}}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "request_id": "3f2b8c1e-9a4d-4f6b-8e2a-7c5d1b0e9f34",
+  "origin": "ODIN",
+  "utc": "2026-10-28T14:10:03.120Z",
+  "met_s": 603,
+  "nonce": "6d1f0c3a9b2e4f5781a6c0d9e3b7f214",
+  "run_id": "dev-run-0001",
+  "turn_id": 3,
+  "plan_id": "TYR0-DEV-PASS1-v1",
+  "agent_input_hash": "sha256:b3f95fae08f826efc8867b6a54c59bf6a42156ebfbffe69b3033390842e1e382",
+  "command": "CMD_PLD_SET_STATE",
+  "parameters": {"state": "ON"},
+  "rationale": "State of charge is 78 percent, well above the payload's 40 percent floor.",
+  "signature": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+Pw=="
+}

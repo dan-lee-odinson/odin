@@ -1,0 +1,19 @@
+{
+  "report_kind": "PASS_START",
+  "run_id": "dev-run-0001",
+  "turn_id": 1,
+  "met_s": 120,
+  "utc": "2026-10-28T14:02:00.050Z",
+  "plan_id": "TYR0-DEV-PASS1-v1",
+  "timeline": [{"met_s": 120, "event": "Acquisition of signal; TYR0-DEV-PASS1-v1 in force."}],
+  "actions": [],
+  "condition": {
+    "summary": "Nominal.",
+    "evidence": [
+      {"point": "EPS_MODE", "value": "NOMINAL", "met_s": 120},
+      {"point": "EPS_BATT_SOC", "value": 78.0, "met_s": 120}
+    ]
+  },
+  "deferred": [],
+  "open_issues": []
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Malformed",
+  "description": "ODIN's MALFORMED record: an answer that is not well formed, which becomes no request (CONTRACT.md v0.6 §7.2, §9.5, §16.5 U17). A timeout or an error is a MODEL_CALL status, not a malformed answer.",
+  "type": "object",
+  "required": ["run_id", "turn_id", "reason", "detail"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "reason": {"enum": ["NOT_ONE_JSON_OBJECT", "SCHEMA_VIOLATION", "ANSWER_TOOL_CALL_COUNT", "WRONG_FORM_FOR_TURN"]},
+    "detail": {"description": "The validator's message.", "type": "string"}
+  }
+}

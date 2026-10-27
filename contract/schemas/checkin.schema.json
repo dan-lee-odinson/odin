@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Check-in",
+  "description": "Addendum A-1: the Director's check-in, delivered to the harness with POST /checkin after transcription. The harness turns it into a check-in trigger (CONTRACT.md v0.6 §6.1, §13). A check-in never changes ODIN's authority.",
+  "type": "object",
+  "required": ["text", "audio_sha256", "source", "utc"],
+  "additionalProperties": false,
+  "properties": {
+    "text": {"description": "The transcript.", "type": "string"},
+    "audio_sha256": {"description": "The hash of the audio, written as §4 writes every hash.", "$ref": "common.schema.json#/definitions/sha256"},
+    "source": {"description": "RECORDED in scored runs; LIVE in the demo and the finals.", "enum": ["LIVE", "RECORDED"]},
+    "utc": {"$ref": "common.schema.json#/definitions/utc"}
+  }
+}

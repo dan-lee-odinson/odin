@@ -1,0 +1,32 @@
+{
+  "request_id": "5d8a2f61-3c7e-4b9a-9f14-6e0b2c8d7a35",
+  "decision": "REFUSE",
+  "checks": [
+    {"check": "PLAN", "result": "PASS", "reason": null, "detail": null},
+    {"check": "ARMING", "result": "PASS", "reason": null, "detail": null},
+    {"check": "ORIGIN", "result": "PASS", "reason": null, "detail": null},
+    {"check": "CEILING", "result": "PASS", "reason": null, "detail": null},
+    {"check": "PROHIBITED", "result": "PASS", "reason": null, "detail": null},
+    {
+      "check": "CLASS",
+      "result": "PASS",
+      "reason": null,
+      "detail": "raised to C4: EPS_BATT_SOC ge 35 does not hold (33.4)"
+    },
+    {
+      "check": "LEASE",
+      "result": "FAIL",
+      "reason": "NO_LEASE",
+      "detail": "no lease in TYR0-DEV-PASS2-v1 names CMD_PLD_SET_STATE"
+    },
+    {"check": "RECORD", "result": "PASS", "reason": null, "detail": null}
+  ],
+  "plan_id": "TYR0-DEV-PASS2-v1",
+  "arming_act_id": "ARM-DEV-01",
+  "rung": "AI_AUTONOMOUS",
+  "base_class": "C1",
+  "class": "C4",
+  "lease_id": null,
+  "met_s": 5610,
+  "utc": "2026-10-28T15:33:30.020Z"
+}

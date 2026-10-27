@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agent input",
+  "description": "ODIN's AGENT_INPUT record, submitted to POST /log/agent before the model is called (CONTRACT.md v0.6 §4, §6.3, §8.3, §16.5 U17). Each hash names a file in runs/<run_id>/inputs/ holding those exact bytes.",
+  "type": "object",
+  "required": ["run_id", "turn_id", "bundle_sha256", "prompt_sha256"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "bundle_sha256": {"description": "The turn bundle's exact bytes.", "$ref": "common.schema.json#/definitions/sha256"},
+    "prompt_sha256": {"description": "The exact prompt bytes ODIN assembled.", "$ref": "common.schema.json#/definitions/sha256"}
+  }
+}

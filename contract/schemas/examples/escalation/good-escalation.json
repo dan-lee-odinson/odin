@@ -1,0 +1,14 @@
+{
+  "kind": "escalation",
+  "escalation_kind": "LEASE_NEEDED",
+  "refs": ["TYR0-DEV-PASS1-v1", "PROC-001"],
+  "proposed": {"command": "CMD_MODE_SET", "parameters": {"target": "NOMINAL"}},
+  "urgency": "ROUTINE",
+  "rationale": "The procedure's next step needs a mode change that no lease in this plan covers.",
+  "run_id": "dev-run-0001",
+  "turn_id": 6,
+  "met_s": 700,
+  "utc": "2026-10-28T14:11:40.220Z",
+  "plan_id": "TYR0-DEV-PASS1-v1",
+  "agent_input_hash": "sha256:14fc94d353e2624ef11040c375de98196f729fa5494ba56d23aba8e881c3724c"
+}

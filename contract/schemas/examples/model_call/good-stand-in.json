@@ -1,0 +1,20 @@
+{
+  "run_id": "dev-run-0001",
+  "turn_id": 3,
+  "call_index": 1,
+  "config": "stand_in",
+  "provider": null,
+  "model_id": null,
+  "reasoning_effort": null,
+  "max_output_tokens": null,
+  "status": "OK",
+  "input_tokens": 0,
+  "cached_input_tokens": 0,
+  "output_tokens": 0,
+  "reasoning_tokens": 0,
+  "reserved_cost_usd": 0,
+  "actual_cost_usd": 0,
+  "pays_from": null,
+  "latency_s": 0.01,
+  "provider_usage": null
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Escalation reply",
+  "description": "POST /escalation's reply (CONTRACT.md v0.6 §8.2, §16.5 U17). Out of contact, escalations queue until the next acquisition of signal (§7.1).",
+  "type": "object",
+  "required": ["record_id", "delivery"],
+  "additionalProperties": false,
+  "properties": {
+    "record_id": {"description": "The ESCALATION record's ID in the event log.", "$ref": "common.schema.json#/definitions/count_from_1"},
+    "delivery": {"description": "NOW in contact; QUEUED_UNTIL_AOS out of contact.", "enum": ["NOW", "QUEUED_UNTIL_AOS"]}
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "run_id": "dev-run-0001",
+  "turn_id": 4,
+  "tool": "history",
+  "arguments": {"points": ["EPS_BATT_V", "EPS_BATT_SOC"], "window_s": 900},
+  "result_sha256": "sha256:00b12ea49727eb2348720f4396ea7b9d7fe68147afed1d033d3a953a54a8bcdf"
+}

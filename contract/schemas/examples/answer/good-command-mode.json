@@ -1,0 +1,6 @@
+{
+  "kind": "command",
+  "command": "CMD_MODE_SET",
+  "parameters": {"target": "LOW_POWER"},
+  "rationale": "The procedure in force calls for low-power mode ahead of the eclipse."
+}

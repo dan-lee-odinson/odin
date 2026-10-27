@@ -1,0 +1,9 @@
+{
+  "type": "MALFORMED",
+  "body": {
+    "run_id": "dev-run-0001",
+    "turn_id": 7,
+    "reason": "NOT_ONE_JSON_OBJECT",
+    "detail": "text before the JSON object: a code fence"
+  }
+}

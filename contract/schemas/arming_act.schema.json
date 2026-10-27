@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Arming act",
+  "description": "Sets ODIN's rung for a named batch of runs (CONTRACT.md v0.6 §5.4, §16.2). Signed with the Director's TYR-0 key under the namespace aesir-arm; the signature is a separate file. Without a valid act covering the run, ODIN's rung is HUMAN_ONLY.",
+  "type": "object",
+  "required": ["act_id", "kind", "rung", "runs", "plan_chain_hashes", "expires_utc"],
+  "additionalProperties": false,
+  "properties": {
+    "act_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "kind": {"const": "ARM"},
+    "rung": {"description": "ODIN is armed at AI_AUTONOMOUS in every phase (§1, §5.4).", "const": "AI_AUTONOMOUS"},
+    "runs": {
+      "description": "The run IDs this act covers.",
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/definitions/identifier"}
+    },
+    "plan_chain_hashes": {
+      "description": "The SHA-256 of each plan file's exact signed bytes (§16.2 U18), for every plan any run the act covers may fly. BALDUR-0 requires every plan in a run's chain to appear here.",
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/definitions/sha256"}
+    },
+    "expires_utc": {"$ref": "common.schema.json#/definitions/utc"}
+  }
+}

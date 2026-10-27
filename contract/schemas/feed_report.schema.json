@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Outside-feed report",
+  "description": "One report from an outside feed, phase 3 only (CONTRACT.md v0.6 §6.5). Feeds come from the wrapper, are built from the simulator's true state and the scenario script, and are disclosed as modeled.",
+  "type": "object",
+  "required": ["feed", "met_s", "utc", "content"],
+  "additionalProperties": false,
+  "properties": {
+    "feed": {"enum": ["station_receiver", "beacon", "other_stations", "space_weather"]},
+    "met_s": {"$ref": "common.schema.json#/definitions/met_s"},
+    "utc": {"$ref": "common.schema.json#/definitions/utc"},
+    "content": {"description": "Set for each feed by the approved scenario drafts (§6.5)."}
+  }
+}

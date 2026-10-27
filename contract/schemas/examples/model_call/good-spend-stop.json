@@ -1,0 +1,20 @@
+{
+  "run_id": "dev-run-0002",
+  "turn_id": 12,
+  "call_index": 1,
+  "config": "spark_open",
+  "provider": "Baseten Model API (hackathon credit)",
+  "model_id": "meta-models/muse-spark-open-1026",
+  "reasoning_effort": "low",
+  "max_output_tokens": 4096,
+  "status": "SPEND_STOP",
+  "input_tokens": 18234,
+  "cached_input_tokens": null,
+  "output_tokens": null,
+  "reasoning_tokens": null,
+  "reserved_cost_usd": 0.0402005,
+  "actual_cost_usd": null,
+  "pays_from": "BASETEN_CREDIT",
+  "latency_s": null,
+  "provider_usage": null
+}

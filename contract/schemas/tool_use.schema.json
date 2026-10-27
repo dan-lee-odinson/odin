@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Tool use",
+  "description": "The harness's TOOL_USE record: one use of either read-only tool, the docs lookup or the history call (CONTRACT.md v0.6 §8.1, §8.4, §12, §16.5; the Director's ruling on U19, 26 October 2026). The tools are named docs_lookup and history, the names the model calls them by. GET /history?points= lists its points comma-separated, as in GET /history?points=EPS_BATT_V,EPS_BATT_SOC&window_s=900. The arguments are recorded as parsed values.",
+  "type": "object",
+  "required": ["run_id", "turn_id", "tool", "arguments", "result_sha256"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "tool": {"description": "Which tool was used, by the name the model calls it.", "enum": ["docs_lookup", "history"]},
+    "arguments": {"description": "What the tool was given, as parsed values.", "type": "object"},
+    "result_sha256": {"description": "The hash of the reply's canonical JSON (§4).", "$ref": "common.schema.json#/definitions/sha256"}
+  },
+  "allOf": [
+    {"if": {"required": ["tool"], "properties": {"tool": {"const": "docs_lookup"}}},
+     "then": {"properties": {"arguments": {
+       "required": ["q"],
+       "additionalProperties": false,
+       "properties": {"q": {"description": "GET /docs/lookup's q.", "type": "string"}}}}}},
+    {"if": {"required": ["tool"], "properties": {"tool": {"const": "history"}}},
+     "then": {"properties": {"arguments": {
+       "required": ["points", "window_s"],
+       "additionalProperties": false,
+       "properties": {
+         "points": {
+           "description": "GET /history's points, parsed from its comma-separated list.",
+           "type": "array",
+           "items": {"$ref": "common.schema.json#/definitions/point"}
+         },
+         "window_s": {"description": "GET /history's window_s, at most 3,600 (§16.5).", "type": "number", "minimum": 0, "maximum": 3600}
+       }}}}}
+  ]
+}

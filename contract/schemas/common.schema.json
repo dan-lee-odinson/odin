@@ -1,0 +1,206 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Shared definitions",
+  "description": "Definitions the other schemas share: CONTRACT.md v0.6 §4 (time, identifiers, hashing), §7.4 (commands), §16 (conditions, point tables, classes), and HUGINN's pinned dictionary (deps/huginn/defs/tlm_cmd.yaml at commit b4dbe61).",
+  "definitions": {
+    "utc": {
+      "description": "Wall-clock time in UTC, ISO 8601 with milliseconds (§4).",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}(Z|\\+00:00)$"
+    },
+    "met_s": {
+      "description": "Simulation time: HUGINN's mission elapsed time, in seconds (§4).",
+      "type": "number",
+      "minimum": 0
+    },
+    "sha256": {
+      "description": "SHA-256, lowercase hex, written sha256:<hex> (§4).",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "uuid4": {
+      "description": "A version 4 UUID (§4).",
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "identifier": {
+      "description": "A run_id, scenario_id, plan_id, act_id or lease_id (§4). The contract gives examples, not a format.",
+      "type": "string",
+      "minLength": 1
+    },
+    "count_from_1": {
+      "description": "A turn_id or record_id (§4), or a model call's call_index (the Director's ruling on U20, 26 October 2026), counting from 1.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "rung": {
+      "description": "The rungs this build uses (§7.4).",
+      "enum": ["HUMAN_ONLY", "AI_AUTONOMOUS"]
+    },
+    "class": {
+      "description": "A command class, written C1 to C4 (§7.4, §16.4 U14).",
+      "enum": ["C1", "C2", "C3", "C4"]
+    },
+    "command": {
+      "description": "The five commands (§7.4).",
+      "enum": ["CMD_PLD_SET_STATE", "CMD_PLD_SET_RATE", "CMD_SAFE_ENTER", "CMD_SYS_RESET", "CMD_MODE_SET"]
+    },
+    "protective_command": {
+      "description": "The C3 PROTECT commands, which no plan can prohibit or restrict (§5.5).",
+      "enum": ["CMD_SAFE_ENTER", "CMD_SYS_RESET"]
+    },
+    "unprotected_command": {
+      "description": "The commands a plan may prohibit or lease: every command except the protective ones (§5.2, §5.5).",
+      "enum": ["CMD_PLD_SET_STATE", "CMD_PLD_SET_RATE", "CMD_MODE_SET"]
+    },
+    "point": {
+      "description": "The 16 HUGINN telemetry points, in dictionary order (§6.4).",
+      "enum": [
+        "EPS_BATT_V", "EPS_BATT_I", "EPS_BATT_SOC", "EPS_SA1_I", "EPS_SA2_I", "EPS_BUS_V", "EPS_LOAD_I", "EPS_MODE",
+        "ADM_ECLIPSE", "PLD_STATE", "PLD_RATE", "CDH_MET", "CDH_FRAME_CNT", "CDH_CMD_ACC_CNT", "CDH_CMD_REJ_CNT", "CDH_REJ_REASON"
+      ]
+    },
+    "numeric_point": {
+      "description": "The points whose values are numbers in the dictionary.",
+      "enum": [
+        "EPS_BATT_V", "EPS_BATT_I", "EPS_BATT_SOC", "EPS_SA1_I", "EPS_SA2_I", "EPS_BUS_V", "EPS_LOAD_I",
+        "PLD_RATE", "CDH_MET", "CDH_FRAME_CNT", "CDH_CMD_ACC_CNT", "CDH_CMD_REJ_CNT"
+      ]
+    },
+    "state_point": {
+      "description": "The points whose values are states in the dictionary (§16.2 U8).",
+      "enum": ["EPS_MODE", "ADM_ECLIPSE", "PLD_STATE", "CDH_REJ_REASON"]
+    },
+    "value_fits_point": {
+      "description": "Applied to an object with point and value: the value is a number for a numeric point, and one of the point's states for a state point. Each point's values are defined once, in observation.schema.json.",
+      "allOf": [
+        {"if": {"required": ["point"], "properties": {"point": {"$ref": "#/definitions/numeric_point"}}},
+         "then": {"properties": {"value": {"type": "number"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "EPS_MODE"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/EPS_MODE/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "ADM_ECLIPSE"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/ADM_ECLIPSE/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "PLD_STATE"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/PLD_STATE/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "CDH_REJ_REASON"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/CDH_REJ_REASON/properties/value"}}}}
+      ]
+    },
+    "value_fits_mnemonic": {
+      "description": "The same rule as value_fits_point, for an object that names its point as mnemonic.",
+      "allOf": [
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"$ref": "#/definitions/numeric_point"}}},
+         "then": {"properties": {"value": {"type": "number"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "EPS_MODE"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/EPS_MODE/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "ADM_ECLIPSE"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/ADM_ECLIPSE/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "PLD_STATE"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/PLD_STATE/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "CDH_REJ_REASON"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/CDH_REJ_REASON/properties/value"}}}}
+      ]
+    },
+    "condition": {
+      "description": "A limit that must hold on current telemetry: an envelope limit (§5.1) or a lease condition (§5.2), settled in §16.2 U8.",
+      "type": "object",
+      "required": ["point", "op", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "point": {"$ref": "#/definitions/point"},
+        "op": {
+          "description": "Written as words, because > and < are special characters in YAML. Only eq and ne apply to a state point.",
+          "enum": ["lt", "le", "gt", "ge", "eq", "ne"]
+        },
+        "value": {"description": "For a numeric point, a number in the dictionary's units; for a state point, one of its states."}
+      },
+      "allOf": [
+        {"$ref": "#/definitions/value_fits_point"},
+        {"if": {"required": ["point"], "properties": {"point": {"$ref": "#/definitions/state_point"}}},
+         "then": {"properties": {"op": {"enum": ["eq", "ne"]}}}}
+      ]
+    },
+    "point_table": {
+      "description": "Point history as a table (§16.1 U3). columns is met_s, then the points. Each row is one received frame: that frame's CDH_MET, then the raw values in column order. Every row has as many entries as columns has; JSON Schema cannot compare the two.",
+      "type": "object",
+      "required": ["columns", "rows"],
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": [{"const": "met_s"}],
+          "additionalItems": {"$ref": "#/definitions/point"}
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": [{"$ref": "#/definitions/met_s"}],
+            "additionalItems": {"type": ["number", "string"]}
+          }
+        }
+      }
+    },
+    "parameters_CMD_PLD_SET_STATE": {
+      "type": "object",
+      "required": ["state"],
+      "additionalProperties": false,
+      "properties": {"state": {"enum": ["OFF", "ON"]}}
+    },
+    "parameters_CMD_PLD_SET_RATE": {
+      "type": "object",
+      "required": ["rate"],
+      "additionalProperties": false,
+      "properties": {"rate": {"type": "number", "minimum": 0.1, "maximum": 10}}
+    },
+    "parameters_CMD_SAFE_ENTER": {
+      "type": "object",
+      "maxProperties": 0
+    },
+    "parameters_CMD_SYS_RESET": {
+      "type": "object",
+      "maxProperties": 0
+    },
+    "parameters_CMD_MODE_SET": {
+      "type": "object",
+      "required": ["target"],
+      "additionalProperties": false,
+      "properties": {"target": {"enum": ["NOMINAL", "LOW_POWER"]}}
+    },
+    "command_and_parameters": {
+      "description": "A command with exactly its arguments and their allowed values (§7.2, §7.4). Every object that carries a command and its parameters uses this.",
+      "type": "object",
+      "required": ["command", "parameters"],
+      "properties": {
+        "command": {"$ref": "#/definitions/command"},
+        "parameters": {"type": "object"}
+      },
+      "allOf": [
+        {"if": {"properties": {"command": {"const": "CMD_PLD_SET_STATE"}}},
+         "then": {"properties": {"parameters": {"$ref": "#/definitions/parameters_CMD_PLD_SET_STATE"}}}},
+        {"if": {"properties": {"command": {"const": "CMD_PLD_SET_RATE"}}},
+         "then": {"properties": {"parameters": {"$ref": "#/definitions/parameters_CMD_PLD_SET_RATE"}}}},
+        {"if": {"properties": {"command": {"const": "CMD_SAFE_ENTER"}}},
+         "then": {"properties": {"parameters": {"$ref": "#/definitions/parameters_CMD_SAFE_ENTER"}}}},
+        {"if": {"properties": {"command": {"const": "CMD_SYS_RESET"}}},
+         "then": {"properties": {"parameters": {"$ref": "#/definitions/parameters_CMD_SYS_RESET"}}}},
+        {"if": {"properties": {"command": {"const": "CMD_MODE_SET"}}},
+         "then": {"properties": {"parameters": {"$ref": "#/definitions/parameters_CMD_MODE_SET"}}}}
+      ]
+    },
+    "command_with_parameters": {
+      "description": "Exactly a command and its parameters, and nothing else, as in an escalation's proposed command (§16.3 U11).",
+      "type": "object",
+      "required": ["command", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {},
+        "parameters": {}
+      },
+      "allOf": [{"$ref": "#/definitions/command_and_parameters"}]
+    }
+  }
+}

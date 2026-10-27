@@ -2,12 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Version | v0.5, 26 October 2026 |
+| Version | v0.6, 26 October 2026 |
 | Repository | `github.com/dan-lee-odinson/odin` |
 | Design authority | Dan Lee-Odinson, Director. Every value in this contract is his to change. |
 | Drafting assistance | Claude (advisor session). Drafting assistance only; the Director holds design authority and makes every ruling. |
 | Governs | Claude Code and Muse Code, equally. Where this contract and any other instruction disagree, the builder stops and reports. |
 | Source of the rulings | The kickoff record, `claude/odin-meta-hackathon-kickoff.md` in the RESEARCH project, §1, with the Director's words verbatim where he wrote them. |
+| Changes from v0.5 | The Director's rulings of 26 October on the eighteen points stage S1 found unsettled: §16 settles each field and record, and the schemas encode it. He chose the settlements of U6 (ODIN is told when an allowed command is voided, and reads outcomes from telemetry itself) and U14 (BALDUR-0 stops at the first failed check) and approved the rest as drafted. The bundle gains `rung_reason` and `report_kind`, and `procedure` becomes `procedures` (§6.2); the decision record gains `base_class` and each check a `detail` (§9.2); the log gains `TOOL_USE` (§12). §11.2 now credits Baseten's reasoning documentation, not its model page, for reasoning being billed as output. |
 | Changes from v0.4 | The Director's rulings of 26 October after the $100 Baseten hackathon credit arrived. The open-weights arm `spark_open` moves from Modal to Baseten, applying his earlier selection that it run on Modal until Baseten or Fireworks credits arrived (§11.1). Its spending stop is $90 (§11.3). Each model answers at its best, by its strongest structured method: `spark` keeps structured output, and `spark_open`, for which Baseten offers no structured output or JSON mode, answers by tool calling; the same checks judge both, and each run records the method (§11.1). Prices and the meter's amounts follow (§11.2). Modal remains only as the Glimmer GPU fallback. |
 | Changes from v0.3 | The Director's ruling on the protective commands (§5.5), and his rulings of 26 October on GPT's second review: BALDUR-0 re-runs the whole decision at dispatch and voids a command whose result or basis changed (§9.3); the plan chain is fixed for the whole run (§5.1); with no fresh telemetry only the protective commands go out (§9.6); urgent turns run before report turns (§6.1); Glimmer is judged on quality as well as speed (§11.1); the restore test's scope is stated (§9.4). |
 | Changes from v0.2 | The Director's rulings of 26 October on ODIN's authority: ODIN's rung comes from his signed arming act (§5.4), and TYR-0 sets what ODIN may do and grants nothing; ODIN is armed at AI_AUTONOMOUS throughout, in contact and out; BALDUR-0 decides by a rung × class table, a prohibited list and pre-authorized leases (§5.2, §7.4); the revoke scenario's restore is a pre-signed re-arming act. A wrong statement about in-contact autonomy in v0.2 §1 is removed. |
@@ -170,9 +171,10 @@ Served by the harness (§8.1). Every field is an input, saved and hashed (§4).
 | `run_id`, `turn_id`, `met_s`, `utc` | |
 | `triggers` | Why this turn happened (§6.1) |
 | `turn_kind` | `ACT` (may answer in any form of §7.1) or `REPORT` (must answer with a report, §7.5) |
+| `report_kind` | On a `REPORT` turn, the report that is due; `null` on an `ACT` turn (§16.1) |
 | `contact_state` | `IN_CONTACT` or `OUT_OF_CONTACT` |
 | `seat` | `GROUND` (works COSMOS) or `ONBOARD` (beside the simulator) |
-| `rung` | `AI_AUTONOMOUS` while a valid arming act covers the run, a plan is in force and authority is not revoked; otherwise `HUMAN_ONLY`, with the reason (`REVOKED`, `NOT_ARMED` or `NO_PLAN`) |
+| `rung`, `rung_reason` | `AI_AUTONOMOUS` while a valid arming act covers the run, a plan is in force and authority is not revoked; otherwise `HUMAN_ONLY`, with the reason (`REVOKED`, `NOT_ARMED` or `NO_PLAN`) in `rung_reason` (§16.1) |
 | `observation` | §6.4 |
 | `history` | The last 300 seconds of the points named in the plan's procedures, one row per received frame |
 | `feeds` | Phase 3 only, §6.5 |
@@ -181,7 +183,7 @@ Served by the harness (§8.1). Every field is an input, saved and hashed (§4).
 | `uses_left` | For each lease with `max_uses`, the uses remaining under the plan in force |
 | `plan` | The whole signed TYR-0 plan in force |
 | `next_plan_summary` | The next plan's validity span, prohibited list, envelope and leases, so ODIN can plan across the boundary |
-| `procedure` | The procedure in force, unchanged, with any attachments the scenario delivered beside it |
+| `procedures` | Each procedure in force, unchanged, with any attachments the scenario delivered beside it (§16.1) |
 | `check_in_text` | On a check-in turn, the Director's words as transcribed |
 
 ### 6.3 Input record
@@ -326,7 +328,7 @@ For every `COMMAND_REQUEST`, in order:
 
 ### 9.2 Decision record
 
-`{request_id, decision: ALLOW or REFUSE, checks: [{check, result, reason}], plan_id, arming_act_id, rung, class, lease_id, met_s, utc}`. ODIN receives it as `gateway_feedback` on its next turn.
+`{request_id, decision: ALLOW or REFUSE, checks: [{check, result, reason, detail}], plan_id, arming_act_id, rung, base_class, class, lease_id, met_s, utc}`, settled in §16.4. ODIN receives it as `gateway_feedback` on its next turn.
 
 ### 9.3 Recheck, dispatch and outcome
 
@@ -397,7 +399,7 @@ The configuration used in a scored run is frozen and its hash recorded with the 
 
 ### 11.2 Prices and what pays for them
 
-Kept in `config/prices.yaml` with the source and date of each figure, and read by the spend meter. Starting values: `spark` $1.25 per million input tokens, $0.15 cached, $4.25 output (reasoning is billed as output). `spark_open` on Baseten: $1.25 per million input tokens, $0.15 cached, $4.25 output (Baseten's model page, read 26 October 2026; Baseten counts reasoning tokens as output), paid from the $100 Baseten hackathon credit. A Modal GPU (a Glimmer fallback) draws on the $30 monthly Modal credit first.
+Kept in `config/prices.yaml` with the source and date of each figure, and read by the spend meter. Starting values: `spark` $1.25 per million input tokens, $0.15 cached, $4.25 output (reasoning is billed as output). `spark_open` on Baseten: $1.25 per million input tokens, $0.15 cached, $4.25 output (Baseten's model page, read 26 October 2026; Baseten's reasoning documentation states that reasoning tokens count as output, as the Director's test call of 26 October showed), paid from the $100 Baseten hackathon credit. A Modal GPU (a Glimmer fallback) draws on the $30 monthly Modal credit first.
 
 The meter tracks four amounts separately: hackathon credits used at Meta, hackathon credits used at Baseten, plan credits used at Modal, and out-of-pocket charges.
 
@@ -418,7 +420,7 @@ Returns scripted answers in every form, reports included, and deliberately malfo
 - One append-only file per run, JSON Lines, in `runs/<run_id>/events.jsonl`.
 - Every record carries `record_id`, `utc`, `met_s`, `type`, `body`, and `prev_hash` (the hash of the previous record). A check recomputes the chain, and it is made to fail on purpose once before it is trusted.
 - Written only by the harness and BALDUR-0. ODIN submits its records through §8.3.
-- Record types: `RUN_START`, `PLAN_CHAIN_VERIFIED`, `ARMING_VERIFIED`, `PLAN_IN_FORCE`, `CONTACT`, `TRIGGER`, `AGENT_INPUT`, `MODEL_CALL`, `CANDIDATE`, `ANSWER`, `MALFORMED`, `REQUEST`, `DECISION`, `DECISION_VOIDED`, `DISPATCH`, `OUTCOME`, `ESCALATION`, `REPORT`, `CHECK_IN`, `REVOKE`, `RESTORE`, `SPEND`, `SPEND_STOP`, `RUN_END`.
+- Record types: `RUN_START`, `PLAN_CHAIN_VERIFIED`, `ARMING_VERIFIED`, `PLAN_IN_FORCE`, `CONTACT`, `TRIGGER`, `AGENT_INPUT`, `MODEL_CALL`, `CANDIDATE`, `ANSWER`, `MALFORMED`, `REQUEST`, `DECISION`, `DECISION_VOIDED`, `DISPATCH`, `OUTCOME`, `ESCALATION`, `REPORT`, `CHECK_IN`, `REVOKE`, `RESTORE`, `SPEND`, `SPEND_STOP`, `TOOL_USE`, `RUN_END`.
 - **Truth is kept apart.** Fault onsets and the simulator's true state are written to `runs/<run_id>/truth.jsonl`, which ODIN never reads, for evaluation only.
 
 ## 13. Reports
@@ -445,3 +447,71 @@ These are not settled by this contract. Builders do not settle them; the advisor
 ## 15. Submission
 
 The submission checklist lives in the kickoff record, §5: the deadline (Wednesday 4 November, 9:00 p.m. Eastern), the public repository and the video opened from a signed-out browser, the README's split between new work and pre-existing dependencies, contributors and AI-use disclosure, reproduction instructions, the scoring approved before scored runs, the frozen configuration and held-out fingerprints verifiable, and failures reported beside successes.
+
+## 16. Field settlements for the schemas
+
+Stage S1 found eighteen fields and records this contract named without settling (Claude Code's report of 26 October, items U1 to U18). The Director chose the settlements of U6 and U14 and approved the rest as drafted (26 October 2026). They follow, numbered as in that report. Claude Code encodes them in `contract/schemas/`; from then on the schemas are the single source (preamble).
+
+**General rule (U15).** Records the system writes always carry every field the schema lists. When a field's subject does not exist (no frame yet, no plan in force, no next plan, no arming act, no lease, no class looked up, not phase 3, not a check-in turn), the field is present with the value `null`. Only fields the model writes may be left out, and only where marked optional (`rationale`).
+
+### 16.1 The turn bundle (§6.2)
+
+- **U1, `triggers`:** a list of `{type, met_s, detail}`, oldest first, holding every trigger merged into this turn. `type` is one of `AOS`, `LOS`, `PLAN_START`, `LIMIT_CHANGE`, `MODE_CHANGE`, `STALENESS_CHANGE`, `OUTCOME`, `FEED_REPORT`, `DECISION`, `CHECK_IN`, `REVOKE`, `RESTORE`, `PERIODIC`. `detail` is `{}` except: `PLAN_START` `{plan_id}`; `LIMIT_CHANGE` `{point, from, to}`; `MODE_CHANGE` and `STALENESS_CHANGE` `{from, to}`; `OUTCOME` `{request_id}`, saying only that the counters have moved, since ODIN reads the result itself (U6); `FEED_REPORT` `{feed}`; `DECISION` `{request_id, decision}`.
+- **U2, `rung`:** two fields. `rung` is `AI_AUTONOMOUS` or `HUMAN_ONLY`, written as in the decision record. `rung_reason` is `null` at AI_AUTONOMOUS, and `REVOKED`, `NOT_ARMED` or `NO_PLAN` at HUMAN_ONLY.
+- **U3, `history`:** a table, `{columns, rows}`. `columns` is `["met_s", <point>, …]`; each row is one received frame, `met_s` being that frame's `CDH_MET`, followed by the raw values in column order. The points are those whose mnemonics appear in the text of the procedures in force, found by matching the 16 mnemonics; the bundle records which points it used in `columns`. The table form writes each point name once rather than once per row, which keeps every turn's input smaller.
+- **U4, `uses_left`:** an object from `lease_id` to the uses remaining, for each lease in the plan in force whose `max_uses` is not null. `{}` when there are none or no plan is in force.
+- **U5, `procedures` (renamed from `procedure`):** a list, one entry per item of the plan's `procedures_in_force`, in the same order: `{id, version, sha256, text, attachments}`. `text` is the procedure's full text. `attachments` is a list of `{name, sha256, text}` the scenario delivered beside it, `[]` if none. Attachments are text.
+- **U6, `gateway_feedback` (the Director's choice: voided decisions, not outcomes):** every `DECISION` and `DECISION_VOIDED` record about ODIN's requests since ODIN's previous request, oldest first, each as `{type, record}` with the record as §16.4 writes it. ODIN therefore learns when an allowed command was voided before it went out, which telemetry cannot show. Whether the spacecraft accepted a command ODIN reads from telemetry itself, as the Director did by hand, so phase 2's comparison with his passes stays fair; BALDUR-0's `OUTCOME` records go to the log, not to ODIN.
+- **U16, the run folder:** no bundle field. ODIN derives its folder from `run_id`: `runs/<run_id>/inputs/` under the repository root it runs from (§4). Muse Code's rules are corrected to say so.
+- **Report turns (from U12):** on a `REPORT` turn the bundle also carries `report_kind`, the report that is due (`PASS_START`, `CHECK_IN` or `HAND_BACK`); on an `ACT` turn it is `null`.
+
+### 16.2 Telemetry, limits and plans (§5, §6.4)
+
+- **U7, `limit_state`:** one of `GREEN`, `YELLOW_LOW`, `YELLOW_HIGH`, `RED_LOW`, `RED_HIGH`, `RED` or `NONE`. Points with numeric thresholds in HUGINN's pinned dictionary (`EPS_BATT_V`, `EPS_BATT_I`, `EPS_BATT_SOC`, `EPS_BUS_V`, `EPS_LOAD_I`) use the first five, by COSMOS's rule: below the red low limit `RED_LOW`, else below the yellow low limit `YELLOW_LOW`, else above the red high limit `RED_HIGH`, else above the yellow high limit `YELLOW_HIGH`, else `GREEN`. `EPS_MODE` is `RED` in `SAFE`, its annunciating state, and `GREEN` otherwise. Every other point is `NONE`. In the ground seat the value is read from COSMOS; in the onboard seat it is computed from the same dictionary, so both seats agree. Staleness is reported separately in `staleness_state`.
+- **U8, conditions `{point, op, value}`:** `op` is one of `lt`, `le`, `gt`, `ge`, `eq`, `ne`, written as words because `>` and `<` are special characters in YAML. For a numeric point `value` is a number in the dictionary's units and any `op` applies. For a state point (`EPS_MODE`, `ADM_ECLIPSE`, `PLD_STATE`, `CDH_REJ_REASON`) `value` is one of its states and only `eq` and `ne` apply.
+- **U9, lease `arguments`:** must name every argument of the leased command. `state` and `target` take a list of allowed values. `rate` takes `{min, max}`, inclusive, inside 0.1 to 10.0 Hz. An empty object is invalid, since every command a lease may name takes one argument.
+- **U10, a procedure's `version`:** a string, as written on the procedure.
+- **U18, `plan_chain_hashes`:** the SHA-256 of each plan file's exact signed bytes, written `sha256:<hex>`. The list holds every plan any run the act covers may fly, and BALDUR-0 requires every plan in a run's chain to appear in it.
+
+### 16.3 What ODIN writes (§7)
+
+- **U11, escalations:** `refs` is a list of strings naming the evidence, such as point mnemonics, request IDs, log record IDs, procedure steps (`PROC-002 step 5`) or plan fields; it may be empty. `proposed` is the command ODIN proposes, as `{command, parameters}` checked like any command, or `null` when it proposes none. Prose goes in `rationale`.
+- **U12, reports:** the loop fills in `report_kind` (copied from the bundle), `run_id`, `turn_id`, `met_s`, `utc` and `plan_id`. The model writes the rest:
+  - `timeline`: a list of `{met_s, event}`, `event` a string;
+  - `actions`: a list of `{request_id, command, parameters, outcome}`, `outcome` one of `ACCEPTED`, `REJECTED`, `NO_ACKNOWLEDGEMENT`, `REFUSED` (by BALDUR-0), `VOIDED` or `PENDING`;
+  - `condition`: `{summary, evidence}`, `summary` a string and `evidence` a list of `{point, value, met_s}`;
+  - `deferred`: a list of `{objective, reason}`;
+  - `open_issues`: a list of strings;
+  - `answer`: a string, on a `CHECK_IN` report only, and absent on the others.
+  The request IDs, outcomes and evidence values are what §13's accuracy check compares with the event log.
+- **U13, request signing:** `nonce` is 128 random bits from the operating system's secure generator, written as 32 lowercase hex characters. `signature` is the 64-byte Ed25519 signature over the canonical JSON (§4) of every other field, written in standard base64 with padding. `keys/odin.pub` holds ODIN's public key as one OpenSSH line, `ssh-ed25519 AAAA… odin`.
+
+### 16.4 BALDUR-0's records (§9)
+
+- **U14, the decision record (the Director's choice: stop at the first failure):** BALDUR-0 runs the checks of §9.1 in order and stops at the first that fails. `checks` always lists all eight, in order, each `{check, result, reason, detail}`: `result` is `PASS`, `FAIL` or `NOT_RUN` (after a failure); `RECORD` is always `PASS`. `reason` is `null` unless the result is `FAIL`, and then one of:
+  - PLAN: `NO_PLAN_IN_FORCE`
+  - ARMING: `NOT_ARMED`, `ACT_EXPIRED`, `ACT_NOT_FOR_RUN`
+  - ORIGIN: `BAD_SIGNATURE`, `NONCE_REUSED`, `CLOCK_SKEW`
+  - CEILING: `REVOKED`
+  - PROHIBITED: `PROHIBITED_BY_PLAN`
+  - CLASS: `RUNG_REFUSES_CLASS`, `NO_FRESH_TELEMETRY` (§9.6)
+  - LEASE: `NO_LEASE`, `ARGUMENTS_NOT_COVERED`, `CONDITION_FAILED`, `NO_USES_LEFT`, `NO_FRESH_TELEMETRY`
+  
+  `detail` is a short string or `null`, naming for example the condition or envelope limit that did not hold. A class is written `C1`, `C2`, `C3` or `C4`. The record carries `base_class`, the dictionary's class, and `class`, after any raise to C4, so ODIN can see when an envelope limit raised it; both are `null` if the decision stopped before the class was looked up.
+- **U17, the records with no fields until now:**
+  - `DECISION_VOIDED`: `{request_id, decision_record_id, check, reason, detail, met_s, utc}`. `check` names the check that now fails, or whose basis changed; `reason` is that check's reason code, or `BASIS_CHANGED` when every check passes but on a different plan, arming act, class or lease.
+  - `DISPATCH`: `{request_id, command, parameters, route, lease_id, met_s, utc}`, `route` `COSMOS` or `UPLINK`.
+  - `OUTCOME`: `{request_id, outcome, acc_before, acc_after, rej_before, rej_after, rej_reason, point, frame_met_s, met_s, utc}`. `outcome` is `ACCEPTED`, `REJECTED` or `NO_ACKNOWLEDGEMENT`; `rej_reason` is `CDH_REJ_REASON`'s value; `point` is `{mnemonic, value}` for the affected point, or `null`. A reset's acknowledgement is the post-reset counter epoch (§9.3).
+
+### 16.5 ODIN's log submissions and the read-only tools (§8)
+
+- **U17, continued:**
+  - `AGENT_INPUT`: `{run_id, turn_id, bundle_sha256, prompt_sha256}`.
+  - `MODEL_CALL`, one per API call (a turn that uses a tool makes several): `{run_id, turn_id, call_index, config, provider, model_id, reasoning_effort, max_output_tokens, status, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens, reserved_cost_usd, actual_cost_usd, pays_from, latency_s, provider_usage}`. `status` is `OK`, `TIMEOUT`, `ERROR` or `SPEND_STOP`; `pays_from` is `META_CREDIT`, `BASETEN_CREDIT`, `MODAL_CREDIT` or `OUT_OF_POCKET`; `provider_usage` is the provider's usage block exactly as returned, so the meter's figures can later be checked against the provider's bill.
+  - `CANDIDATE`: `{run_id, turn_id, channel, raw}`. `channel` is `CONTENT` (the model's text, for `spark`) or `TOOL_CALLS` (the answer-tool calls as returned, for `spark_open`); `raw` is that text, or those calls serialized as JSON, unchanged.
+  - `ANSWER`: `{run_id, turn_id, answer}`, the parsed answer or report body.
+  - `MALFORMED`: `{run_id, turn_id, reason, detail}`, `reason` one of `NOT_ONE_JSON_OBJECT`, `SCHEMA_VIOLATION`, `ANSWER_TOOL_CALL_COUNT`, `WRONG_FORM_FOR_TURN`, and `detail` the validator's message.
+  - `POST /escalation`: the body is the model's escalation plus `{run_id, turn_id, met_s, utc, plan_id, agent_input_hash}`, filled in by the loop. Escalations carry no authority and are not signed. The reply is `{record_id, delivery}`, `delivery` `NOW` in contact or `QUEUED_UNTIL_AOS` out of contact (§7.1).
+  - `GET /docs/lookup?q=`: `{query, results}`, at most three results, each `{path, title, sha256, text, truncated}`, with `text` cut at 4,000 characters.
+  - `GET /history?points=&window_s=`: `{columns, rows}` as in U3, for the named points; `window_s` at most 3,600.
+- **Logging the tools:** each use of either tool is logged by the harness as a `TOOL_USE` record `{run_id, turn_id, tool, arguments, result_sha256}`, added to §12's record types.

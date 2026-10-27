@@ -1,0 +1,215 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Decision record",
+  "description": "BALDUR-0's decision on one command request, returned by POST /request and given to ODIN in gateway_feedback on its next turn (CONTRACT.md v0.6 §8.2, §9.1, §9.2, §16.4 U14). BALDUR-0 runs the checks of §9.1 in order and stops at the first that fails. checks always lists all eight, in order: PASS up to the failure, FAIL at it, NOT_RUN after it, and RECORD always PASS. Every field is always present, null when its subject does not exist (§16 U15).",
+  "type": "object",
+  "required": [
+    "request_id", "decision", "checks", "plan_id", "arming_act_id", "rung",
+    "base_class", "class", "lease_id", "met_s", "utc"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "request_id": {"$ref": "common.schema.json#/definitions/uuid4"},
+    "decision": {"enum": ["ALLOW", "REFUSE"]},
+    "checks": {
+      "description": "All eight checks of §9.1, in order.",
+      "type": "array",
+      "minItems": 8,
+      "items": [
+        {"$ref": "#/definitions/check_PLAN"},
+        {"$ref": "#/definitions/check_ARMING"},
+        {"$ref": "#/definitions/check_ORIGIN"},
+        {"$ref": "#/definitions/check_CEILING"},
+        {"$ref": "#/definitions/check_PROHIBITED"},
+        {"$ref": "#/definitions/check_CLASS"},
+        {"$ref": "#/definitions/check_LEASE"},
+        {"$ref": "#/definitions/check_RECORD"}
+      ],
+      "additionalItems": false
+    },
+    "plan_id": {
+      "description": "The plan in force; null when none is.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]
+    },
+    "arming_act_id": {
+      "description": "The act that arms the run; null when there is none.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]
+    },
+    "rung": {"$ref": "common.schema.json#/definitions/rung"},
+    "base_class": {
+      "description": "The dictionary's class for the command (§7.4); null if the decision stopped before the class was looked up.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/class"}, {"type": "null"}]
+    },
+    "class": {
+      "description": "The class after any raise to C4 by an envelope limit, so ODIN can see when a limit raised it; null if the decision stopped before the class was looked up. C3 is never raised (§5.5).",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/class"}, {"type": "null"}]
+    },
+    "lease_id": {
+      "description": "The lease that covers a C4 command; null when no lease applies.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]
+    },
+    "met_s": {"$ref": "common.schema.json#/definitions/met_s"},
+    "utc": {"$ref": "common.schema.json#/definitions/utc"}
+  },
+  "allOf": [
+    {"if": {"required": ["base_class"], "properties": {"base_class": {"const": "C3"}}},
+     "then": {"properties": {"class": {"const": "C3"}}}}
+  ],
+  "oneOf": [
+    {"description": "Allowed: every check passed. A C4 command names its lease; any other names none.",
+     "properties": {
+       "decision": {"const": "ALLOW"},
+       "checks": {"items": [
+         {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"},
+         {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}]},
+       "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "arming_act_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "base_class": {"$ref": "common.schema.json#/definitions/class"},
+       "class": {"$ref": "common.schema.json#/definitions/class"}},
+     "if": {"required": ["class"], "properties": {"class": {"const": "C4"}}},
+     "then": {"properties": {"lease_id": {"$ref": "common.schema.json#/definitions/identifier"}}},
+     "else": {"properties": {"lease_id": {"type": "null"}}}},
+    {"description": "Refused at PLAN: no plan is in force.",
+     "properties": {
+       "decision": {"const": "REFUSE"},
+       "checks": {"items": [
+         {"$ref": "#/definitions/FAIL"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"},
+         {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/PASS"}]},
+       "plan_id": {"type": "null"},
+       "base_class": {"type": "null"},
+       "class": {"type": "null"},
+       "lease_id": {"type": "null"}}},
+    {"description": "Refused at ARMING.",
+     "properties": {
+       "decision": {"const": "REFUSE"},
+       "checks": {"items": [
+         {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/FAIL"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"},
+         {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/PASS"}]},
+       "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "base_class": {"type": "null"},
+       "class": {"type": "null"},
+       "lease_id": {"type": "null"}}},
+    {"description": "Refused at ORIGIN.",
+     "properties": {
+       "decision": {"const": "REFUSE"},
+       "checks": {"items": [
+         {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/FAIL"}, {"$ref": "#/definitions/NOT_RUN"},
+         {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/PASS"}]},
+       "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "arming_act_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "base_class": {"type": "null"},
+       "class": {"type": "null"},
+       "lease_id": {"type": "null"}}},
+    {"description": "Refused at CEILING: authority is revoked.",
+     "properties": {
+       "decision": {"const": "REFUSE"},
+       "checks": {"items": [
+         {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/FAIL"},
+         {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/PASS"}]},
+       "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "arming_act_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "base_class": {"type": "null"},
+       "class": {"type": "null"},
+       "lease_id": {"type": "null"}}},
+    {"description": "Refused at PROHIBITED.",
+     "properties": {
+       "decision": {"const": "REFUSE"},
+       "checks": {"items": [
+         {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"},
+         {"$ref": "#/definitions/FAIL"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/PASS"}]},
+       "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "arming_act_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "base_class": {"type": "null"},
+       "class": {"type": "null"},
+       "lease_id": {"type": "null"}}},
+    {"description": "Refused at CLASS: the class was looked up.",
+     "properties": {
+       "decision": {"const": "REFUSE"},
+       "checks": {"items": [
+         {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"},
+         {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/FAIL"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/PASS"}]},
+       "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "arming_act_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "base_class": {"$ref": "common.schema.json#/definitions/class"},
+       "class": {"$ref": "common.schema.json#/definitions/class"},
+       "lease_id": {"type": "null"}}},
+    {"description": "Refused at LEASE, which only a C4 command reaches.",
+     "properties": {
+       "decision": {"const": "REFUSE"},
+       "checks": {"items": [
+         {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"},
+         {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/PASS"}, {"$ref": "#/definitions/FAIL"}, {"$ref": "#/definitions/PASS"}]},
+       "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "arming_act_id": {"$ref": "common.schema.json#/definitions/identifier"},
+       "base_class": {"$ref": "common.schema.json#/definitions/class"},
+       "class": {"const": "C4"}}}
+  ],
+  "definitions": {
+    "PASS": {"properties": {"result": {"const": "PASS"}}},
+    "FAIL": {"properties": {"result": {"const": "FAIL"}}},
+    "NOT_RUN": {"properties": {"result": {"const": "NOT_RUN"}}},
+    "result": {"enum": ["PASS", "FAIL", "NOT_RUN"]},
+    "detail": {"description": "A short string naming, for example, the condition or envelope limit that did not hold; or null.", "type": ["string", "null"]},
+    "reasons_PLAN": {"enum": ["NO_PLAN_IN_FORCE"]},
+    "reasons_ARMING": {"enum": ["NOT_ARMED", "ACT_EXPIRED", "ACT_NOT_FOR_RUN"]},
+    "reasons_ORIGIN": {"enum": ["BAD_SIGNATURE", "NONCE_REUSED", "CLOCK_SKEW"]},
+    "reasons_CEILING": {"enum": ["REVOKED"]},
+    "reasons_PROHIBITED": {"enum": ["PROHIBITED_BY_PLAN"]},
+    "reasons_CLASS": {"enum": ["RUNG_REFUSES_CLASS", "NO_FRESH_TELEMETRY"]},
+    "reasons_LEASE": {"enum": ["NO_LEASE", "ARGUMENTS_NOT_COVERED", "CONDITION_FAILED", "NO_USES_LEFT", "NO_FRESH_TELEMETRY"]},
+    "check_PLAN": {
+      "type": "object", "required": ["check", "result", "reason", "detail"], "additionalProperties": false,
+      "properties": {"check": {"const": "PLAN"}, "result": {"$ref": "#/definitions/result"}, "reason": {"description": "Null unless the result is FAIL."}, "detail": {"$ref": "#/definitions/detail"}},
+      "if": {"required": ["result"], "properties": {"result": {"const": "FAIL"}}},
+      "then": {"properties": {"reason": {"$ref": "#/definitions/reasons_PLAN"}}},
+      "else": {"properties": {"reason": {"type": "null"}}}
+    },
+    "check_ARMING": {
+      "type": "object", "required": ["check", "result", "reason", "detail"], "additionalProperties": false,
+      "properties": {"check": {"const": "ARMING"}, "result": {"$ref": "#/definitions/result"}, "reason": {"description": "Null unless the result is FAIL."}, "detail": {"$ref": "#/definitions/detail"}},
+      "if": {"required": ["result"], "properties": {"result": {"const": "FAIL"}}},
+      "then": {"properties": {"reason": {"$ref": "#/definitions/reasons_ARMING"}}},
+      "else": {"properties": {"reason": {"type": "null"}}}
+    },
+    "check_ORIGIN": {
+      "type": "object", "required": ["check", "result", "reason", "detail"], "additionalProperties": false,
+      "properties": {"check": {"const": "ORIGIN"}, "result": {"$ref": "#/definitions/result"}, "reason": {"description": "Null unless the result is FAIL."}, "detail": {"$ref": "#/definitions/detail"}},
+      "if": {"required": ["result"], "properties": {"result": {"const": "FAIL"}}},
+      "then": {"properties": {"reason": {"$ref": "#/definitions/reasons_ORIGIN"}}},
+      "else": {"properties": {"reason": {"type": "null"}}}
+    },
+    "check_CEILING": {
+      "type": "object", "required": ["check", "result", "reason", "detail"], "additionalProperties": false,
+      "properties": {"check": {"const": "CEILING"}, "result": {"$ref": "#/definitions/result"}, "reason": {"description": "Null unless the result is FAIL."}, "detail": {"$ref": "#/definitions/detail"}},
+      "if": {"required": ["result"], "properties": {"result": {"const": "FAIL"}}},
+      "then": {"properties": {"reason": {"$ref": "#/definitions/reasons_CEILING"}}},
+      "else": {"properties": {"reason": {"type": "null"}}}
+    },
+    "check_PROHIBITED": {
+      "type": "object", "required": ["check", "result", "reason", "detail"], "additionalProperties": false,
+      "properties": {"check": {"const": "PROHIBITED"}, "result": {"$ref": "#/definitions/result"}, "reason": {"description": "Null unless the result is FAIL."}, "detail": {"$ref": "#/definitions/detail"}},
+      "if": {"required": ["result"], "properties": {"result": {"const": "FAIL"}}},
+      "then": {"properties": {"reason": {"$ref": "#/definitions/reasons_PROHIBITED"}}},
+      "else": {"properties": {"reason": {"type": "null"}}}
+    },
+    "check_CLASS": {
+      "type": "object", "required": ["check", "result", "reason", "detail"], "additionalProperties": false,
+      "properties": {"check": {"const": "CLASS"}, "result": {"$ref": "#/definitions/result"}, "reason": {"description": "Null unless the result is FAIL."}, "detail": {"$ref": "#/definitions/detail"}},
+      "if": {"required": ["result"], "properties": {"result": {"const": "FAIL"}}},
+      "then": {"properties": {"reason": {"$ref": "#/definitions/reasons_CLASS"}}},
+      "else": {"properties": {"reason": {"type": "null"}}}
+    },
+    "check_LEASE": {
+      "type": "object", "required": ["check", "result", "reason", "detail"], "additionalProperties": false,
+      "properties": {"check": {"const": "LEASE"}, "result": {"$ref": "#/definitions/result"}, "reason": {"description": "Null unless the result is FAIL."}, "detail": {"$ref": "#/definitions/detail"}},
+      "if": {"required": ["result"], "properties": {"result": {"const": "FAIL"}}},
+      "then": {"properties": {"reason": {"$ref": "#/definitions/reasons_LEASE"}}},
+      "else": {"properties": {"reason": {"type": "null"}}}
+    },
+    "check_RECORD": {
+      "description": "The decision is logged, allowed or refused, so RECORD always passes.",
+      "type": "object", "required": ["check", "result", "reason", "detail"], "additionalProperties": false,
+      "properties": {"check": {"const": "RECORD"}, "result": {"const": "PASS"}, "reason": {"type": "null"}, "detail": {"$ref": "#/definitions/detail"}}
+    }
+  }
+}

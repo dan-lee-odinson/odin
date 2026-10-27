@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Run complete",
+  "description": "GET /turn/next's reply when the run has ended, in place of a turn bundle (CONTRACT.md v0.6 §8.1).",
+  "type": "object",
+  "required": ["run_complete"],
+  "additionalProperties": false,
+  "properties": {
+    "run_complete": {"const": true}
+  }
+}

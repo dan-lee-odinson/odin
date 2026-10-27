@@ -1,0 +1,206 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Turn bundle",
+  "description": "Everything ODIN sees on one turn, served by the harness at GET /turn/next (CONTRACT.md v0.6 §6.2, §8.1, §16.1). Every field is an input, saved and hashed (§4). Every field is always present, null when its subject does not exist (§16 U15). The bundle carries no run folder: ODIN derives runs/<run_id>/inputs/ from run_id (§16.1 U16).",
+  "type": "object",
+  "required": [
+    "run_id", "turn_id", "met_s", "utc", "triggers", "turn_kind", "report_kind", "contact_state", "seat",
+    "rung", "rung_reason", "observation", "history", "feeds", "gateway_feedback", "own_requests", "uses_left",
+    "plan", "next_plan_summary", "procedures", "check_in_text"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "met_s": {"$ref": "common.schema.json#/definitions/met_s"},
+    "utc": {"$ref": "common.schema.json#/definitions/utc"},
+    "triggers": {
+      "description": "Every trigger merged into this turn, oldest first (§6.1, §16.1 U1).",
+      "type": "array",
+      "items": {"$ref": "#/definitions/trigger"}
+    },
+    "turn_kind": {
+      "description": "ACT may answer in any form of §7.1; REPORT must answer with a report (§7.5).",
+      "enum": ["ACT", "REPORT"]
+    },
+    "report_kind": {
+      "description": "On a REPORT turn, the report that is due; null on an ACT turn (§16.1).",
+      "anyOf": [{"$ref": "report.schema.json#/properties/report_kind"}, {"type": "null"}]
+    },
+    "contact_state": {"enum": ["IN_CONTACT", "OUT_OF_CONTACT"]},
+    "seat": {"description": "GROUND works COSMOS; ONBOARD sits beside the simulator.", "enum": ["GROUND", "ONBOARD"]},
+    "rung": {
+      "description": "AI_AUTONOMOUS while a valid arming act covers the run, a plan is in force and authority is not revoked; otherwise HUMAN_ONLY (§6.2, §16.1 U2).",
+      "$ref": "common.schema.json#/definitions/rung"
+    },
+    "rung_reason": {
+      "description": "Null at AI_AUTONOMOUS; why the rung is HUMAN_ONLY otherwise (§16.1 U2).",
+      "enum": ["REVOKED", "NOT_ARMED", "NO_PLAN", null]
+    },
+    "observation": {"$ref": "observation.schema.json"},
+    "history": {
+      "description": "The last 300 seconds of the points whose mnemonics appear in the text of the procedures in force, one row per received frame (§16.1 U3). columns records which points were used.",
+      "$ref": "common.schema.json#/definitions/point_table"
+    },
+    "feeds": {
+      "description": "Outside-feed reports, phase 3 only (§6.5); null outside phase 3.",
+      "anyOf": [{"type": "array", "items": {"$ref": "feed_report.schema.json"}}, {"type": "null"}]
+    },
+    "gateway_feedback": {
+      "description": "Every DECISION and DECISION_VOIDED record about ODIN's requests since ODIN's previous request, oldest first (§16.1 U6). OUTCOME records are not here: ODIN reads outcomes from telemetry.",
+      "type": "array",
+      "items": {"$ref": "#/definitions/feedback"}
+    },
+    "own_requests": {
+      "description": "ODIN's earlier requests in this run, oldest first; each carries its turn number as turn_id.",
+      "type": "array",
+      "items": {"$ref": "command_request.schema.json"}
+    },
+    "uses_left": {
+      "description": "From lease_id to the uses remaining, for each lease in the plan in force whose max_uses is not null; {} when there are none or no plan is in force (§16.1 U4).",
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "plan": {
+      "description": "The whole signed TYR-0 plan in force; null when no plan is in force.",
+      "anyOf": [{"$ref": "tyr0_plan.schema.json"}, {"type": "null"}]
+    },
+    "next_plan_summary": {
+      "description": "The next plan's validity span, prohibited list, envelope and leases, so ODIN can plan across the boundary; null when there is no next plan.",
+      "anyOf": [{"$ref": "#/definitions/next_plan_summary"}, {"type": "null"}]
+    },
+    "procedures": {
+      "description": "One entry per item of the plan's procedures_in_force, in the same order (§16.1 U5); null when no plan is in force.",
+      "anyOf": [{"type": "array", "items": {"$ref": "#/definitions/procedure"}}, {"type": "null"}]
+    },
+    "check_in_text": {
+      "description": "On a check-in turn, the Director's words as transcribed; null on every other turn.",
+      "type": ["string", "null"]
+    }
+  },
+  "allOf": [
+    {"if": {"required": ["turn_kind"], "properties": {"turn_kind": {"const": "REPORT"}}},
+     "then": {"properties": {"report_kind": {"$ref": "report.schema.json#/properties/report_kind"}}},
+     "else": {"properties": {"report_kind": {"type": "null"}}}},
+    {"if": {"required": ["report_kind"], "properties": {"report_kind": {"const": "CHECK_IN"}}},
+     "then": {"properties": {"check_in_text": {"type": "string"}}},
+     "else": {"properties": {"check_in_text": {"type": "null"}}}},
+    {"if": {"required": ["rung"], "properties": {"rung": {"const": "AI_AUTONOMOUS"}}},
+     "then": {"properties": {"rung_reason": {"type": "null"}, "plan": {"$ref": "tyr0_plan.schema.json"}}},
+     "else": {"properties": {"rung_reason": {"enum": ["REVOKED", "NOT_ARMED", "NO_PLAN"]}}}},
+    {"if": {"required": ["rung_reason"], "properties": {"rung_reason": {"const": "NO_PLAN"}}},
+     "then": {"properties": {"plan": {"type": "null"}}}},
+    {"if": {"required": ["plan"], "properties": {"plan": {"type": "null"}}},
+     "then": {"properties": {"procedures": {"type": "null"}, "uses_left": {"maxProperties": 0}}},
+     "else": {"properties": {"procedures": {"type": "array"}}}}
+  ],
+  "definitions": {
+    "trigger": {
+      "description": "One trigger (§6.1, §16.1 U1). detail is {} except for the types below that carry one.",
+      "type": "object",
+      "required": ["type", "met_s", "detail"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": [
+          "AOS", "LOS", "PLAN_START", "LIMIT_CHANGE", "MODE_CHANGE", "STALENESS_CHANGE", "OUTCOME",
+          "FEED_REPORT", "DECISION", "CHECK_IN", "REVOKE", "RESTORE", "PERIODIC"
+        ]},
+        "met_s": {"$ref": "common.schema.json#/definitions/met_s"},
+        "detail": {"type": "object"}
+      },
+      "allOf": [
+        {"if": {"required": ["type"], "properties": {"type": {"enum": ["AOS", "LOS", "CHECK_IN", "REVOKE", "RESTORE", "PERIODIC"]}}},
+         "then": {"properties": {"detail": {"maxProperties": 0}}}},
+        {"if": {"required": ["type"], "properties": {"type": {"const": "PLAN_START"}}},
+         "then": {"properties": {"detail": {
+           "required": ["plan_id"], "additionalProperties": false,
+           "properties": {"plan_id": {"$ref": "common.schema.json#/definitions/identifier"}}}}}},
+        {"if": {"required": ["type"], "properties": {"type": {"const": "LIMIT_CHANGE"}}},
+         "then": {"properties": {"detail": {
+           "required": ["point", "from", "to"], "additionalProperties": false,
+           "properties": {
+             "point": {"$ref": "common.schema.json#/definitions/point"},
+             "from": {"$ref": "observation.schema.json#/definitions/limit_state"},
+             "to": {"$ref": "observation.schema.json#/definitions/limit_state"}}}}}},
+        {"if": {"required": ["type"], "properties": {"type": {"const": "MODE_CHANGE"}}},
+         "then": {"properties": {"detail": {
+           "required": ["from", "to"], "additionalProperties": false,
+           "properties": {
+             "from": {"$ref": "observation.schema.json#/definitions/points/properties/EPS_MODE/properties/value"},
+             "to": {"$ref": "observation.schema.json#/definitions/points/properties/EPS_MODE/properties/value"}}}}}},
+        {"if": {"required": ["type"], "properties": {"type": {"const": "STALENESS_CHANGE"}}},
+         "then": {"properties": {"detail": {
+           "required": ["from", "to"], "additionalProperties": false,
+           "properties": {"from": {"enum": ["GREEN", "YELLOW", "RED"]}, "to": {"enum": ["GREEN", "YELLOW", "RED"]}}}}}},
+        {"if": {"required": ["type"], "properties": {"type": {"const": "OUTCOME"}}},
+         "then": {"properties": {"detail": {
+           "description": "Says only that the counters have moved; ODIN reads the result itself (§16.1 U6).",
+           "required": ["request_id"], "additionalProperties": false,
+           "properties": {"request_id": {"$ref": "common.schema.json#/definitions/uuid4"}}}}}},
+        {"if": {"required": ["type"], "properties": {"type": {"const": "FEED_REPORT"}}},
+         "then": {"properties": {"detail": {
+           "required": ["feed"], "additionalProperties": false,
+           "properties": {"feed": {"$ref": "feed_report.schema.json#/properties/feed"}}}}}},
+        {"if": {"required": ["type"], "properties": {"type": {"const": "DECISION"}}},
+         "then": {"properties": {"detail": {
+           "required": ["request_id", "decision"], "additionalProperties": false,
+           "properties": {
+             "request_id": {"$ref": "common.schema.json#/definitions/uuid4"},
+             "decision": {"$ref": "decision_record.schema.json#/properties/decision"}}}}}}
+      ]
+    },
+    "feedback": {
+      "description": "One of BALDUR-0's records about ODIN's requests, as {type, record} (§16.1 U6).",
+      "type": "object",
+      "required": ["type", "record"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["DECISION", "DECISION_VOIDED"]},
+        "record": {"type": "object"}
+      },
+      "allOf": [
+        {"if": {"required": ["type"], "properties": {"type": {"const": "DECISION"}}},
+         "then": {"properties": {"record": {"$ref": "decision_record.schema.json"}}}},
+        {"if": {"required": ["type"], "properties": {"type": {"const": "DECISION_VOIDED"}}},
+         "then": {"properties": {"record": {"$ref": "decision_voided.schema.json"}}}}
+      ]
+    },
+    "procedure": {
+      "description": "A procedure in force, unchanged, with any attachments the scenario delivered beside it (§16.1 U5). Attachments are text.",
+      "type": "object",
+      "required": ["id", "version", "sha256", "text", "attachments"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "tyr0_plan.schema.json#/definitions/procedure_ref/properties/id"},
+        "version": {"$ref": "tyr0_plan.schema.json#/definitions/procedure_ref/properties/version"},
+        "sha256": {"$ref": "common.schema.json#/definitions/sha256"},
+        "text": {"description": "The procedure's full text.", "type": "string"},
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "sha256", "text"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "sha256": {"$ref": "common.schema.json#/definitions/sha256"},
+              "text": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "next_plan_summary": {
+      "type": "object",
+      "required": ["valid_from_met_s", "valid_until_met_s", "prohibited", "envelope", "leases"],
+      "additionalProperties": false,
+      "properties": {
+        "valid_from_met_s": {"$ref": "tyr0_plan.schema.json#/properties/valid_from_met_s"},
+        "valid_until_met_s": {"$ref": "tyr0_plan.schema.json#/properties/valid_until_met_s"},
+        "prohibited": {"$ref": "tyr0_plan.schema.json#/properties/prohibited"},
+        "envelope": {"$ref": "tyr0_plan.schema.json#/properties/envelope"},
+        "leases": {"$ref": "tyr0_plan.schema.json#/properties/leases"}
+      }
+    }
+  }
+}

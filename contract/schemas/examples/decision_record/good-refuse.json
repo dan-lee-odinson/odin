@@ -1,0 +1,27 @@
+{
+  "request_id": "9c4e7a12-5b3d-4e8f-a1c6-2d7b8e9f0a13",
+  "decision": "REFUSE",
+  "checks": [
+    {"check": "PLAN", "result": "PASS", "reason": null, "detail": null},
+    {"check": "ARMING", "result": "PASS", "reason": null, "detail": null},
+    {"check": "ORIGIN", "result": "PASS", "reason": null, "detail": null},
+    {"check": "CEILING", "result": "PASS", "reason": null, "detail": null},
+    {
+      "check": "PROHIBITED",
+      "result": "FAIL",
+      "reason": "PROHIBITED_BY_PLAN",
+      "detail": "CMD_PLD_SET_RATE is on the plan's prohibited list"
+    },
+    {"check": "CLASS", "result": "NOT_RUN", "reason": null, "detail": null},
+    {"check": "LEASE", "result": "NOT_RUN", "reason": null, "detail": null},
+    {"check": "RECORD", "result": "PASS", "reason": null, "detail": null}
+  ],
+  "plan_id": "TYR0-DEV-PASS1-v1",
+  "arming_act_id": "ARM-DEV-01",
+  "rung": "AI_AUTONOMOUS",
+  "base_class": null,
+  "class": null,
+  "lease_id": null,
+  "met_s": 640,
+  "utc": "2026-10-28T14:10:40.510Z"
+}

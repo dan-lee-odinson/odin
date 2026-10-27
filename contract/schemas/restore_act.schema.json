@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Restore act",
+  "description": "Re-arms ODIN after the scripted revocation in the one revoke scenario (CONTRACT.md v0.6 §5.4, §9.4). Signed in advance, one per run, under the namespace aesir-arm; BALDUR-0 accepts it once.",
+  "type": "object",
+  "required": ["act_id", "kind", "rung", "run_id", "plan_id", "expires_utc"],
+  "additionalProperties": false,
+  "properties": {
+    "act_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "kind": {"const": "RESTORE"},
+    "rung": {"description": "ODIN's rung, AI_AUTONOMOUS in every phase (§1, §5.4).", "const": "AI_AUTONOMOUS"},
+    "run_id": {"description": "Exactly one run.", "$ref": "common.schema.json#/definitions/identifier"},
+    "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "expires_utc": {"$ref": "common.schema.json#/definitions/utc"}
+  }
+}

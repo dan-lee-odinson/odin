@@ -1,0 +1,9 @@
+{
+  "request_id": "7b3e9d20-1f4a-4c6e-8d52-0a9c7e4b1f68",
+  "decision_record_id": 41,
+  "check": "PLAN",
+  "reason": "BASIS_CHANGED",
+  "detail": "decided under TYR0-DEV-PASS1-v1; TYR0-DEV-PASS2-v1 is in force at dispatch",
+  "met_s": 5400,
+  "utc": "2026-10-28T15:30:00.040Z"
+}

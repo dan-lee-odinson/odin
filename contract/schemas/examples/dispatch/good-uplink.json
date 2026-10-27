@@ -1,0 +1,9 @@
+{
+  "request_id": "e1a7c3d5-9b2f-4e68-a0d4-7f3c1b9e5a26",
+  "command": "CMD_SYS_RESET",
+  "parameters": {},
+  "route": "UPLINK",
+  "lease_id": null,
+  "met_s": 3302,
+  "utc": "2026-10-28T14:55:02.700Z"
+}

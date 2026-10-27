@@ -1,6 +1,7 @@
-"""Show each S0 repository test failing on purpose in the real working tree, then put it back.
+"""Show the repository tests failing on purpose in the real working tree, then put it back.
 
-    python tests/show_red.py
+    python tests/show_red.py          every stage
+    python tests/show_red.py s1       one stage
 
 For each case: run the real test (it passes), plant one defect, run it again (it must fail),
 restore the tree, confirm the restored bytes, and run it a third time (it passes). Planted
@@ -49,8 +50,16 @@ def flip_one_key_character(data):
     return " ".join([principal, keytype, key[:30] + swapped + key[31:], comment]).encode("utf-8")
 
 
+def replace_once(old, new):
+    def change(data):
+        if data.count(old) != 1:
+            sys.exit(f"expected exactly one {old!r} to change; the file has moved on")
+        return data.replace(old, new)
+    return change
+
+
 # The planted text is assembled from pieces so that this file does not trip the scans.
-CASES = [
+CASES = {"s0": [
     ("CONTRACT.md with one byte appended",
      "tests/test_s0_hashes.py::test_contract_hash",
      change_file("CONTRACT.md", lambda b: b + b" ")),
@@ -70,7 +79,44 @@ CASES = [
      "tests/test_s0_secrets.py::test_repository_has_no_secrets",
      add_file("runs/scored/_red_probe_secret.txt",
               "-----BEGIN " + "OPENSSH PRIVATE KEY-----\nnot-a-real-key\n")),
-]
+], "s1": [
+    ("a good answer example with the payload state set to STANDBY",
+     "tests/test_s1_schemas.py::test_good_example_validates[answer/good-command-payload.json]",
+     change_file("contract/schemas/examples/answer/good-command-payload.json",
+                 replace_once(b'"state": "ON"', b'"state": "STANDBY"'))),
+    ("the plan schema loosened so that a plan may prohibit CMD_SAFE_ENTER",
+     "tests/test_s1_schemas.py::test_red_bad_example_is_rejected[tyr0_plan - prohibits CMD_SAFE_ENTER]",
+     change_file("contract/schemas/tyr0_plan.schema.json",
+                 replace_once(b'"items": {"$ref": "common.schema.json#/definitions/unprotected_command"}',
+                              b'"items": {"$ref": "common.schema.json#/definitions/command"}'))),
+    ("the schemas allowing a payload rate of 20 Hz, past the dictionary's 10 Hz",
+     "tests/test_s1_dictionary.py::test_schemas_match_the_pinned_dictionary",
+     change_file("contract/schemas/common.schema.json",
+                 replace_once(b'"minimum": 0.1, "maximum": 10}', b'"minimum": 0.1, "maximum": 20}'))),
+    ("the bundle schema letting an OUTCOME trigger carry the result, which ODIN reads from telemetry (U6)",
+     "tests/test_s1_schemas.py::test_red_bad_example_is_rejected[turn_bundle - an OUTCOME trigger carrying the result]",
+     change_file("contract/schemas/turn_bundle.schema.json",
+                 replace_once(b'"required": ["request_id"], "additionalProperties": false,',
+                              b'"required": ["request_id"],'))),
+    ("the decision schema letting a record list fewer than all eight checks (U14)",
+     "tests/test_s1_schemas.py::test_red_bad_example_is_rejected[decision_record - seven checks, not eight]",
+     change_file("contract/schemas/decision_record.schema.json",
+                 replace_once(b'"minItems": 8,', b'"minItems": 1,'))),
+    ("the observation schema letting EPS_BATT_SOC go YELLOW_HIGH, a limit the dictionary does not give it (U7)",
+     "tests/test_s1_dictionary.py::test_schemas_match_the_pinned_dictionary",
+     change_file("contract/schemas/observation.schema.json",
+                 replace_once(b'"limit_state": {"enum": ["GREEN", "YELLOW_LOW", "RED_LOW"]}',
+                              b'"limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW"]}'))),
+    ("the tool-use schema letting a tool be named by its path rather than docs_lookup or history (U19)",
+     "tests/test_s1_schemas.py::test_red_bad_example_is_rejected[tool_use - a tool named by its path]",
+     change_file("contract/schemas/tool_use.schema.json",
+                 replace_once(b'"enum": ["docs_lookup", "history"]', b'"type": "string"'))),
+    ("the model-call schema letting call_index count from 0 (U20)",
+     "tests/test_s1_schemas.py::test_red_bad_example_is_rejected[model_call - call_index counting from 0]",
+     change_file("contract/schemas/model_call.schema.json",
+                 replace_once(b'2026).",\n      "$ref": "common.schema.json#/definitions/count_from_1"',
+                              b'2026).",\n      "type": "integer", "minimum": 0'))),
+]}
 
 
 def run_test(node):
@@ -84,9 +130,15 @@ def run_test(node):
 
 
 def main():
+    stages = sys.argv[1:] or list(CASES)
+    unknown = [stage for stage in stages if stage not in CASES]
+    if unknown:
+        sys.exit(f"unknown stage {unknown}; choose from {list(CASES)}")
+    cases = [(f"{stage.upper()} {number}/{len(CASES[stage])}", *case)
+             for stage in stages for number, case in enumerate(CASES[stage], 1)]
     all_good = True
-    for number, (title, node, (plant, restore)) in enumerate(CASES, 1):
-        print(f"[{number}/{len(CASES)}] {title}")
+    for label, title, node, (plant, restore) in cases:
+        print(f"[{label}] {title}")
         print(f"      test: {node}")
         before, _ = run_test(node)
         print(f"      before:   {'passed' if before else 'FAILED (tree was not clean)'}")

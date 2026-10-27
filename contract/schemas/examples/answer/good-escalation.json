@@ -1,0 +1,8 @@
+{
+  "kind": "escalation",
+  "escalation_kind": "LEASE_NEEDED",
+  "refs": ["TYR0-DEV-PASS1-v1", "PROC-001"],
+  "proposed": {"command": "CMD_MODE_SET", "parameters": {"target": "NOMINAL"}},
+  "urgency": "ROUTINE",
+  "rationale": "The procedure's next step needs a mode change that no lease in this plan covers."
+}

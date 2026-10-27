@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Model call",
+  "description": "ODIN's MODEL_CALL record, one per API call, submitted to POST /log/agent (CONTRACT.md v0.6 §8.3, §11, §16.5 U17). A turn that uses a tool makes several. Every field is always present, null when its subject does not exist (§16 U15): no token counts the provider did not return, no latency or usage for a call the meter stopped.",
+  "type": "object",
+  "required": [
+    "run_id", "turn_id", "call_index", "config", "provider", "model_id", "reasoning_effort", "max_output_tokens",
+    "status", "input_tokens", "cached_input_tokens", "output_tokens", "reasoning_tokens",
+    "reserved_cost_usd", "actual_cost_usd", "pays_from", "latency_s", "provider_usage"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "call_index": {
+      "description": "Which API call of the turn this is, counting from 1 as turn_id and record_id do (the Director's ruling on U20, 26 October 2026).",
+      "$ref": "common.schema.json#/definitions/count_from_1"
+    },
+    "config": {"description": "The model configuration (§11.1).", "enum": ["spark", "spark_open", "glimmer_local", "stand_in"]},
+    "provider": {"description": "The provider, as the run's configuration names it.", "type": ["string", "null"]},
+    "model_id": {"description": "The model ID sent to the provider, exactly.", "type": ["string", "null"]},
+    "reasoning_effort": {"description": "The reasoning setting sent with the call, explicitly, never the provider's default (§11.1).", "type": ["string", "null"]},
+    "max_output_tokens": {"description": "The call's maximum output, reasoning included (§11.3).", "anyOf": [{"type": "integer", "minimum": 1}, {"type": "null"}]},
+    "status": {"enum": ["OK", "TIMEOUT", "ERROR", "SPEND_STOP"]},
+    "input_tokens": {"$ref": "#/definitions/tokens"},
+    "cached_input_tokens": {"$ref": "#/definitions/tokens"},
+    "output_tokens": {"description": "Output tokens, reasoning included, as both providers bill it (§11.2).", "$ref": "#/definitions/tokens"},
+    "reasoning_tokens": {"$ref": "#/definitions/tokens"},
+    "reserved_cost_usd": {"description": "The worst-case cost reserved before the call (§11.3).", "type": "number", "minimum": 0},
+    "actual_cost_usd": {"description": "The cost from actual usage, which replaces the reservation.", "anyOf": [{"type": "number", "minimum": 0}, {"type": "null"}]},
+    "pays_from": {
+      "description": "Which of the meter's four amounts the call draws on (§11.2).",
+      "enum": ["META_CREDIT", "BASETEN_CREDIT", "MODAL_CREDIT", "OUT_OF_POCKET", null]
+    },
+    "latency_s": {"description": "Wall-clock seconds the call took.", "anyOf": [{"type": "number", "minimum": 0}, {"type": "null"}]},
+    "provider_usage": {
+      "description": "The provider's usage block exactly as returned, so the meter's figures can later be checked against the provider's bill.",
+      "type": ["object", "null"]
+    }
+  },
+  "allOf": [
+    {"if": {"required": ["config"], "properties": {"config": {"enum": ["spark", "spark_open", "glimmer_local"]}}},
+     "then": {"properties": {
+       "provider": {"type": "string"},
+       "model_id": {"type": "string"},
+       "reasoning_effort": {"type": "string"},
+       "max_output_tokens": {"type": "integer"}}}},
+    {"if": {"required": ["status"], "properties": {"status": {"const": "OK"}}},
+     "then": {"properties": {
+       "input_tokens": {"type": "integer"},
+       "output_tokens": {"type": "integer"},
+       "actual_cost_usd": {"type": "number"},
+       "latency_s": {"type": "number"}}}},
+    {"if": {"required": ["status"], "properties": {"status": {"const": "SPEND_STOP"}}},
+     "then": {"properties": {"latency_s": {"type": "null"}, "provider_usage": {"type": "null"}}}}
+  ],
+  "definitions": {
+    "tokens": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]}
+  }
+}

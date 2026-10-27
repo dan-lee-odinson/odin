@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TYR-0 mission plan",
+  "description": "One signed plan per pass (CONTRACT.md v0.6 §5.1, §5.2, §5.5, §16.2). A plan is a YAML file in plans/; this schema checks it once parsed. Its signature is a separate file. Signature verification, a chain's spans meeting end to start, and the plan matching its scenario are BALDUR-0's checks (§5.3). The plan admits no field §5.1 does not list, so no field can condition or limit the protective commands (§5.5). In YAML, quote ON and OFF: unquoted, YAML reads them as true and false.",
+  "type": "object",
+  "required": [
+    "plan_id", "plan_version", "scenario_id", "pass_index", "valid_from_met_s", "valid_until_met_s",
+    "contact_window", "objectives", "prohibited", "envelope", "leases", "procedures_in_force", "references"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "plan_version": {"description": "Raised on any change; a changed plan is re-signed.", "type": "integer"},
+    "scenario_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "pass_index": {"description": "Which pass of the run, counting from 1.", "type": "integer", "minimum": 1},
+    "valid_from_met_s": {"description": "The plan is in force only inside this span.", "type": "integer", "minimum": 0},
+    "valid_until_met_s": {"description": "The plan is in force only inside this span.", "type": "integer", "minimum": 0},
+    "contact_window": {
+      "description": "This pass's contact, from HUGINN's pinned orbit and station.",
+      "type": "object",
+      "required": ["aos_met_s", "los_met_s"],
+      "additionalProperties": false,
+      "properties": {
+        "aos_met_s": {"$ref": "common.schema.json#/definitions/met_s"},
+        "los_met_s": {"$ref": "common.schema.json#/definitions/met_s"}
+      }
+    },
+    "objectives": {
+      "description": "What the pass is for, in plain language. Text only; nothing evaluates it.",
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "prohibited": {
+      "description": "Commands ODIN may never send under this plan, at any rung. Never CMD_SAFE_ENTER or CMD_SYS_RESET (§5.5).",
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/definitions/unprotected_command"}
+    },
+    "envelope": {
+      "description": "Limits that must hold on current telemetry. While any does not hold, every command except a C3 PROTECT command counts as C4 (§7.4).",
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/definitions/condition"}
+    },
+    "leases": {
+      "description": "Pre-authorized C4 commands and their conditions (§5.2).",
+      "type": "array",
+      "items": {"$ref": "#/definitions/lease"}
+    },
+    "procedures_in_force": {
+      "description": "The procedures ODIN flies by.",
+      "type": "array",
+      "items": {"$ref": "#/definitions/procedure_ref"}
+    },
+    "references": {
+      "description": "The frozen COSMOS reference and any other frozen input.",
+      "type": "array",
+      "items": {"$ref": "#/definitions/reference"}
+    }
+  },
+  "definitions": {
+    "lease": {
+      "description": "Pre-authorizes one C4 command for the whole plan; ODIN does not open or close it (§5.2). A lease may not name CMD_SAFE_ENTER or CMD_SYS_RESET (§5.5).",
+      "type": "object",
+      "required": ["lease_id", "command", "arguments", "conditions", "max_uses"],
+      "additionalProperties": false,
+      "properties": {
+        "lease_id": {"$ref": "common.schema.json#/definitions/identifier"},
+        "command": {"$ref": "common.schema.json#/definitions/unprotected_command"},
+        "arguments": {
+          "description": "The allowed values of every argument of the leased command (§16.2 U9): a list for state and target, an inclusive {min, max} for rate. An empty object is invalid, since every command a lease may name takes one argument.",
+          "type": "object"
+        },
+        "conditions": {
+          "description": "Each must hold on telemetry no older than 10 seconds of simulation time, when the command is checked and again just before dispatch. Empty means none.",
+          "type": "array",
+          "items": {"$ref": "common.schema.json#/definitions/condition"}
+        },
+        "max_uses": {
+          "description": "Uses allowed during the whole plan, counted once and never reset. Null means unlimited.",
+          "anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]
+        }
+      },
+      "allOf": [
+        {"if": {"required": ["command"], "properties": {"command": {"const": "CMD_MODE_SET"}}},
+         "then": {"properties": {"arguments": {
+           "required": ["target"],
+           "additionalProperties": false,
+           "properties": {"target": {"type": "array", "items": {"$ref": "common.schema.json#/definitions/parameters_CMD_MODE_SET/properties/target"}}}}}}},
+        {"if": {"required": ["command"], "properties": {"command": {"const": "CMD_PLD_SET_STATE"}}},
+         "then": {"properties": {"arguments": {
+           "required": ["state"],
+           "additionalProperties": false,
+           "properties": {"state": {"type": "array", "items": {"$ref": "common.schema.json#/definitions/parameters_CMD_PLD_SET_STATE/properties/state"}}}}}}},
+        {"if": {"required": ["command"], "properties": {"command": {"const": "CMD_PLD_SET_RATE"}}},
+         "then": {"properties": {"arguments": {
+           "required": ["rate"],
+           "additionalProperties": false,
+           "properties": {"rate": {"$ref": "#/definitions/rate_range"}}}}}}
+      ]
+    },
+    "rate_range": {
+      "description": "The rates a lease allows, inclusive, inside 0.1 to 10.0 Hz (§16.2 U9). JSON Schema cannot compare min with max, so a range with min above max is not caught here.",
+      "type": "object",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": {
+        "min": {"$ref": "common.schema.json#/definitions/parameters_CMD_PLD_SET_RATE/properties/rate"},
+        "max": {"$ref": "common.schema.json#/definitions/parameters_CMD_PLD_SET_RATE/properties/rate"}
+      }
+    },
+    "procedure_ref": {
+      "type": "object",
+      "required": ["id", "version", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"description": "As written on the procedure (§16.2 U10). In YAML, quote a version such as \"1\" or \"1.0\", or YAML reads it as a number.", "type": "string", "minLength": 1},
+        "sha256": {"$ref": "common.schema.json#/definitions/sha256"}
+      }
+    },
+    "reference": {
+      "type": "object",
+      "required": ["name", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "common.schema.json#/definitions/sha256"}
+      }
+    }
+  }
+}

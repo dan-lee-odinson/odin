@@ -1,0 +1,37 @@
+# A made-up development plan for the run's second pass, for schema conformance only.
+plan_id: TYR0-DEV-PASS2-v1
+plan_version: 1
+scenario_id: DEV-S01
+pass_index: 2
+valid_from_met_s: 5400
+valid_until_met_s: 10800
+contact_window:
+  aos_met_s: 5520
+  los_met_s: 6060
+objectives:
+  - Raise the payload's sampling rate for this pass while state of charge allows.
+prohibited: []
+envelope:
+  - point: EPS_BATT_SOC
+    op: ge
+    value: 35
+  - point: EPS_MODE
+    op: eq
+    value: NOMINAL
+leases:
+  - lease_id: L1
+    command: CMD_PLD_SET_RATE
+    arguments:
+      rate: {min: 0.5, max: 2.0}
+    conditions:
+      - point: EPS_BATT_V
+        op: gt
+        value: 7.2
+    max_uses: 4
+procedures_in_force:
+  - id: PROC-001
+    version: "1"
+    sha256: sha256:4e086337f7dfd018dde67cf48b14feb8390b59d741d0c2c4c90bd96dfa0cae1e
+references:
+  - name: COSMOS operations reference (frozen)
+    sha256: sha256:9159bf99fe60896830132fc452d307736239b0b9f3713fee475f571d7459bd05

@@ -1,0 +1,7 @@
+# A made-up development restore act, for schema conformance only.
+act_id: RESTORE-DEV-0001
+kind: RESTORE
+rung: AI_AUTONOMOUS
+run_id: dev-run-0001
+plan_id: TYR0-DEV-PASS1-v1
+expires_utc: "2026-11-04T23:59:59.000Z"

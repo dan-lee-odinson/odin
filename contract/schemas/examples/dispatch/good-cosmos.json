@@ -1,0 +1,9 @@
+{
+  "request_id": "a4c2e8f1-6b3d-4f7a-9e05-1d8b6c3a2f90",
+  "command": "CMD_MODE_SET",
+  "parameters": {"target": "LOW_POWER"},
+  "route": "COSMOS",
+  "lease_id": "L1",
+  "met_s": 1880,
+  "utc": "2026-10-28T14:31:20.410Z"
+}

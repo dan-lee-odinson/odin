@@ -4,7 +4,8 @@ These rules load at the start of every Muse Code session in this repository. Mus
 
 ## 0. What governs
 
-- **`CONTRACT.md`** in the repository root is the build contract, version 0.5, approved by the Director on 26 October 2026. Its SHA-256 is `87d43e224ef5e8eb62559c96810781482ba8ca01019aa6dcf74a9dd0f850ec7a`. Check it before starting: if `CONTRACT.md` does not hash to that value, stop and report.
+- **`CONTRACT.md`** in the repository root is the build contract, version 0.6, approved by the Director on 26 October 2026. Its SHA-256 is `9d39b83e42fbe0854b1d88813305273058df61ac57e278ebb5431e0437a91857`. Check it before starting: if `CONTRACT.md` does not hash to that value, stop and report.
+- **`contract/schemas/`** (JSON Schema, Draft 7), which Claude Code copies into your workspace, is the single source for every message and record in contract §4–§9 and §16. Validate against it, and never keep a second copy of a field list in your code.
 - Where these rules and the contract disagree, the contract governs. Where either is silent on a choice, stop and report (§9). Never settle a design choice yourself.
 - **The Director** is Dan Lee-Odinson. He holds design authority and makes every ruling. Claude Code builds the other half of the system. An advisor session drafts documents for the Director outside this repository.
 
@@ -57,8 +58,8 @@ Your fake harness implements all of these against fixtures you write yourself: n
 
 ### 4.1 Turn loop
 - One turn in flight at a time. Wait on `GET /turn/next`.
-- Save the exact bundle bytes and the exact prompt bytes as files named by their SHA-256 (`runs/<run_id>/inputs/`; the harness gives you the run folder in the bundle). Then post `AGENT_INPUT` with both hashes, **before** calling the model (contract §4, §6.3).
-- Build the prompt with everything that does not change during a run first (instructions, the frozen COSMOS reference, the plan, the procedure) and the turn's changing parts last, so prompt caching works.
+- Save the exact bundle bytes and the exact prompt bytes as files named by their SHA-256 (`runs/<run_id>/inputs/` under the repository root you run from, derived from `run_id`; contract §16.1, U16). Then post `AGENT_INPUT` with both hashes, **before** calling the model (contract §4, §6.3).
+- Build the prompt with everything that does not change during a run first (instructions, the frozen COSMOS reference, the plan, the procedures) and the turn's changing parts last, so prompt caching works.
 - On an `ACT` turn, the model answers with exactly one JSON object of one of three forms (contract §7.1). On a `REPORT` turn, it answers with exactly one report (contract §7.5). Anything else is `MALFORMED`: log it and send nothing.
 - Validate against the dictionary: a command exists, with exactly its arguments and allowed values.
 - Fill in `request_id`, `origin` (`ODIN`), `utc`, `met_s`, `nonce`, `run_id`, `turn_id`, `plan_id`, `agent_input_hash`, then sign with Ed25519 over the canonical JSON of every other field (contract §4, §7.3). The model never writes these fields.
@@ -94,7 +95,7 @@ Your fake harness implements all of these against fixtures you write yourself: n
 
 You write them in `odin/instructions/`. They must:
 - say that ODIN is Project AESIR's operational intelligence, flying a simulated CubeSat under a signed TYR-0 mission plan at the rung its arming act sets;
-- tell ODIN to fly by the plan and the procedure in force, act only within them, and read every command's outcome from telemetry rather than assume it;
+- tell ODIN to fly by the plan and the procedures in force, act only within them, and read every command's outcome from telemetry rather than assume it;
 - define the answer forms and the report exactly as contract §7 does, and require exactly one JSON object with nothing else;
 - state "one answer, one request";
 - explain escalations as a record of ODIN's judgment, which in this build asks nothing of anyone;

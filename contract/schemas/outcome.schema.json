@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Outcome",
+  "description": "BALDUR-0's OUTCOME record: a dispatched command's result, read from telemetry and never assumed (CONTRACT.md v0.6 §9.3, §16.4 U17). It goes to the event log, not to ODIN, which reads outcomes from telemetry itself (§16.1 U6). The counters' change, plus the affected point, by the next frame; a reset's acknowledgement is the post-reset counter epoch (accepted 1, rejected 0); no counter change within 10 seconds is NO_ACKNOWLEDGEMENT. A field whose frame does not exist is null (§16 U15).",
+  "type": "object",
+  "required": [
+    "request_id", "outcome", "acc_before", "acc_after", "rej_before", "rej_after",
+    "rej_reason", "point", "frame_met_s", "met_s", "utc"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "request_id": {"$ref": "common.schema.json#/definitions/uuid4"},
+    "outcome": {"enum": ["ACCEPTED", "REJECTED", "NO_ACKNOWLEDGEMENT"]},
+    "acc_before": {"description": "CDH_CMD_ACC_CNT before dispatch.", "$ref": "#/definitions/counter"},
+    "acc_after": {"description": "CDH_CMD_ACC_CNT in the frame that showed the outcome.", "$ref": "#/definitions/counter"},
+    "rej_before": {"description": "CDH_CMD_REJ_CNT before dispatch.", "$ref": "#/definitions/counter"},
+    "rej_after": {"description": "CDH_CMD_REJ_CNT in the frame that showed the outcome.", "$ref": "#/definitions/counter"},
+    "rej_reason": {
+      "description": "CDH_REJ_REASON's value in that frame.",
+      "anyOf": [{"$ref": "observation.schema.json#/definitions/points/properties/CDH_REJ_REASON/properties/value"}, {"type": "null"}]
+    },
+    "point": {
+      "description": "The affected point and its value, or null.",
+      "anyOf": [
+        {"type": "object",
+         "required": ["mnemonic", "value"],
+         "additionalProperties": false,
+         "properties": {
+           "mnemonic": {"$ref": "common.schema.json#/definitions/point"},
+           "value": {"description": "A number for a numeric point; one of its states for a state point."}},
+         "allOf": [{"$ref": "common.schema.json#/definitions/value_fits_mnemonic"}]},
+        {"type": "null"}
+      ]
+    },
+    "frame_met_s": {
+      "description": "CDH_MET of the frame that showed the outcome.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/met_s"}, {"type": "null"}]
+    },
+    "met_s": {"$ref": "common.schema.json#/definitions/met_s"},
+    "utc": {"$ref": "common.schema.json#/definitions/utc"}
+  },
+  "allOf": [
+    {"if": {"required": ["outcome"], "properties": {"outcome": {"enum": ["ACCEPTED", "REJECTED"]}}},
+     "then": {"properties": {
+       "acc_after": {"$ref": "#/definitions/count"},
+       "rej_after": {"$ref": "#/definitions/count"},
+       "frame_met_s": {"$ref": "common.schema.json#/definitions/met_s"}}}},
+    {"if": {"required": ["outcome"], "properties": {"outcome": {"const": "REJECTED"}}},
+     "then": {"properties": {"rej_reason": {"description": "A rejection sets CDH_REJ_REASON.", "enum": ["UNKNOWN_OPCODE", "ARG_RANGE", "MODE_INHIBIT"]}}}}
+  ],
+  "definitions": {
+    "count": {"$ref": "observation.schema.json#/definitions/points/properties/CDH_CMD_ACC_CNT/properties/value"},
+    "counter": {"anyOf": [{"$ref": "#/definitions/count"}, {"type": "null"}]}
+  }
+}

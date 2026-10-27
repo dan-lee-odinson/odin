@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Observation",
+  "description": "What ODIN sees of the spacecraft on a turn (CONTRACT.md v0.6 §6.4, §16.2). Point names, units and value types are those of HUGINN's pinned dictionary. During a telemetry outage there is no new frame and the observation says so; nothing is filled in. Every field is always present, null when its subject does not exist (§16 U15).",
+  "type": "object",
+  "required": ["source", "frame_met_s", "received_utc", "age_s", "staleness_state", "points"],
+  "additionalProperties": false,
+  "properties": {
+    "source": {"description": "COSMOS in the ground seat, ONBOARD beside the simulator.", "enum": ["COSMOS", "ONBOARD"]},
+    "frame_met_s": {
+      "description": "CDH_MET of the latest frame received, or null if none.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/met_s"}, {"type": "null"}]
+    },
+    "received_utc": {
+      "description": "When that frame arrived; null if no frame has arrived.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/utc"}, {"type": "null"}]
+    },
+    "age_s": {
+      "description": "Simulation seconds since that frame; null if no frame has arrived.",
+      "anyOf": [{"type": "number", "minimum": 0}, {"type": "null"}]
+    },
+    "staleness_state": {
+      "description": "From the ground staleness monitor: yellow at 10 s and red at 30 s without a new CDH_FRAME_CNT (§6.1). The monitor is the ground seat's, so it is null in the onboard seat.",
+      "enum": ["GREEN", "YELLOW", "RED", null]
+    },
+    "points": {
+      "description": "All 16 HUGINN points from the latest frame; null if no frame has arrived.",
+      "anyOf": [{"$ref": "#/definitions/points"}, {"type": "null"}]
+    }
+  },
+  "allOf": [
+    {"if": {"required": ["frame_met_s"], "properties": {"frame_met_s": {"type": "null"}}},
+     "then": {"properties": {"received_utc": {"type": "null"}, "age_s": {"type": "null"}, "points": {"type": "null"}}},
+     "else": {"properties": {
+       "received_utc": {"$ref": "common.schema.json#/definitions/utc"},
+       "age_s": {"type": "number", "minimum": 0},
+       "points": {"$ref": "#/definitions/points"}}}},
+    {"if": {"required": ["source"], "properties": {"source": {"const": "COSMOS"}}},
+     "then": {"properties": {"staleness_state": {"enum": ["GREEN", "YELLOW", "RED"]}}},
+     "else": {"properties": {"staleness_state": {"type": "null"}}}}
+  ],
+  "definitions": {
+    "limit_state": {
+      "description": "A point's limit state (§16.2 U7). Points with numeric thresholds in the dictionary use GREEN, YELLOW_LOW, YELLOW_HIGH, RED_LOW and RED_HIGH, by COSMOS's rule; EPS_MODE is RED in its annunciating state and GREEN otherwise; every other point is NONE. Each point below allows only the states its dictionary limits can produce. Staleness is reported separately, in staleness_state.",
+      "enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "RED", "NONE"]
+    },
+    "points": {
+      "type": "object",
+      "required": [
+        "EPS_BATT_V", "EPS_BATT_I", "EPS_BATT_SOC", "EPS_SA1_I", "EPS_SA2_I", "EPS_BUS_V", "EPS_LOAD_I", "EPS_MODE",
+        "ADM_ECLIPSE", "PLD_STATE", "PLD_RATE", "CDH_MET", "CDH_FRAME_CNT", "CDH_CMD_ACC_CNT", "CDH_CMD_REJ_CNT", "CDH_REJ_REASON"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "EPS_BATT_V": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "V"},
+            "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH"]}}},
+        "EPS_BATT_I": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "A"},
+            "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH"]}}},
+        "EPS_BATT_SOC": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "%"},
+            "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "RED_LOW"]}}},
+        "EPS_SA1_I": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "A"}, "limit_state": {"const": "NONE"}}},
+        "EPS_SA2_I": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "A"}, "limit_state": {"const": "NONE"}}},
+        "EPS_BUS_V": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "V"},
+            "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH"]}}},
+        "EPS_LOAD_I": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "A"},
+            "limit_state": {"enum": ["GREEN", "YELLOW_HIGH", "RED_HIGH"]}}},
+        "EPS_MODE": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"enum": ["NOMINAL", "LOW_POWER", "SAFE"]}, "units": {"const": "n/a"},
+            "limit_state": {"enum": ["GREEN", "RED"]}},
+          "if": {"required": ["value"], "properties": {"value": {"enum": ["SAFE"]}}},
+          "then": {"properties": {"limit_state": {"const": "RED"}}},
+          "else": {"properties": {"limit_state": {"const": "GREEN"}}}},
+        "ADM_ECLIPSE": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"enum": ["SUNLIT", "ECLIPSE"]}, "units": {"const": "n/a"}, "limit_state": {"const": "NONE"}}},
+        "PLD_STATE": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"enum": ["OFF", "ON"]}, "units": {"const": "n/a"}, "limit_state": {"const": "NONE"}}},
+        "PLD_RATE": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "Hz"}, "limit_state": {"const": "NONE"}}},
+        "CDH_MET": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "integer", "minimum": 0, "maximum": 4294967295}, "units": {"const": "s"}, "limit_state": {"const": "NONE"}}},
+        "CDH_FRAME_CNT": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "integer", "minimum": 0, "maximum": 65535}, "units": {"const": "n/a"}, "limit_state": {"const": "NONE"}}},
+        "CDH_CMD_ACC_CNT": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "integer", "minimum": 0, "maximum": 65535}, "units": {"const": "n/a"}, "limit_state": {"const": "NONE"}}},
+        "CDH_CMD_REJ_CNT": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "integer", "minimum": 0, "maximum": 65535}, "units": {"const": "n/a"}, "limit_state": {"const": "NONE"}}},
+        "CDH_REJ_REASON": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"enum": ["NONE", "UNKNOWN_OPCODE", "ARG_RANGE", "MODE_INHIBIT"]}, "units": {"const": "n/a"}, "limit_state": {"const": "NONE"}}}
+      }
+    }
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "run_id": "dev-run-0001",
+  "turn_id": 5,
+  "met_s": 660,
+  "utc": "2026-10-28T14:11:00.300Z",
+  "triggers": [{"type": "CHECK_IN", "met_s": 658, "detail": {}}],
+  "turn_kind": "REPORT",
+  "report_kind": "CHECK_IN",
+  "contact_state": "IN_CONTACT",
+  "seat": "GROUND",
+  "rung": "AI_AUTONOMOUS",
+  "rung_reason": null,
+  "observation": {
+    "source": "COSMOS",
+    "frame_met_s": 660,
+    "received_utc": "2026-10-28T14:11:00.240Z",
+    "age_s": 0.1,
+    "staleness_state": "GREEN",
+    "points": {
+      "EPS_BATT_V": {"value": 7.9, "units": "V", "limit_state": "GREEN"},
+      "EPS_BATT_I": {"value": 0.3, "units": "A", "limit_state": "GREEN"},
+      "EPS_BATT_SOC": {"value": 77.0, "units": "%", "limit_state": "GREEN"},
+      "EPS_SA1_I": {"value": 0.42, "units": "A", "limit_state": "NONE"},
+      "EPS_SA2_I": {"value": 0.4, "units": "A", "limit_state": "NONE"},
+      "EPS_BUS_V": {"value": 5.01, "units": "V", "limit_state": "GREEN"},
+      "EPS_LOAD_I": {"value": 0.75, "units": "A", "limit_state": "GREEN"},
+      "EPS_MODE": {"value": "NOMINAL", "units": "n/a", "limit_state": "GREEN"},
+      "ADM_ECLIPSE": {"value": "SUNLIT", "units": "n/a", "limit_state": "NONE"},
+      "PLD_STATE": {"value": "ON", "units": "n/a", "limit_state": "NONE"},
+      "PLD_RATE": {"value": 1.0, "units": "Hz", "limit_state": "NONE"},
+      "CDH_MET": {"value": 660, "units": "s", "limit_state": "NONE"},
+      "CDH_FRAME_CNT": {"value": 660, "units": "n/a", "limit_state": "NONE"},
+      "CDH_CMD_ACC_CNT": {"value": 4, "units": "n/a", "limit_state": "NONE"},
+      "CDH_CMD_REJ_CNT": {"value": 0, "units": "n/a", "limit_state": "NONE"},
+      "CDH_REJ_REASON": {"value": "NONE", "units": "n/a", "limit_state": "NONE"}
+    }
+  },
+  "history": {
+    "columns": ["met_s", "EPS_BATT_SOC", "EPS_MODE", "PLD_STATE"],
+    "rows": [[658, 77.0, "NOMINAL", "ON"], [659, 77.0, "NOMINAL", "ON"], [660, 77.0, "NOMINAL", "ON"]]
+  },
+  "feeds": null,
+  "gateway_feedback": [],
+  "own_requests": [
+    {
+      "request_id": "3f2b8c1e-9a4d-4f6b-8e2a-7c5d1b0e9f34",
+      "origin": "ODIN",
+      "utc": "2026-10-28T14:10:03.120Z",
+      "met_s": 603,
+      "nonce": "6d1f0c3a9b2e4f5781a6c0d9e3b7f214",
+      "run_id": "dev-run-0001",
+      "turn_id": 3,
+      "plan_id": "TYR0-DEV-PASS1-v1",
+      "agent_input_hash": "sha256:b3f95fae08f826efc8867b6a54c59bf6a42156ebfbffe69b3033390842e1e382",
+      "command": "CMD_PLD_SET_STATE",
+      "parameters": {"state": "ON"},
+      "rationale": "State of charge is 78 percent, well above the payload's 40 percent floor.",
+      "signature": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+Pw=="
+    }
+  ],
+  "uses_left": {"L1": 2},
+  "plan": {
+    "plan_id": "TYR0-DEV-PASS1-v1",
+    "plan_version": 1,
+    "scenario_id": "DEV-S01",
+    "pass_index": 1,
+    "valid_from_met_s": 0,
+    "valid_until_met_s": 5400,
+    "contact_window": {"aos_met_s": 120, "los_met_s": 720},
+    "objectives": [
+      "Confirm the spacecraft's condition after acquisition of signal.",
+      "Keep the payload sampling at its present rate while state of charge allows."
+    ],
+    "prohibited": ["CMD_PLD_SET_RATE"],
+    "envelope": [{"point": "EPS_BATT_SOC", "op": "ge", "value": 35}],
+    "leases": [
+      {
+        "lease_id": "L1",
+        "command": "CMD_MODE_SET",
+        "arguments": {"target": ["NOMINAL", "LOW_POWER"]},
+        "conditions": [{"point": "EPS_BATT_SOC", "op": "ge", "value": 25}],
+        "max_uses": 2
+      },
+      {
+        "lease_id": "L2",
+        "command": "CMD_PLD_SET_STATE",
+        "arguments": {"state": ["OFF"]},
+        "conditions": [{"point": "EPS_MODE", "op": "ne", "value": "SAFE"}],
+        "max_uses": null
+      }
+    ],
+    "procedures_in_force": [
+      {
+        "id": "PROC-001",
+        "version": "1",
+        "sha256": "sha256:4e086337f7dfd018dde67cf48b14feb8390b59d741d0c2c4c90bd96dfa0cae1e"
+      }
+    ],
+    "references": [
+      {
+        "name": "COSMOS operations reference (frozen)",
+        "sha256": "sha256:9159bf99fe60896830132fc452d307736239b0b9f3713fee475f571d7459bd05"
+      }
+    ]
+  },
+  "next_plan_summary": {
+    "valid_from_met_s": 5400,
+    "valid_until_met_s": 10800,
+    "prohibited": [],
+    "envelope": [{"point": "EPS_BATT_SOC", "op": "ge", "value": 35}, {"point": "EPS_MODE", "op": "eq", "value": "NOMINAL"}],
+    "leases": [
+      {
+        "lease_id": "L1",
+        "command": "CMD_PLD_SET_RATE",
+        "arguments": {"rate": {"min": 0.5, "max": 2.0}},
+        "conditions": [{"point": "EPS_BATT_V", "op": "gt", "value": 7.2}],
+        "max_uses": 4
+      }
+    ]
+  },
+  "procedures": [
+    {
+      "id": "PROC-001",
+      "version": "1",
+      "sha256": "sha256:4e086337f7dfd018dde67cf48b14feb8390b59d741d0c2c4c90bd96dfa0cae1e",
+      "text": "Placeholder: a made-up development procedure. It watches EPS_BATT_SOC, EPS_MODE and PLD_STATE.",
+      "attachments": []
+    }
+  ],
+  "check_in_text": "ODIN, how is the battery doing this pass?"
+}

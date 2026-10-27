@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Command request",
+  "description": "A signed COMMAND_REQUEST, sent to BALDUR-0 with POST /request (CONTRACT.md v0.6 §7.3, §8.2, §16.3). ODIN's loop fills in every field except command, parameters and rationale, which come from the model's answer. A request carries no class; BALDUR-0 looks it up (§7.4). keys/odin.pub holds ODIN's public key as one OpenSSH line, ssh-ed25519 AAAA... odin (§16.3 U13).",
+  "type": "object",
+  "required": [
+    "request_id", "origin", "utc", "met_s", "nonce", "run_id", "turn_id", "plan_id",
+    "agent_input_hash", "command", "parameters", "signature"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "request_id": {"$ref": "common.schema.json#/definitions/uuid4"},
+    "origin": {"const": "ODIN"},
+    "utc": {"$ref": "common.schema.json#/definitions/utc"},
+    "met_s": {"$ref": "common.schema.json#/definitions/met_s"},
+    "nonce": {
+      "description": "128 random bits from the operating system's secure generator, as 32 lowercase hex characters (§16.3 U13).",
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "plan_id": {
+      "description": "The plan in force when ODIN sent the request; null when none is.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]
+    },
+    "agent_input_hash": {"$ref": "common.schema.json#/definitions/sha256"},
+    "command": {},
+    "parameters": {},
+    "rationale": {"description": "If the model gave one.", "type": "string"},
+    "signature": {
+      "description": "The 64-byte Ed25519 signature with ODIN's key over the canonical JSON (§4) of every other field, in standard base64 with padding: 88 characters ending in == (§16.3 U13).",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]{85}[AQgw]==$"
+    }
+  },
+  "allOf": [{"$ref": "common.schema.json#/definitions/command_and_parameters"}]
+}

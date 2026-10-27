@@ -1,0 +1,25 @@
+{
+  "source": "COSMOS",
+  "frame_met_s": 600,
+  "received_utc": "2026-10-28T14:10:00.250Z",
+  "age_s": 0.4,
+  "staleness_state": "GREEN",
+  "points": {
+    "EPS_BATT_V": {"value": 7.9, "units": "V", "limit_state": "GREEN"},
+    "EPS_BATT_I": {"value": 0.6, "units": "A", "limit_state": "GREEN"},
+    "EPS_BATT_SOC": {"value": 78.0, "units": "%", "limit_state": "GREEN"},
+    "EPS_SA1_I": {"value": 0.42, "units": "A", "limit_state": "NONE"},
+    "EPS_SA2_I": {"value": 0.4, "units": "A", "limit_state": "NONE"},
+    "EPS_BUS_V": {"value": 5.01, "units": "V", "limit_state": "GREEN"},
+    "EPS_LOAD_I": {"value": 0.55, "units": "A", "limit_state": "GREEN"},
+    "EPS_MODE": {"value": "NOMINAL", "units": "n/a", "limit_state": "GREEN"},
+    "ADM_ECLIPSE": {"value": "SUNLIT", "units": "n/a", "limit_state": "NONE"},
+    "PLD_STATE": {"value": "OFF", "units": "n/a", "limit_state": "NONE"},
+    "PLD_RATE": {"value": 1.0, "units": "Hz", "limit_state": "NONE"},
+    "CDH_MET": {"value": 600, "units": "s", "limit_state": "NONE"},
+    "CDH_FRAME_CNT": {"value": 600, "units": "n/a", "limit_state": "NONE"},
+    "CDH_CMD_ACC_CNT": {"value": 3, "units": "n/a", "limit_state": "NONE"},
+    "CDH_CMD_REJ_CNT": {"value": 0, "units": "n/a", "limit_state": "NONE"},
+    "CDH_REJ_REASON": {"value": "NONE", "units": "n/a", "limit_state": "NONE"}
+  }
+}

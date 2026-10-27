@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Docs lookup reply",
+  "description": "GET /docs/lookup?q= reply: the read-only lookup over the pinned COSMOS docs in cache/cosmos-docs-7.2.1/ (CONTRACT.md v0.6 §8.1, §8.4, §16.5 U17). At most three results.",
+  "type": "object",
+  "required": ["query", "results"],
+  "additionalProperties": false,
+  "properties": {
+    "query": {"description": "The q the lookup was given.", "type": "string"},
+    "results": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["path", "title", "sha256", "text", "truncated"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {"description": "The page's path in the docs tree.", "type": "string", "minLength": 1},
+          "title": {"type": "string"},
+          "sha256": {"description": "The page file's hash, as the fetch recorded it.", "$ref": "common.schema.json#/definitions/sha256"},
+          "text": {"description": "The page's text, cut at 4,000 characters.", "type": "string", "maxLength": 4000},
+          "truncated": {"description": "Whether text was cut.", "type": "boolean"}
+        }
+      }
+    }
+  }
+}

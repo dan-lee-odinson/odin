@@ -1,0 +1,13 @@
+{
+  "request_id": "3f2b8c1e-9a4d-4f6b-8e2a-7c5d1b0e9f34",
+  "outcome": "ACCEPTED",
+  "acc_before": 3,
+  "acc_after": 4,
+  "rej_before": 0,
+  "rej_after": 0,
+  "rej_reason": "NONE",
+  "point": {"mnemonic": "PLD_STATE", "value": "ON"},
+  "frame_met_s": 604,
+  "met_s": 604,
+  "utc": "2026-10-28T14:10:04.160Z"
+}

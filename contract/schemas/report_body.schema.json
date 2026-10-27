@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Answer on a report turn",
+  "description": "What the model writes on a REPORT turn: exactly one JSON object holding the report's body, and nothing else (CONTRACT.md v0.6 §7.5, §16.3 U12). spark_open gives it as one call to the report's answer tool, whose parameters are these fields (§11.1). The loop then adds report_kind, run_id, turn_id, met_s, utc and plan_id, and the whole report is checked by report.schema.json, which also requires answer on a CHECK_IN report and refuses it on the others. The model never writes the loop's fields.",
+  "type": "object",
+  "required": ["timeline", "actions", "condition", "deferred", "open_issues"],
+  "additionalProperties": false,
+  "properties": {
+    "timeline": {"$ref": "report.schema.json#/properties/timeline"},
+    "actions": {"$ref": "report.schema.json#/properties/actions"},
+    "condition": {"$ref": "report.schema.json#/properties/condition"},
+    "deferred": {"$ref": "report.schema.json#/properties/deferred"},
+    "open_issues": {"$ref": "report.schema.json#/properties/open_issues"},
+    "answer": {"$ref": "report.schema.json#/properties/answer"}
+  }
+}

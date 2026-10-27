@@ -1,0 +1,9 @@
+{
+  "request_id": "2c6f8b14-7e9d-4a35-b0c1-9d4e2f7a6b83",
+  "decision_record_id": 57,
+  "check": "LEASE",
+  "reason": "CONDITION_FAILED",
+  "detail": "L1: EPS_BATT_SOC ge 25 does not hold (24.6)",
+  "met_s": 2210,
+  "utc": "2026-10-28T14:36:50.300Z"
+}

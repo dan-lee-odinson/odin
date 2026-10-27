@@ -1,0 +1,6 @@
+{
+  "kind": "command",
+  "command": "CMD_PLD_SET_STATE",
+  "parameters": {"state": "ON"},
+  "rationale": "State of charge is 78 percent, well above the payload's 40 percent floor."
+}

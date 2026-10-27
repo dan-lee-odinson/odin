@@ -1,0 +1,19 @@
+{
+  "query": "send a hazardous command from a script",
+  "results": [
+    {
+      "path": "docs/guides/scripting-api.md",
+      "title": "Scripting API Guide",
+      "sha256": "sha256:76a1fda53e4376a09e40b061622f6991cc16c8cac1282a516a24aed73c5eb87e",
+      "text": "Placeholder: the page's text, cut at 4,000 characters.",
+      "truncated": true
+    },
+    {
+      "path": "docs/configuration/command.md",
+      "title": "Command Configuration",
+      "sha256": "sha256:e7ff57c587db9d98b8a2d012f1d1112901408994363d58b14ec65bd7258b2848",
+      "text": "Placeholder: the page's whole text.",
+      "truncated": false
+    }
+  ]
+}

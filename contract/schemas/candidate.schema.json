@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Candidate",
+  "description": "ODIN's CANDIDATE record: the model's raw answer, unchanged, submitted to POST /log/agent before it is checked (CONTRACT.md v0.6 §8.3, §16.5 U17). reasoning_content is never the answer (§11.1), so it is never a candidate.",
+  "type": "object",
+  "required": ["run_id", "turn_id", "channel", "raw"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "channel": {
+      "description": "CONTENT: the model's text, for spark. TOOL_CALLS: the answer-tool calls as returned, for spark_open.",
+      "enum": ["CONTENT", "TOOL_CALLS"]
+    },
+    "raw": {"description": "That text, or those calls serialized as JSON, unchanged.", "type": "string"}
+  }
+}

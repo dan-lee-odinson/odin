@@ -1,0 +1,6 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "History reply",
+  "description": "GET /history?points=&window_s= reply: point history beyond the bundle's 300 seconds, as a table like the bundle's history, for the named points (CONTRACT.md v0.6 §8.1, §16.1 U3, §16.5 U17). The query lists the points comma-separated, as in points=EPS_BATT_V,EPS_BATT_SOC (the Director's ruling on U19, 26 October 2026), and window_s is at most 3,600.",
+  "allOf": [{"$ref": "common.schema.json#/definitions/point_table"}]
+}

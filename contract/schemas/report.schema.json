@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Report",
+  "description": "A report, filed with POST /report (CONTRACT.md v0.6 §7.5, §8.3, §13, §16.3). It carries no authority: BALDUR-0 never accepts it as a request, and nothing in it reaches the spacecraft. The loop fills in report_kind (copied from the bundle), run_id, turn_id, met_s, utc and plan_id; the model writes the rest, checked on its own by report_body.schema.json (§16.3 U12). The request IDs, outcomes and evidence values are what §13's accuracy check compares with the event log.",
+  "type": "object",
+  "required": [
+    "report_kind", "run_id", "turn_id", "met_s", "utc", "plan_id",
+    "timeline", "actions", "condition", "deferred", "open_issues"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "report_kind": {"enum": ["PASS_START", "CHECK_IN", "HAND_BACK"]},
+    "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
+    "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
+    "met_s": {"$ref": "common.schema.json#/definitions/met_s"},
+    "utc": {"$ref": "common.schema.json#/definitions/utc"},
+    "plan_id": {
+      "description": "The plan in force; null when none is.",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/identifier"}, {"type": "null"}]
+    },
+    "timeline": {
+      "description": "What happened since the previous report, each item with its time.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["met_s", "event"],
+        "additionalProperties": false,
+        "properties": {
+          "met_s": {"$ref": "common.schema.json#/definitions/met_s"},
+          "event": {"type": "string"}
+        }
+      }
+    },
+    "actions": {
+      "description": "Commands ODIN sent, each with its observed outcome.",
+      "type": "array",
+      "items": {"$ref": "#/definitions/action"}
+    },
+    "condition": {
+      "description": "The spacecraft's current condition, with the evidence for it.",
+      "type": "object",
+      "required": ["summary", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "summary": {"type": "string"},
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["point", "value", "met_s"],
+            "additionalProperties": false,
+            "properties": {
+              "point": {"$ref": "common.schema.json#/definitions/point"},
+              "value": {"description": "A number for a numeric point; one of its states for a state point."},
+              "met_s": {"$ref": "common.schema.json#/definitions/met_s"}
+            },
+            "allOf": [{"$ref": "common.schema.json#/definitions/value_fits_point"}]
+          }
+        }
+      }
+    },
+    "deferred": {
+      "description": "Objectives put off, and why.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["objective", "reason"],
+        "additionalProperties": false,
+        "properties": {"objective": {"type": "string"}, "reason": {"type": "string"}}
+      }
+    },
+    "open_issues": {
+      "description": "What ODIN is watching or unsure about.",
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "answer": {
+      "description": "The direct answer to what the Director asked: on a CHECK_IN report only, and absent on the others.",
+      "type": "string"
+    }
+  },
+  "if": {"required": ["report_kind"], "properties": {"report_kind": {"const": "CHECK_IN"}}},
+  "then": {"required": ["answer"]},
+  "else": {"not": {"required": ["answer"]}},
+  "definitions": {
+    "action": {
+      "type": "object",
+      "required": ["request_id", "command", "parameters", "outcome"],
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {"$ref": "common.schema.json#/definitions/uuid4"},
+        "command": {},
+        "parameters": {},
+        "outcome": {
+          "description": "ACCEPTED, REJECTED or NO_ACKNOWLEDGEMENT as telemetry showed; REFUSED by BALDUR-0; VOIDED before dispatch; or PENDING.",
+          "enum": ["ACCEPTED", "REJECTED", "NO_ACKNOWLEDGEMENT", "REFUSED", "VOIDED", "PENDING"]
+        }
+      },
+      "allOf": [{"$ref": "common.schema.json#/definitions/command_and_parameters"}]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "kind": "escalation",
+  "escalation_kind": "MALFUNCTION",
+  "refs": ["EPS_SA2_I", "EPS_BATT_I"],
+  "proposed": null,
+  "urgency": "URGENT",
+  "rationale": "Solar-array string 2 reads zero in sunlight while string 1 is normal; the procedure has no step for it."
+}

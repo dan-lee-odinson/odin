@@ -1,0 +1,5 @@
+{
+  "kind": "command",
+  "command": "CMD_SAFE_ENTER",
+  "parameters": {}
+}

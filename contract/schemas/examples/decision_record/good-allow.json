@@ -1,0 +1,22 @@
+{
+  "request_id": "3f2b8c1e-9a4d-4f6b-8e2a-7c5d1b0e9f34",
+  "decision": "ALLOW",
+  "checks": [
+    {"check": "PLAN", "result": "PASS", "reason": null, "detail": null},
+    {"check": "ARMING", "result": "PASS", "reason": null, "detail": null},
+    {"check": "ORIGIN", "result": "PASS", "reason": null, "detail": null},
+    {"check": "CEILING", "result": "PASS", "reason": null, "detail": null},
+    {"check": "PROHIBITED", "result": "PASS", "reason": null, "detail": null},
+    {"check": "CLASS", "result": "PASS", "reason": null, "detail": null},
+    {"check": "LEASE", "result": "PASS", "reason": null, "detail": null},
+    {"check": "RECORD", "result": "PASS", "reason": null, "detail": null}
+  ],
+  "plan_id": "TYR0-DEV-PASS1-v1",
+  "arming_act_id": "ARM-DEV-01",
+  "rung": "AI_AUTONOMOUS",
+  "base_class": "C1",
+  "class": "C1",
+  "lease_id": null,
+  "met_s": 603,
+  "utc": "2026-10-28T14:10:03.180Z"
+}

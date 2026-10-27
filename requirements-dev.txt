@@ -1,0 +1,4 @@
+# What the repository tests need: python -m pip install -r requirements-dev.txt
+pytest>=8
+PyYAML>=6
+jsonschema>=3.2

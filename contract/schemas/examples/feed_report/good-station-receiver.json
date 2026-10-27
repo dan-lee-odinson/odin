@@ -1,0 +1,6 @@
+{
+  "feed": "station_receiver",
+  "met_s": 600,
+  "utc": "2026-10-28T14:10:00.300Z",
+  "content": {"status": "LOCKED", "signal_dbm": -112}
+}
