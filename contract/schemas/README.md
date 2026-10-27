@@ -5,7 +5,7 @@ JSON Schema (Draft 7) for the records and messages of `CONTRACT.md` v0.6 §4–�
 | Schema | What it checks | Contract |
 |---|---|---|
 | `common.schema.json` | Shared definitions: time, hashes, identifiers, classes, commands and their arguments, telemetry points, conditions, point tables | §4, §7.4, §16 |
-| `tyr0_plan.schema.json` | A TYR-0 mission plan, with its leases | §5.1, §5.2, §5.5, §16.2 |
+| `tyr0_plan.schema.json` | A TYR-0 mission plan, with its leases | §5.1, §5.2, §5.5, §16.2, U27 |
 | `arming_act.schema.json` | An arming act | §5.4, §16.2 |
 | `restore_act.schema.json` | A restore act | §5.4 |
 | `turn_bundle.schema.json` | The turn bundle from `GET /turn/next` | §6.2, §8.1, §16.1 |
@@ -24,7 +24,7 @@ JSON Schema (Draft 7) for the records and messages of `CONTRACT.md` v0.6 §4–�
 | `candidate.schema.json` | ODIN's `CANDIDATE` record | §8.3, §16.5 |
 | `answer_record.schema.json` | ODIN's `ANSWER` record | §8.3, §16.5 |
 | `malformed.schema.json` | ODIN's `MALFORMED` record | §7.2, §16.5 |
-| `decision_record.schema.json` | BALDUR-0's decision record (`DECISION`), also `POST /request`'s reply | §9.1, §9.2, §16.4 |
+| `decision_record.schema.json` | BALDUR-0's decision record (`DECISION`), also `POST /request`'s reply | §9.1, §9.2, §16.4, U25, U28, U29 |
 | `decision_voided.schema.json` | BALDUR-0's `DECISION_VOIDED` record | §9.3, §16.4 |
 | `dispatch.schema.json` | BALDUR-0's `DISPATCH` record | §9.3, §16.4 |
 | `outcome.schema.json` | BALDUR-0's `OUTCOME` record | §9.3, §16.4 |
@@ -40,7 +40,7 @@ JSON Schema (Draft 7) for the records and messages of `CONTRACT.md` v0.6 §4–�
 | `contact.schema.json` | The harness's `CONTACT` record | §6.1, §12, U21 |
 | `trigger_record.schema.json` | The harness's `TRIGGER` record, with the hash of the bundle it served | §6.1, §12, U21 |
 | `revoke.schema.json` | The harness's `REVOKE` record | §9.4, §12, U21 |
-| `restore_record.schema.json` | BALDUR-0's `RESTORE` record | §9.4, §12, U21 |
+| `restore_record.schema.json` | BALDUR-0's `RESTORE` record | §9.4, §12, U21, U33 |
 | `spend.schema.json` | ODIN's `SPEND` record | §11.3, §12, U21 |
 | `spend_stop.schema.json` | ODIN's `SPEND_STOP` record | §11.3, §12, U21 |
 | `run_end.schema.json` | The harness's `RUN_END` record | §12, U21 |

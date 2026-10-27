@@ -1,0 +1,27 @@
+{
+  "request_id": "e8b2c4f1-6a3d-4b7e-9c05-1f2a3b4c5d6e",
+  "decision": "REFUSE",
+  "checks": [
+    {
+      "check": "PLAN",
+      "result": "FAIL",
+      "reason": "PLAN_MISMATCH",
+      "detail": "the request names plan TYR0-DEV-PASS1-v1; TYR0-DEV-PASS2-v1 is in force"
+    },
+    {"check": "ARMING", "result": "NOT_RUN", "reason": null, "detail": null},
+    {"check": "ORIGIN", "result": "NOT_RUN", "reason": null, "detail": null},
+    {"check": "CEILING", "result": "NOT_RUN", "reason": null, "detail": null},
+    {"check": "PROHIBITED", "result": "NOT_RUN", "reason": null, "detail": null},
+    {"check": "CLASS", "result": "NOT_RUN", "reason": null, "detail": null},
+    {"check": "LEASE", "result": "NOT_RUN", "reason": null, "detail": null},
+    {"check": "RECORD", "result": "PASS", "reason": null, "detail": null}
+  ],
+  "plan_id": "TYR0-DEV-PASS2-v1",
+  "arming_act_id": "ARM-DEV-01",
+  "rung": "AI_AUTONOMOUS",
+  "base_class": null,
+  "class": null,
+  "lease_id": null,
+  "met_s": 5402,
+  "utc": "2026-10-28T15:30:02.180Z"
+}

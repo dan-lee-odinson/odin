@@ -41,7 +41,7 @@
       "items": {"$ref": "common.schema.json#/definitions/condition"}
     },
     "leases": {
-      "description": "Pre-authorized C4 commands and their conditions (§5.2).",
+      "description": "Pre-authorized C4 commands and their conditions (§5.2). Two leases may not name the same command with overlapping allowed arguments: a value of state or target in both lists, or rate ranges that meet. JSON Schema cannot compare them, so plan verification refuses such a plan as SCHEMA_VIOLATION, naming both leases (the Director's ruling on U27, 27 October 2026).",
       "type": "array",
       "items": {"$ref": "#/definitions/lease"}
     },

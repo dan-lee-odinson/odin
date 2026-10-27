@@ -13,13 +13,14 @@
     "sha256": {"description": "The act file's exact signed bytes.", "$ref": "common.schema.json#/definitions/sha256"},
     "result": {"enum": ["ACCEPTED", "REFUSED"]},
     "reason": {
-      "description": "Null when accepted.",
+      "description": "Null when accepted. WRONG_PLAN: the act names a plan other than the one in force, or no plan is in force (the Director's ruling on U33, 27 October 2026).",
       "enum": [
         null,
         "UNSIGNED",
         "BAD_SIGNATURE",
         "EXPIRED",
         "WRONG_RUN",
+        "WRONG_PLAN",
         "ALREADY_USED",
         "NOT_REVOKED",
         "SCHEMA_VIOLATION"

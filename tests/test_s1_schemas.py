@@ -98,8 +98,11 @@ REQUEST = "command_request/good-request.json"
 ALLOW = "decision_record/good-allow.json"
 REFUSE = "decision_record/good-refuse.json"
 REFUSE_LEASE = "decision_record/good-refuse-lease.json"
+REFUSE_PLAN = "decision_record/good-refuse-plan-mismatch.json"
+REFUSE_RUN = "decision_record/good-refuse-wrong-run.json"
 VOID_BASIS = "decision_voided/good-basis-changed.json"
 VOID_FAIL = "decision_voided/good-condition-failed.json"
+VOID_PLAN = "decision_voided/good-plan-mismatch.json"
 TO_COSMOS = "dispatch/good-cosmos.json"
 TO_UPLINK = "dispatch/good-uplink.json"
 ACCEPTED = "outcome/good-accepted.json"
@@ -366,6 +369,12 @@ BAD = [
     ("decision_record", "a C3 command raised", ALLOW, setting("base_class", to="C3")),
     ("decision_record", "a lease refusal below C4", REFUSE_LEASE, setting("class", to="C1")),
     ("decision_record", "an allowance with no plan", ALLOW, setting("plan_id", to=None)),
+    ("decision_record", "PLAN_MISMATCH with no plan in force (U29)", REFUSE_PLAN, setting("plan_id", to=None)),
+    ("decision_record", "NO_PLAN_IN_FORCE naming a plan in force (U29)", REFUSE_PLAN,
+     setting("checks", 0, "reason", to="NO_PLAN_IN_FORCE")),
+    ("decision_record", "WRONG_RUN given at ARMING, not ORIGIN (U28)", REFUSE_RUN,
+     setting("checks", 1, to={"check": "ARMING", "result": "FAIL", "reason": "WRONG_RUN", "detail": None})),
+    ("decision_voided", "PLAN_MISMATCH on ARMING (U29)", VOID_PLAN, setting("check", to="ARMING")),
     ("decision_voided", "BASIS_CHANGED on ORIGIN", VOID_BASIS, setting("check", to="ORIGIN")),
     ("decision_voided", "a reason belonging to another check", VOID_FAIL, setting("reason", to="REVOKED")),
     ("decision_voided", "a reason §16.4 does not list", VOID_FAIL, setting("reason", to="TOO_LATE")),
@@ -504,6 +513,8 @@ BAD = [
      setting("source", to="DIRECTOR")),
     ("restore_record", "accepted with a reason", RESTORED, setting("reason", to="EXPIRED")),
     ("restore_record", "refused without a reason", RESTORE_REFUSED, setting("reason", to=None)),
+    ("restore_record", "accepted though for another plan (U33)", "restore_record/good-wrong-plan.json",
+     setting("result", to="ACCEPTED")),
     ("restore_record", "accepted with no act", RESTORED, setting("act_id", to=None)),
     ("restore_record", "a reason U21 does not list", RESTORE_REFUSED, setting("reason", to="NOT_ARMED")),
     ("spend", "a total below zero", SPEND, setting("baseten_credit_usd", to=-0.01)),

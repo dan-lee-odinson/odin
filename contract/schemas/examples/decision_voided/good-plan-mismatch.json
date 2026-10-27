@@ -1,0 +1,9 @@
+{
+  "request_id": "5d1a8c37-4e2b-4f90-9a6d-3c8e1b7f2a54",
+  "decision_record_id": 63,
+  "check": "PLAN",
+  "reason": "PLAN_MISMATCH",
+  "detail": "the request names plan TYR0-DEV-PASS1-v1; TYR0-DEV-PASS2-v1 is in force",
+  "met_s": 5400,
+  "utc": "2026-10-28T15:30:00.040Z"
+}

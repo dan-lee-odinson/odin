@@ -1,7 +1,7 @@
 """Show the repository tests failing on purpose in the real working tree, then put it back.
 
     python tests/show_red.py          every stage
-    python tests/show_red.py s1       one stage (s0, s1, s2, deposits)
+    python tests/show_red.py s1       one stage (s0, s1, s2, s3, deposits)
 
 For each case: run the real test (it passes), plant one defect, run it again (it must fail),
 restore the tree, confirm the restored bytes, and run it a third time (it passes). Planted
@@ -55,6 +55,15 @@ def replace_once(old, new):
         if data.count(old) != 1:
             sys.exit(f"expected exactly one {old!r} to change; the file has moved on")
         return data.replace(old, new)
+    return change
+
+
+def in_turn(*changes):
+    """Several changes to one file, made one after another."""
+    def change(data):
+        for one in changes:
+            data = one(data)
+        return data
     return change
 
 
@@ -158,6 +167,64 @@ CASES = {"s0": [
     ("a Python file in gateway/ that opens a run's truth file",
      "tests/test_s2_truth_guard.py::test_only_the_writers_and_eval_name_the_truth_file",
      add_file("gateway/_red_probe_truth.py", 'open("runs/dev-run-0001/' + "truth" + '.jsonl")\n')),
+], "s3": [
+    ("BALDUR-0 sending a command across a plan boundary: the plan compared neither with the request nor the basis",
+     "tests/test_s3_dispatch.py::test_a_command_allowed_under_one_plan_is_voided_once_the_boundary_passes",
+     change_file("gateway/decision.py", in_turn(
+         replace_once(b'if request["plan_id"] != ctx.plan.plan_id:', b"if False:"),
+         replace_once(b'BASIS = (("plan_id", "PLAN"), ', b"BASIS = (")))),
+    ("BALDUR-0 dispatching a command whose class changed while it waited",
+     "tests/test_s3_dispatch.py::test_a_class_raised_while_waiting_changes_the_basis",
+     change_file("gateway/gateway.py", replace_once(b"elif changed:", b"elif False:"))),
+    ("scored mode accepting the development test key",
+     "tests/test_s3_signed.py::test_red_scored_mode_refuses_plans_signed_with_the_test_key",
+     change_file("gateway/signed.py", replace_once(b'if mode == "DEVELOPMENT":', b"if mode in MODES:"))),
+    ("development mode no longer accepting the test key",
+     "tests/test_s3_signed.py::test_development_mode_accepts_the_test_key",
+     change_file("gateway/signed.py", replace_once(b'accepted.append((DEV_TEST, f"{DEV_TEST} {keytype} {key}"))',
+                                                   b"pass"))),
+    ("acts verified under tyr0, so a plan's signature passes as an act's",
+     "tests/test_s3_signed.py::test_red_a_signed_plan_presented_as_the_act",
+     change_file("gateway/signed.py", replace_once(b'ACT_NAMESPACE = "aesir-arm"', b'ACT_NAMESPACE = "tyr0"'))),
+    ("plan spans closed at the end, so two plans are in force at 5400",
+     "tests/test_s3_decision.py::test_a_plan_is_in_force_from_its_start_up_to_but_not_including_its_end",
+     change_file("gateway/plans.py", replace_once(b"self.valid_from_met_s <= met_s < self.valid_until_met_s",
+                                                  b"self.valid_from_met_s <= met_s <= self.valid_until_met_s"))),
+    ("the ORIGIN check no longer refusing a used nonce",
+     "tests/test_s3_decision.py::test_red_origin_a_request_replayed",
+     change_file("gateway/decision.py", replace_once(b"if ctx.nonce_reused:", b"if False:"))),
+    ("an envelope limit that does not hold no longer raising C1 to C4",
+     "tests/test_s3_decision.py::test_an_envelope_limit_that_does_not_hold_raises_c1_to_c4_and_a_lease_can_cover_it",
+     change_file("gateway/decision.py", replace_once(b'found["class"] = "C4" if broken else base',
+                                                     b'found["class"] = base'))),
+    ("stale telemetry blocking the protective commands",
+     "tests/test_s3_decision.py::test_stale_or_missing_telemetry_never_blocks_a_protective_command",
+     change_file("gateway/decision.py", replace_once(
+         b'if request["command"] not in PROTECTIVE and not is_fresh(ctx.frame, ctx.met_s):',
+         b"if not is_fresh(ctx.frame, ctx.met_s):"))),
+    ("stale telemetry refusing only C1 and C2 at CLASS, so LEASE judges the mode command on an old frame (U25)",
+     "tests/test_s3_decision.py::test_red_class_no_fresh_telemetry_refuses_the_mode_command_whatever_its_lease",
+     change_file("gateway/decision.py", replace_once(
+         b'if request["command"] not in PROTECTIVE and not is_fresh(ctx.frame, ctx.met_s):',
+         b'if base in ("C1", "C2") and not is_fresh(ctx.frame, ctx.met_s):'))),
+    ("plan verification letting two leases cover one request (U27)",
+     "tests/test_s3_signed.py::test_red_overlapping_leases_are_named_in_the_refusal",
+     change_file("gateway/plans.py", replace_once(b"shared = _shared(one, other)", b"shared = None"))),
+    ("the ORIGIN check no longer refusing a request for another run (U28)",
+     "tests/test_s3_decision.py::test_red_origin_a_request_for_another_run",
+     change_file("gateway/decision.py", replace_once(b'if request["run_id"] != ctx.run_id:', b"if False:"))),
+    ("the PLAN check no longer refusing a request that names another plan (U29)",
+     "tests/test_s3_decision.py::test_red_plan_mismatch_a_request_naming_another_plan_or_none",
+     change_file("gateway/decision.py", replace_once(b'if request["plan_id"] != ctx.plan.plan_id:', b"if False:"))),
+    ("revocation leaving the waiting requests in the queue",
+     "tests/test_s3_dispatch.py::test_revocation_voids_every_waiting_request_at_once",
+     change_file("gateway/gateway.py", replace_once(b"pending, self._pending = self._pending, []", b"pending = []"))),
+    ("a restore act accepted a second time",
+     "tests/test_s3_restore.py::test_a_restore_act_is_accepted_once",
+     change_file("gateway/acts.py", replace_once(b'elif act["act_id"] in used:', b"elif False:"))),
+    ("BALDUR-0 answering a refused body before reading it",
+     "tests/test_s3_server.py::test_every_refusal_is_answered_though_its_body_is_large",
+     change_file("gateway/server.py", replace_once(b"if length.isdigit() else None", b"if False else None"))),
 ], "deposits": [
     ("one byte changed in the committed deposit deposits/MC-M1-01.zip",
      "tests/test_deposits.py::test_each_committed_deposit_is_odin_at_its_commit",

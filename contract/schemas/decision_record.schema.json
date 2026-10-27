@@ -73,9 +73,19 @@
      "properties": {
        "decision": {"const": "REFUSE"},
        "checks": {"items": [
-         {"$ref": "#/definitions/FAIL"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"},
+         {"properties": {"result": {"const": "FAIL"}, "reason": {"const": "NO_PLAN_IN_FORCE"}}}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"},
          {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/PASS"}]},
        "plan_id": {"type": "null"},
+       "base_class": {"type": "null"},
+       "class": {"type": "null"},
+       "lease_id": {"type": "null"}}},
+    {"description": "Refused at PLAN: the request names another plan than the one in force, or none (the Director's ruling on U29, 27 October 2026).",
+     "properties": {
+       "decision": {"const": "REFUSE"},
+       "checks": {"items": [
+         {"properties": {"result": {"const": "FAIL"}, "reason": {"const": "PLAN_MISMATCH"}}}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"},
+         {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/NOT_RUN"}, {"$ref": "#/definitions/PASS"}]},
+       "plan_id": {"$ref": "common.schema.json#/definitions/identifier"},
        "base_class": {"type": "null"},
        "class": {"type": "null"},
        "lease_id": {"type": "null"}}},
@@ -150,13 +160,13 @@
     "NOT_RUN": {"properties": {"result": {"const": "NOT_RUN"}}},
     "result": {"enum": ["PASS", "FAIL", "NOT_RUN"]},
     "detail": {"description": "A short string naming, for example, the condition or envelope limit that did not hold; or null.", "type": ["string", "null"]},
-    "reasons_PLAN": {"enum": ["NO_PLAN_IN_FORCE"]},
+    "reasons_PLAN": {"description": "PLAN_MISMATCH: the request names another plan than the one in force, or none (§9.3; the Director's ruling on U29, 27 October 2026).", "enum": ["NO_PLAN_IN_FORCE", "PLAN_MISMATCH"]},
     "reasons_ARMING": {"enum": ["NOT_ARMED", "ACT_EXPIRED", "ACT_NOT_FOR_RUN"]},
-    "reasons_ORIGIN": {"enum": ["BAD_SIGNATURE", "NONCE_REUSED", "CLOCK_SKEW"]},
+    "reasons_ORIGIN": {"description": "WRONG_RUN: the request names another run than the one BALDUR-0 is running (the Director's ruling on U28, 27 October 2026).", "enum": ["BAD_SIGNATURE", "NONCE_REUSED", "CLOCK_SKEW", "WRONG_RUN"]},
     "reasons_CEILING": {"enum": ["REVOKED"]},
     "reasons_PROHIBITED": {"enum": ["PROHIBITED_BY_PLAN"]},
-    "reasons_CLASS": {"enum": ["RUNG_REFUSES_CLASS", "NO_FRESH_TELEMETRY"]},
-    "reasons_LEASE": {"enum": ["NO_LEASE", "ARGUMENTS_NOT_COVERED", "CONDITION_FAILED", "NO_USES_LEFT", "NO_FRESH_TELEMETRY"]},
+    "reasons_CLASS": {"description": "NO_FRESH_TELEMETRY: the newest frame is more than 10 seconds of simulation time old, or there is none, and the command is neither CMD_SAFE_ENTER nor CMD_SYS_RESET; the mode command is refused here too, whatever its lease's conditions (§9.6; the Director's ruling on U25, 27 October 2026).", "enum": ["RUNG_REFUSES_CLASS", "NO_FRESH_TELEMETRY"]},
+    "reasons_LEASE": {"description": "NO_FRESH_TELEMETRY is listed as §16.4 lists it, but BALDUR-0 never gives it here: CLASS has already refused, on stale or missing telemetry, every command a lease could cover (the Director's ruling on U25, 27 October 2026).", "enum": ["NO_LEASE", "ARGUMENTS_NOT_COVERED", "CONDITION_FAILED", "NO_USES_LEFT", "NO_FRESH_TELEMETRY"]},
     "check_PLAN": {
       "type": "object", "required": ["check", "result", "reason", "detail"], "additionalProperties": false,
       "properties": {"check": {"const": "PLAN"}, "result": {"$ref": "#/definitions/result"}, "reason": {"description": "Null unless the result is FAIL."}, "detail": {"$ref": "#/definitions/detail"}},
