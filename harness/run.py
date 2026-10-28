@@ -4,7 +4,8 @@ The harness writes RUN_START and has BALDUR-0 verify the plan chain and the armi
 fails stops before it starts. Before anything is written, ODIN's instructions and prompt template are
 checked against their frozen record, and RUN_START carries both hashes (harness/instructions.py; the
 Director's ruling on U54, 28 October 2026). The six schemas the instructions are rendered from and the
-run's model settings are checked against their own freeze record (harness/freeze.py, U55). The run's
+run's model settings are checked against their own freeze record (harness/freeze.py, U55), and the
+model's adapter against those settings (harness/adapter.py, U57). The run's
 contact windows come from its verified plan chain (the Director's ruling of 27 October 2026). The
 simulator then steps on the run's clock. After each tick
 the harness gives BALDUR-0 the frame the seat received, so outcomes are read from telemetry, and turns
@@ -35,6 +36,7 @@ from gateway import server as baldur_server
 from gateway.gateway import Gateway
 from gateway.signed import KEYS_DIR, load_yaml
 from harness import docs, freeze, instructions
+from harness.adapter import adapter_settings
 from harness.checkins import PHASES, pass_check_ins
 from harness.bundle import build_bundle, bundle_bytes, read_records
 from harness.server import Refused, make_server
@@ -50,12 +52,14 @@ from wrapper.link import in_window
 from wrapper.simulator import Simulator
 
 RUN_COMPLETE = json.dumps({"run_complete": True}).encode("utf-8")
-RUN_START_CONFIG = ("seed", "model_config", "provider", "model_id", "reasoning_effort", "answer_method",
+RUN_START_CONFIG = ("seed", "model_config", "provider", "model_id", "reasoning_effort", "endpoint", "answer_method",
                     "reference_sha256")
 # Whoever starts a run names only the model. RUN_START's model ID and reasoning level come from the model's
-# frozen block in config/models.yaml, the block its loop reads, so there is no second copy (the Director's
-# ruling on U56, 28 October 2026). The provider has no single source in the build, so the configuration names it.
+# frozen block in config/models.yaml, the block its loop reads (the Director's ruling on U56, 28 October 2026),
+# and its provider and endpoint from the model's adapter, whose code makes the call (U57). A configuration
+# carrying any of the four is refused, so there is no second copy.
 FROM_BLOCK = {"model_id": "model", "reasoning_effort": "reasoning_effort"}
+DERIVED = (*FROM_BLOCK, "provider", "endpoint")
 
 
 def recorded(check_ins):
@@ -74,10 +78,11 @@ class Run:
     def __init__(self, *, run_id, scenario, scenario_id, phase, mode, plan_paths, act_path, root, procedures,
                  config, seat="ONBOARD", pacing="CHARGED", rate=1.0, check_ins=(), pass_transcript=None,
                  revoke_at=None, restore=None, docs_folder=docs.CACHE, keys_dir=KEYS_DIR, addresses=None,
-                 utc_clock=utc_now):
-        """config: what whoever starts the run names, RUN_START_CONFIG but for FROM_BLOCK's model ID and
-        reasoning level, which come from the model's frozen block (U56); a config carrying either is refused.
-        check_ins: recorded check-ins to play, as (met_s, POST /checkin body); a phase-2 or phase-3 run also carries
+                 utc_clock=utc_now, endpoint=None):
+        """config: what whoever starts the run names, RUN_START_CONFIG but for the DERIVED settings, which come
+        from the model's frozen block (U56) and its adapter (U57); a config carrying any of them is refused.
+        endpoint: the base URL a development run's adapter calls instead of its built-in one; refused in a
+        SCORED run (U57). check_ins: recorded check-ins to play, as (met_s, POST /checkin body); a phase-2 or phase-3 run also carries
         one at each contact's loss of signal minus 90 s (harness/checkins.py). pass_transcript: that
         check-in's frozen transcript {text, audio_sha256}, or None for the words as text until it exists.
         revoke_at: the scripted revocation's
@@ -87,6 +92,7 @@ class Run:
             raise NotImplementedError("the ground seat reads COSMOS through the connector, stage S5")
         self.run_id, self.scenario, self.scenario_id, self.phase, self.mode = run_id, scenario, scenario_id, phase, mode
         self.plan_paths, self.act_path, self.procedures, self.config = list(plan_paths), act_path, procedures, config
+        self.endpoint = endpoint
         self.seat, self.pacing, self.rate = seat, pacing, rate
         self.check_ins = recorded(check_ins)
         self.pass_transcript = pass_transcript
@@ -145,16 +151,21 @@ class Run:
     def start(self):
         """Start the run. False if it stopped before starting, with RUN_END written. Raises NotFrozen, before
         anything is written, if ODIN's instructions or prompt template differ from their frozen record (U54),
-        or the six schemas or the run's model settings from theirs (U55). Raises ValueError, before anything
-        is written, if config carries its own model ID or reasoning level (U56)."""
-        carried = sorted(set(FROM_BLOCK) & set(self.config))
+        or the six schemas or the run's model settings from theirs (U55), or if the model's adapter calls
+        another model ID than its frozen block's (U57). Raises ValueError, before anything is written, if
+        config carries its own model ID, reasoning level, provider or endpoint (U56, U57), or a SCORED run is
+        given an endpoint other than its adapter's built-in one (U57)."""
+        carried = sorted(set(DERIVED) & set(self.config))
         if carried:
             raise ValueError(f"the run's configuration carries its own {' and '.join(carried)}; RUN_START takes "
-                             f"{self.config['model_config']}'s from its frozen block in config/models.yaml (U56)")
-        self.frozen = instructions.frozen(self.config["model_config"])
-        block = freeze.check(self.config["model_config"])
+                             f"{self.config['model_config']}'s from its frozen block in config/models.yaml and "
+                             f"its adapter (U56, U57)")
+        model_config = self.config["model_config"]
+        self.frozen = instructions.frozen(model_config)
+        block = freeze.check(model_config)
         self.configuration = {**self.config,
-                              **{name: block[key] if block else None for name, key in FROM_BLOCK.items()}}
+                              **{name: block[key] if block else None for name, key in FROM_BLOCK.items()},
+                              **adapter_settings(model_config, block, mode=self.mode, endpoint=self.endpoint)}
         for folder in (self.folder, self.final):
             if folder.exists():
                 raise FileExistsError(f"{folder} already exists; a run's folder is never reused")

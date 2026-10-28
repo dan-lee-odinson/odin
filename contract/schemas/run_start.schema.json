@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Run start",
-  "description": "The harness's RUN_START record: what the run flies with (CONTRACT.md v0.6 §10.2, §11.1, §12; the Director's ruling on U21, 26 October 2026). A field with no subject is null (§16 U15): the stand-in has no provider, model or reasoning setting, and a run may fly without a plan chain or a study reference.",
+  "description": "The harness's RUN_START record: what the run flies with (CONTRACT.md v0.6 §10.2, §11.1, §12; the Director's ruling on U21, 26 October 2026). A field with no subject is null (§16 U15): the stand-in has no provider, model, reasoning setting or endpoint, and a run may fly without a plan chain or a study reference.",
   "type": "object",
   "required": [
     "run_id",
@@ -13,6 +13,7 @@
     "provider",
     "model_id",
     "reasoning_effort",
+    "endpoint",
     "answer_method",
     "config_sha256",
     "instructions_sha256",
@@ -34,9 +35,19 @@
       "description": "The model configuration (§11.1).",
       "enum": ["spark", "spark_open", "glimmer_local", "stand_in"]
     },
-    "provider": {"type": ["string", "null"]},
-    "model_id": {"description": "The model ID sent to the provider, exactly.", "type": ["string", "null"]},
-    "reasoning_effort": {"type": ["string", "null"]},
+    "provider": {
+      "description": "The provider as the run's model's adapter names it, since the adapter's code makes the call (the Director's ruling on U57, 28 October 2026).",
+      "type": ["string", "null"]
+    },
+    "model_id": {
+      "description": "The model ID sent to the provider, exactly: the model's frozen block in config/models.yaml, which its adapter's must match (U56, U57).",
+      "type": ["string", "null"]
+    },
+    "reasoning_effort": {"description": "From the model's frozen block in config/models.yaml (U56).", "type": ["string", "null"]},
+    "endpoint": {
+      "description": "The base URL the run's model's adapter calls, which every run records (§11.1; U57). A SCORED run calls only the adapter's built-in endpoint; a development run may give it another.",
+      "anyOf": [{"type": "string", "pattern": "^https?://[^\\s]+$"}, {"type": "null"}]
+    },
     "answer_method": {
       "description": "How the model answers (§11.1): structured output for spark, one answer-tool call for spark_open, scripted answers for the stand-in.",
       "enum": ["STRUCTURED_OUTPUT", "ANSWER_TOOLS", "SCRIPTED"]
@@ -73,6 +84,10 @@
       "then": {
         "properties": {
           "answer_method": {"const": "SCRIPTED"},
+          "provider": {"type": "null"},
+          "model_id": {"type": "null"},
+          "reasoning_effort": {"type": "null"},
+          "endpoint": {"type": "null"},
           "instructions_sha256": {"type": "null"},
           "prompt_template_sha256": {"type": "null"}
         }
@@ -88,6 +103,7 @@
           "provider": {"type": "string"},
           "model_id": {"type": "string"},
           "reasoning_effort": {"type": "string"},
+          "endpoint": {"type": "string"},
           "instructions_sha256": {"$ref": "common.schema.json#/definitions/sha256"},
           "prompt_template_sha256": {"$ref": "common.schema.json#/definitions/sha256"}
         }

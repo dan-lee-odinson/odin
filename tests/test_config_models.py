@@ -12,6 +12,8 @@ from tests.repo_checks import REPO_ROOT
 MODELS = yaml.safe_load((REPO_ROOT / "config" / "models.yaml").read_text(encoding="utf-8"))
 PRICES = yaml.safe_load((REPO_ROOT / "config" / "prices.yaml").read_text(encoding="utf-8"))
 RULED = {"spark": "high", "spark_open": "xhigh"}
+# CONTRACT.md §11.1's model IDs.
+MODEL_IDS = {"spark": "muse-spark-1.3", "spark_open": "meta-models/muse-spark-open-1026"}
 # The levels M3 measured for each model, the table the Director picked from.
 MEASURED = {"spark": {"low", "medium", "high"}, "spark_open": {"low", "medium", "high", "xhigh"}}
 SOURCE = "the Director's ruling of 27 October 2026, from M3's table"
@@ -23,7 +25,7 @@ def test_the_models_are_the_two_the_director_ruled_on():
 
 @pytest.mark.parametrize("name", sorted(RULED))
 def test_each_model_carries_the_ruled_settings_and_their_source(name):
-    assert MODELS[name] == {"model": PRICES[name]["model"], "reasoning_effort": RULED[name],
+    assert MODELS[name] == {"model": MODEL_IDS[name], "reasoning_effort": RULED[name],
                             "max_output_tokens": 32000, "timeout_s": 120, "source": SOURCE,
                             "date": datetime.date(2026, 10, 27)}
 
@@ -35,3 +37,9 @@ def test_each_level_is_one_m3_measured_for_that_model(name):
 
 def test_red_spark_at_xhigh_was_never_measured():
     assert "xhigh" not in MEASURED["spark"]
+
+
+@pytest.mark.parametrize("name", sorted(RULED))
+def test_prices_carry_only_the_figures_the_meter_reads_with_their_source(name):
+    # No provider or model label: the adapter names the provider and models.yaml the model (U57).
+    assert sorted(PRICES[name]) == ["cached_input_per_mtok", "date", "input_per_mtok", "output_per_mtok", "source"]

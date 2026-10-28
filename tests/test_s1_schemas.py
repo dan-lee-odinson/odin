@@ -500,6 +500,13 @@ BAD = [
     ("run_start", "the stand-in carrying an instructions hash", RUN_STAND_IN,
      setting("instructions_sha256", to="sha256:" + "3a" * 32)),
     ("run_start", "the instructions named instead of hashed", RUN_SPARK, setting("instructions_sha256", to="system_prompt.md")),
+    # The Director's rulings on U56 and U57, 28 October 2026: the adapter's provider and endpoint, null for the stand-in
+    ("run_start", "a RUN_START without endpoint", RUN_SPARK, dropping("endpoint")),
+    ("run_start", "a real model with no endpoint recorded", RUN_SPARK, setting("endpoint", to=None)),
+    ("run_start", "an endpoint that is not a URL", RUN_SPARK, setting("endpoint", to="api.meta.ai/v1")),
+    ("run_start", "the stand-in carrying an endpoint", RUN_STAND_IN, setting("endpoint", to="https://api.meta.ai/v1")),
+    ("run_start", "the stand-in carrying a provider", RUN_STAND_IN, setting("provider", to="Meta Model API, Standard mode")),
+    ("run_start", "the stand-in carrying a reasoning level", RUN_STAND_IN, setting("reasoning_effort", to="high")),
     ("plan_chain_verified", "a pass with a reason", CHAIN_PASS, setting("reason", to="GAP")),
     ("plan_chain_verified", "a failure without a reason", CHAIN_UNSIGNED, setting("reason", to=None)),
     ("plan_chain_verified", "a pass with a missing signature", CHAIN_PASS, setting("plans", 1, "signature", to="MISSING")),

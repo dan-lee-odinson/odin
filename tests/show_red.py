@@ -554,13 +554,23 @@ CASES = {"s0": [
      change_file("config/models.yaml", lambda data: data + b"\nglimmer_local:\n  model: glimmer-local\n  reasoning_effort: high\n")),
     ("a run configuration carrying its own reasoning_effort accepted (U56)",
      "tests/test_s6_model_settings.py::test_red_a_configuration_carrying_its_own_setting_is_refused[spark-reasoning_effort]",
-     change_file("harness/run.py", replace_once(b"carried = sorted(set(FROM_BLOCK) & set(self.config))", b"carried = []"))),
+     change_file("harness/run.py", replace_once(b"carried = sorted(set(DERIVED) & set(self.config))", b"carried = []"))),
     ("a MODEL_CALL at medium in a run frozen at high not flagged (U56)",
      "tests/test_s8_measures.py::test_red_a_model_call_off_the_runs_settings_flags_the_run[reasoning_effort]",
      change_file("eval/measures.py", replace_once(b'"reasoning_effort": "reasoning_effort", ', b""))),
     ("a MODEL_CALL with another model_id not flagged (U56)",
      "tests/test_s8_measures.py::test_red_a_model_call_off_the_runs_settings_flags_the_run[model_id]",
      change_file("eval/measures.py", replace_once(b'"model_id": "model", ', b""))),
+    ("a run configuration naming a provider accepted (U57)",
+     "tests/test_s6_model_settings.py::test_red_a_configuration_carrying_its_own_setting_is_refused[spark-provider]",
+     change_file("harness/run.py", replace_once(b'DERIVED = (*FROM_BLOCK, "provider", "endpoint")',
+                                                b'DERIVED = (*FROM_BLOCK, "endpoint")'))),
+    ("a SCORED run with an overridden endpoint accepted (U57)",
+     "tests/test_s6_model_settings.py::test_red_a_scored_run_with_an_overridden_endpoint_is_refused",
+     change_file("harness/adapter.py", replace_once(b'if mode == "SCORED" and adapter.base_url != built_in:', b"if False:"))),
+    ("an adapter whose model ID differs from its frozen block accepted (U57)",
+     "tests/test_s6_model_settings.py::test_red_an_adapter_calling_another_model_id_is_refused",
+     change_file("harness/adapter.py", replace_once(b'if adapter.model_id != block["model"]:', b"if False:"))),
 ], "models": [
     ("spark set to reasoning medium, not the high the Director ruled",
      "tests/test_config_models.py::test_each_model_carries_the_ruled_settings_and_their_source[spark]",
@@ -581,13 +591,15 @@ CASES = {"s0": [
 
 
 def run_test(node):
+    """(outcome, reasons): outcome is passed, failed, or did not run. pytest exits 1 only when a test it ran
+    failed, so a planted change that removes the test, or stops it being collected, is not counted as caught."""
     result = subprocess.run(
         [sys.executable, "-m", "pytest", node, "-q", "--no-header", "--tb=short",
          "-p", "no:cacheprovider"],
         cwd=ROOT, capture_output=True, text=True)
     reasons = [line[2:].strip() for line in result.stdout.splitlines()
                if line.startswith("E ") and line[2:].strip()]
-    return result.returncode == 0, reasons
+    return {0: "passed", 1: "failed"}.get(result.returncode, f"did not run (pytest exit {result.returncode})"), reasons
 
 
 def main():
@@ -602,19 +614,21 @@ def main():
         print(f"[{label}] {title}")
         print(f"      test: {node}")
         before, _ = run_test(node)
-        print(f"      before:   {'passed' if before else 'FAILED (tree was not clean)'}")
+        print(f"      before:   {'passed' if before == 'passed' else 'FAILED (tree was not clean)'}")
         plant()
         try:
             planted, reasons = run_test(node)
         finally:
             restored_exactly = restore()
-        print(f"      planted:  {'PASSED (the check did not catch it)' if planted else 'FAILED, as intended'}")
+        print(f"      planted:  " + {"passed": "PASSED (the check did not catch it)",
+                                    "failed": "FAILED, as intended"}.get(planted, planted.upper()))
         for reason in reasons[:3]:
             print(f"                {reason}")
         after, _ = run_test(node)
-        print(f"      restored: {'passed' if after else 'FAILED'}, "
+        print(f"      restored: {'passed' if after == 'passed' else 'FAILED'}, "
               f"{'bytes identical to before' if restored_exactly else 'BYTES DIFFER'}")
-        all_good = all_good and before and not planted and after and restored_exactly
+        all_good = (all_good and before == "passed" and planted == "failed" and after == "passed"
+                    and restored_exactly)
         print()
     print("Every red case failed as intended and the tree is back as it was." if all_good
           else "AT LEAST ONE CASE DID NOT BEHAVE. See above.")

@@ -8,6 +8,7 @@
   "provider": null,
   "model_id": null,
   "reasoning_effort": null,
+  "endpoint": null,
   "answer_method": "SCRIPTED",
   "config_sha256": "sha256:163d05cf2526403529b8271df49f4aef12a94eb54098720de4dd2b6479924e62",
   "instructions_sha256": null,
