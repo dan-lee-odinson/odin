@@ -55,6 +55,24 @@ def verify_frozen(repo_root) -> bool:
         return False
 
 
+def stand_in_answer(turn_id, bundle):
+    """The start command's stand-in: none on an ACT turn; on a REPORT turn,
+    a minimal valid report of the form that turn asks for."""
+    if bundle.get("turn_kind") == "REPORT":
+        body = {
+            "timeline": [],
+            "actions": [],
+            "condition": {"summary": "Stand-in report: nothing to report.",
+                          "evidence": []},
+            "deferred": [],
+            "open_issues": [],
+        }
+        if bundle.get("report_kind") == "CHECK_IN":
+            body["answer"] = "Stand-in: no comment."
+        return json.dumps(body)
+    return '{"kind":"none"}'
+
+
 def build_run_adapter(model, http_post=None):
     """The adapter exactly as config/models.yaml builds it (U57). No
     endpoint override exists here: build_adapter is never given one."""
@@ -62,7 +80,7 @@ def build_run_adapter(model, http_post=None):
     from odin.adapters.stand_in import StandInAdapter
 
     if model == "stand_in":
-        return StandInAdapter(script=lambda turn_id, bundle: '{"kind":"none"}')
+        return StandInAdapter(script=stand_in_answer)
     return build_adapter(model, http_post=http_post)
 
 

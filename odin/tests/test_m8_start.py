@@ -34,6 +34,27 @@ def test_command_runs_until_harness_says_complete(tmp_path, monkeypatch):
     assert len(agent_inputs) == 3  # every turn, not just the first
 
 
+def test_stand_in_answers_report_turns_with_a_report(tmp_path, monkeypatch):
+    priv = tmp_path / "k"
+    pub = tmp_path / "k.pub"
+    signing.generate_keypair_files(priv, pub)
+    bundles = [
+        bundle_bytes(make_bundle(1, turn_kind="ACT")),
+        bundle_bytes(make_bundle(2, turn_kind="REPORT", report_kind="PASS_START")),
+        bundle_bytes(make_bundle(3, turn_kind="REPORT", report_kind="CHECK_IN")),
+    ]
+    services = FakeServices(bundles=bundles, public_key_path=pub)
+    monkeypatch.setenv("ODIN_KEY_PATH", str(priv))
+    code = _run(tmp_path, services, priv)
+    assert code == 0
+    assert len(services.reports) == 2  # both report turns filed a report
+    kinds = [r["report_kind"] for r in services.reports]
+    assert kinds == ["PASS_START", "CHECK_IN"]
+    assert "answer" in services.reports[1]  # CHECK_IN reports carry an answer
+    assert "answer" not in services.reports[0]
+    assert not [r for r in services.log_records if r["type"] == "MALFORMED"]
+
+
 def test_no_model_call_before_first_turn(tmp_path, monkeypatch):
     services, priv = _services(tmp_path, 0)
     monkeypatch.setenv("ODIN_KEY_PATH", str(priv))
