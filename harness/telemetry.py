@@ -69,9 +69,11 @@ class FrameStore:
         self._frames = []   # entries, oldest first
         self._last_new_count = None
 
-    def receive(self, frame, received_utc, met_s, *, count=None, limits=None):
-        """A decoded frame, as it arrived at met_s; for INST, with COSMOS's count and limit states."""
-        entry = self.view.entry(frame, received_utc, met_s, count, limits)
+    def receive(self, frame, received_utc, met_s, *, count=None, limits=None, others=None):
+        """A decoded frame, as it arrived at met_s; for INST, with COSMOS's count and limit states, and others,
+        {before, after}: COSMOS's count of the commands others sent the spacecraft, at the reading before this
+        frame came and at the one it came in (U62)."""
+        entry = dict(self.view.entry(frame, received_utc, met_s, count, limits), others=others)
         with self._lock:
             if not self._frames or entry["count"] != self._frames[-1]["count"]:
                 self._last_new_count = met_s
@@ -91,10 +93,14 @@ class FrameStore:
             return self._frames[-1]["limits"] if self._frames else None
 
     def telemetry(self):
-        """The newest frame as BALDUR-0 reads it, {frame_met_s, points}, or None."""
+        """The newest frame as BALDUR-0 reads it, {frame_met_s, points}, or None; in phase 1 with others, COSMOS's
+        count of the commands others sent the spacecraft (U62)."""
         with self._lock:
             newest = self._frames[-1] if self._frames else None
-        return None if newest is None else {"frame_met_s": newest["met_s"], "points": dict(newest["frame"])}
+        if newest is None:
+            return None
+        return {"frame_met_s": newest["met_s"], "points": dict(newest["frame"]),
+                **({"others": dict(newest["others"])} if newest["others"] is not None else {})}
 
     def staleness(self, met_s):
         """The ground monitor's state, or None in the onboard seat, which has no ground monitor (§6.4)."""

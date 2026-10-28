@@ -11,7 +11,10 @@ with Muse Code's loop as ODIN answering from a script, its answer check given th
 has a packet, a COLLECT, then CMD_SAFE_ENTER, which is not in INST's dictionary. The check reads COSMOS's own
 counts and the run's records: the refused command never reached COSMOS and the collect did, read back from
 INST's accept counter; ODIN saw INST as COSMOS gives it with the demo's own interface; INST's limit changes came
-as triggers; every packet read was kept; and S8's phase-1 collect check passes. Exits 0 only if every step holds.
+as triggers; every packet read was kept; and S8's phase-1 collect check passes. The demo's limits response sends
+commands of its own, which COSMOS 7.2.1 cannot turn off: COSMOS's command history counts them as others' and never
+ODIN's, and the collect's outcome is ACCEPTED, or NO_ACKNOWLEDGEMENT where one of them fell in its window (U62).
+Exits 0 only if every step holds.
 """
 
 import sys
@@ -49,6 +52,7 @@ def main():
         print(f"  {'PASS' if ok else 'FAIL'}  {what}: {seen}", flush=True)
 
     before = {name: cosmos.call("get_cmd_cnt", "INST", name) for name in ("COLLECT", "ABORT")}
+    others_before = cosmos.commands_by_others()
     harness = HarnessWorld(Path(tempfile.mkdtemp(prefix="odin-s7-live-")))
     plans = harness.world.plans([shakedown_plan(harness, valid_until_met_s=90,
                                                 contact_window={"aos_met_s": 0, "los_met_s": 90})], signer="dev")
@@ -71,6 +75,7 @@ def main():
     run.stop()
 
     after = {name: cosmos.call("get_cmd_cnt", "INST", name) for name in ("COLLECT", "ABORT")}
+    others_after = cosmos.commands_by_others()
     sent = [r["body"]["command"] for r in records(run, "DISPATCH")]
     # COSMOS's own counts also hold the demo's commands: TEMP1's limits response sends a COLLECT at RED_HIGH and
     # an ABORT at RED_LOW (targets/INST/lib/example_limits_response.rb), so ODIN's are read from its dispatches.
@@ -81,8 +86,18 @@ def main():
                      for r in records(run, "DECISION"))
     check("BALDUR-0 allowed the collect and refused CMD_SAFE_ENTER as not in the dictionary",
           decided == [("ALLOW", None), ("REFUSE", "NOT_IN_DICTIONARY")], decided)
+    demos = sum(after.values()) - sum(before.values()) - len(sent)
+    check("COSMOS's command history counted the demo's own commands as others', and ODIN's as its own (U62)",
+          others_after - others_before == demos and cosmos.sent == len(sent),
+          f"others' {others_before} -> {others_after}; the demo's by COSMOS's counts {demos}; ODIN's {cosmos.sent}")
+    truth = read_jsonl(run.folder / "truth.jsonl")
+    dispatched = [r["met_s"] for r in records(run, "DISPATCH")]
+    window = [r["body"]["commands_by_others"] for r in truth if r["type"] == "COSMOS_PACKET"
+              and dispatched and dispatched[0] - 2 <= r["met_s"] <= dispatched[0] + 10]
     outcomes = [r["body"]["outcome"] for r in records(run, "OUTCOME")]
-    check("the collect's outcome was read from INST's accept counter", outcomes == ["ACCEPTED"], outcomes)
+    check("the collect's outcome was read from INST's accept counter, or none where a demo command fell in its "
+          "window (U62)", outcomes == ["ACCEPTED"] or (outcomes == ["NO_ACKNOWLEDGEMENT"] and len(set(window)) > 1),
+          f"{outcomes}; others' count around it {window}")
     observed = [b["observation"] for b in seen if b["observation"]["points"]]
     check("ODIN saw INST as COSMOS gives it, with INST_INT CONNECTED",
           bool(observed) and {o["ground_link"]["state"] for o in observed} == {"CONNECTED"}
@@ -91,7 +106,6 @@ def main():
     changes = sorted({t["detail"]["to"] for r in records(run, "TRIGGER") for t in r["body"]["triggers"]
                       if t["type"] == "LIMIT_CHANGE"})
     check("INST's limit changes came as triggers with COSMOS's own states", bool(changes), changes)
-    truth = read_jsonl(run.folder / "truth.jsonl")
     kept = [r for r in truth if r["type"] == "COSMOS_PACKET"]
     check("every packet read was kept in the truth file", len(kept) >= 80, f"{len(kept)} packets over 90 s")
     scored = check_phase_1(read_jsonl(run.folder / "events.jsonl"), truth)

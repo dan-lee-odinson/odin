@@ -16,6 +16,7 @@ Every other command goes through the ordinary send.
 import datetime
 import itertools
 import json
+import threading
 import urllib.request
 
 from connector.cosmos import API_URL, credentials
@@ -59,6 +60,9 @@ class CosmosApi:
         self.timeout_s = timeout_s
         self.target, self.packet_name, self.interface, self.points = target, packet, interface, tuple(points)
         self._send_method = hazardous
+        self.sent = 0                            # the commands this connector has sent, which COSMOS took
+        self._commanding = threading.Lock()      # a send, or a reading of COSMOS's command history, at a time
+        self._commands = None                    # [[target, command], ...]: every command COSMOS knows the target by
 
     def call(self, method, *params, **keywords):
         body = json.dumps({"jsonrpc": "2.0", "method": method, "params": list(params), "id": next(_ids),
@@ -95,8 +99,19 @@ class CosmosApi:
     def send(self, command, parameters):
         """Send one command BALDUR-0 allowed. Returns the send used."""
         method = self._send_method(command)
-        self.call(method, self.target, command, {name.upper(): value for name, value in parameters.items()})
+        with self._commanding:
+            self.call(method, self.target, command, {name.upper(): value for name, value in parameters.items()})
+            self.sent += 1
         return method
+
+    def commands_by_others(self):
+        """How many commands COSMOS has sent the target that this connector did not: COSMOS's command history, its
+        count of each of the target's commands since it started, less this connector's own sends (the Director's
+        ruling on U62, 28 October 2026). Read with no send of ours in between, so the two counts agree."""
+        with self._commanding:
+            if self._commands is None:
+                self._commands = [[self.target, name] for name in self.call("get_all_cmd_names", self.target)]
+            return sum(self.call("get_cmd_cnts", self._commands)) - self.sent
 
 
 def inst(dictionary, **options):

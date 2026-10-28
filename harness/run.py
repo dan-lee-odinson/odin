@@ -198,21 +198,30 @@ class Run:
         if link["state"] != "CONNECTED":
             return f"COSMOS's demo interface INST_INT is {link['state']}: load the demo plugin first"
         self._ground_count = self.cosmos.packet()["received_count"]
+        self._others = self.cosmos.commands_by_others()
         return None
 
     def _cosmos_packet(self, met):
         """In phase 1, the INST HEALTH_STATUS packet COSMOS received since the last tick, or None. Each is kept
-        in the run's truth file as COSMOS gave it, so S8 checks ODIN's answers against COSMOS (U58)."""
+        in the run's truth file as COSMOS gave it, so S8 checks ODIN's answers against COSMOS (U58), with COSMOS's
+        count of the commands others sent INST: the demo's own limits response sends some, which COSMOS 7.2.1
+        cannot turn off, so BALDUR-0 reads no outcome from counters such a command could have moved (U62). The
+        count is read after the packet, so it holds every command the packet shows; a packet's count before is
+        the one read at the tick before it came, before COSMOS had it."""
         packet = self.cosmos.packet()
+        others = self.cosmos.commands_by_others()
         if packet["received_count"] <= self._ground_count:
+            self._others = others
             return None
         self._ground_count = packet["received_count"]
         self.store.receive(packet["frame"], packet["received_utc"], met, count=packet["received_count"],
-                           limits=packet["limits"])
+                           limits=packet["limits"], others={"before": self._others, "after": others})
+        self._others = others
         self.truth.append("COSMOS_PACKET", {
             "target": self.cosmos.target, "packet": self.cosmos.packet_name,
             "received_count": packet["received_count"],
             "packet_utc": packet["packet_utc"] or packet["received_utc"], "received_utc": packet["received_utc"],
+            "commands_by_others": others,
             "items": {name: {"value": value, "limits_state": packet["limits"][name]}
                       for name, value in packet["frame"].items()}})
         return packet["frame"]

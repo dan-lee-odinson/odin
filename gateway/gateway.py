@@ -51,6 +51,7 @@ class _Awaiting:
     rej_before: int | None
     counters: dict     # the dictionary in force's: where its outcome shows (gateway/dictionaries.py, U58)
     affected: str | None
+    others_before: int | None = None   # in phase 1, COSMOS's count of commands others sent, before its frame (U62)
 
 
 NO_ACKNOWLEDGEMENT_S = 10
@@ -205,7 +206,8 @@ class Gateway:
         self._awaiting.append(_Awaiting(request, self._met_clock(),
                                         frame["points"][counters["accepted"]] if frame else None,
                                         frame["points"][counters["rejected"]] if frame and counters["rejected"] else None,
-                                        counters, dictionary.affected.get(request["command"])))
+                                        counters, dictionary.affected.get(request["command"]),
+                                        frame["others"]["before"] if frame and "others" in frame else None))
         if basis["lease_id"] is not None:   # a use is counted when the command is dispatched (§9.3)
             key = (basis["plan_id"], basis["lease_id"])
             self._lease_uses[key] = self._lease_uses.get(key, 0) + 1
@@ -255,6 +257,13 @@ class Gateway:
             rej = points[item.counters["rejected"]] if item.counters["rejected"] else None
             if frame["frame_met_s"] <= item.met_s:
                 break   # a frame from before the dispatch cannot show its outcome
+            others = frame.get("others")
+            if others is not None and item.others_before is not None and others["after"] > item.others_before:
+                # A command ODIN did not send went to the spacecraft while this one's outcome was open, so the
+                # shared counters cannot say whose move is whose (the Director's ruling on U62, 28 October 2026).
+                self._awaiting.pop(0)
+                written.append(self._outcome(item, "NO_ACKNOWLEDGEMENT", None))
+                continue
             if base_acc is None:
                 base_acc, base_rej = item.acc_before, item.rej_before
             if item.request["command"] == "CMD_SYS_RESET":

@@ -25,9 +25,9 @@
   ],
   "definitions": {
     "cosmos_packet": {
-      "description": "Phase 1's truth: each INST HEALTH_STATUS packet the harness read from COSMOS, as COSMOS decommutated it, with its time and COSMOS's count, so S8 checks ODIN's answers against COSMOS at the time it gives (the Director's ruling on U58 and his scoring ruling of 28 October 2026). COSMOS's demo spacecraft simulates itself, so phase 1 has no TRUE_STATE.",
+      "description": "Phase 1's truth: each INST HEALTH_STATUS packet the harness read from COSMOS, as COSMOS decommutated it, with its time and COSMOS's count, so S8 checks ODIN's answers against COSMOS at the time it gives (the Director's ruling on U58 and his scoring ruling of 28 October 2026), and COSMOS's count of the commands others than ODIN sent INST, read from COSMOS's command history after the packet (U62). COSMOS's demo spacecraft simulates itself, so phase 1 has no TRUE_STATE.",
       "type": "object",
-      "required": ["target", "packet", "received_count", "packet_utc", "received_utc", "items"],
+      "required": ["target", "packet", "received_count", "packet_utc", "received_utc", "commands_by_others", "items"],
       "additionalProperties": false,
       "properties": {
         "target": {"type": "string"},
@@ -35,6 +35,7 @@
         "received_count": {"type": "integer", "minimum": 1},
         "packet_utc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"},
         "received_utc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"},
+        "commands_by_others": {"type": "integer"},
         "items": {"type": "object", "additionalProperties": {
           "type": "object", "required": ["value", "limits_state"], "additionalProperties": false,
           "properties": {"value": {"type": ["number", "string"]}, "limits_state": {"type": ["string", "null"]}}}}

@@ -1,8 +1,9 @@
 """A stand-in for COSMOS's demo target in phase 1's tests (the Director's ruling on U58, 28 October 2026): INST
 HEALTH_STATUS packets made on a clock, with COSMOS's own limit states, from phase 1's dictionary; the demo's
 interface, INST_INT; and COLLECT and ABORT carried out as the demo's simulator does, the accept counter rising
-with each and the collect count with each collect. tests/live_s7_pass.py runs the same against ODIN's COSMOS
-with the demo plugin loaded."""
+with each and the collect count with each collect. COSMOS's command history counts every command from every
+sender, so the demo's own commands, which its limits response sends, show there beside ODIN's (U62).
+tests/live_s7_pass.py runs the same against ODIN's COSMOS with the demo plugin loaded."""
 
 import json
 import threading
@@ -19,6 +20,8 @@ POINTS = {p["mnemonic"]: p for p in DICTIONARY["telemetry_groups"][0]["points"]}
 TEMP1_SWING = [10.0, 30.0, 65.0, 85.0, 65.0, 30.0, 10.0, -30.0, -75.0, -85.0, -75.0, -30.0]
 # TEMP2 as the demo spoils it at times, with the limit state COSMOS gave each in S7's live check.
 NON_FINITE = {"Infinity": "RED_HIGH", "-Infinity": "RED_LOW", "NaN": "RED_LOW"}
+# Every command COSMOS knows INST by, more than phase 1's dictionary holds.
+COMMANDS = sorted({command["mnemonic"] for command in DICTIONARY["commands"]} | {"CLEAR", "SETPARAMS"})
 
 
 def cosmos_limits(name, value):
@@ -44,8 +47,11 @@ def cosmos_limits(name, value):
 
 
 class FakeInst:
-    def __init__(self, password, *, period_s=0.1, state="CONNECTED"):
-        self.password, self.period_s, self.state = password, period_s, state
+    def __init__(self, password, *, period_s=0.1, state="CONNECTED", answers_with=None):
+        """answers_with: a command the demo sends of its own as each of ODIN's arrives, as its limits response
+        might at the same moment."""
+        self.password, self.period_s, self.state, self.answers_with = password, period_s, state, answers_with
+        self.counts = dict.fromkeys(COMMANDS, 0)   # COSMOS's command history: each command sent, by anyone
         self.values = {"CMD_ACPT_CNT": 0, "COLLECTS": 0, "TEMP1": TEMP1_SWING[0], "TEMP2": 1.5, "TEMP3": 20.25,
                        "TEMP4": 0.5, "DURATION": 0.0, "COLLECT_TYPE": "NORMAL", "GROUND1STATUS": "CONNECTED",
                        "GROUND2STATUS": "UNAVAILABLE"}
@@ -73,16 +79,31 @@ class FakeInst:
                                ["RECEIVED_COUNT", self.count, None]]
             if method == "get_interface":
                 return {"name": params[0], "state": self.state, "rxcnt": self.count * 5, "txcnt": len(self.sent)}
+            if method == "get_all_cmd_names":
+                return list(COMMANDS)
+            if method == "get_cmd_cnts":
+                return [self.counts[name] for _, name in params[0]]
             if method in ("cmd", "cmd_no_hazardous_check"):
                 target, command, parameters = params
                 self.sent.append((method, target, command, parameters))
-                self.values["CMD_ACPT_CNT"] += 1
-                if command == "COLLECT":
-                    self.values["COLLECTS"] += 1
-                    self.values["DURATION"] = parameters["DURATION"]
-                    self.values["COLLECT_TYPE"] = parameters["TYPE"]
+                self._carry_out(command, parameters)
+                if self.answers_with:
+                    self._carry_out(self.answers_with, {})
                 return None
         raise ValueError(f"no method {method}")
+
+    def _carry_out(self, command, parameters):
+        self.counts[command] += 1
+        self.values["CMD_ACPT_CNT"] += 1
+        if command == "COLLECT":
+            self.values["COLLECTS"] += 1
+            self.values["DURATION"] = parameters.get("DURATION", 1.0)
+            self.values["COLLECT_TYPE"] = parameters.get("TYPE", "NORMAL")
+
+    def demo_command(self, command):
+        """A command the demo sends of its own, as its limits response does: COSMOS counts it, ODIN never sent it."""
+        with self._lock:
+            self._carry_out(command, {})
 
     def start(self):
         fake = self

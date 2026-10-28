@@ -7,7 +7,8 @@ time being what COSMOS showed then. As everywhere in S8, the machine scores only
 fields, its evidence values and its requests' outcomes, never its prose.
 
 1. The collect: ODIN's COLLECT (TYPE NORMAL) was accepted, the collect count rose by one, and the before and after
-   COLLECTS values its evidence gives match COSMOS's.
+   COLLECTS values its evidence gives match COSMOS's. Only ODIN's own DISPATCH records count, never COSMOS's
+   command counts, which hold the demo's own commands too (U62).
 2. INST HEALTH_STATUS: every evidence value matches COSMOS at its stated time.
 3. An out-of-limits item: an item its evidence names was out of limits at that time.
 4. The console notes: not scored, frozen as an input to phases 2 and 3.
@@ -121,6 +122,7 @@ def check_collect(records, kept, report):
     requests = {r["body"]["request_id"]: r["body"] for r in of_type(records, "REQUEST")}
     sent = {r["body"]["request_id"]: r["body"]["utc"] for r in of_type(records, "DISPATCH")}
     accepted = [o["body"] for o in of_type(records, "OUTCOME") if o["body"]["outcome"] == "ACCEPTED"
+                and o["body"]["request_id"] in sent
                 and requests.get(o["body"]["request_id"], {}).get("command") == "COLLECT"
                 and requests[o["body"]["request_id"]]["parameters"].get("type") == "NORMAL"]
     rose = None

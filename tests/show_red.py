@@ -559,6 +559,14 @@ CASES = {"s0": [
     ("phase 1's PROC-001 not byte for byte as the Director approved it (U60)",
      "tests/test_s7_dictionary.py::test_the_phase_1_plan_flies_proc_001_as_approved_with_its_references_beside_it",
      change_file("plans/PROC-001_PH1.md", replace_once(b"Version 1.0.", b"Version 1.0 ."))),
+    ("an outcome a command ODIN did not send could have touched read as ODIN's (U62)",
+     "tests/test_s7_shakedown.py::test_red_an_outcome_a_command_odin_did_not_send_could_have_touched_is_no_acknowledgement",
+     change_file("gateway/gateway.py", replace_once(
+         b'if others is not None and item.others_before is not None and others["after"] > item.others_before:',
+         b"if False:"))),
+    ("COSMOS's command history read with ODIN's own sends counted as others' (U62)",
+     "tests/test_s7_shakedown.py::test_commands_by_others_is_cosmos_command_history_less_odins_own_sends",
+     change_file("connector/api.py", replace_once(b"            self.sent += 1\n", b""))),
 ], "inputs": [
     ("PASS-3's plan with its acquisition a second late, so its window is not one the U35 tests use",
      "tests/test_inputs_plans_acts.py::test_each_plans_contact_window_is_one_the_u35_tests_use[TYR0-P2-PASS3-v1]",
@@ -663,6 +671,9 @@ CASES = {"s0": [
      change_file("eval/results.py", replace_once(
          b'if run_end is not None and run_end["reason"] == "ERROR":\n        return {**found,',
          b'if False:\n        return {**found,'))),
+    ("S8 counting a collect ODIN did not dispatch (U62)",
+     "tests/test_s8_phase1.py::test_red_a_collect_odin_did_not_dispatch_is_not_counted",
+     change_file("eval/phase1.py", replace_once(b'                and o["body"]["request_id"] in sent\n', b""))),
 ], "phase3": [
     ("a second hash in the seal",
      "tests/test_phase3_seal.py::test_the_seal_holds_exactly_one_hash",

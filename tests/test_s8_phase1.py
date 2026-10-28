@@ -65,6 +65,13 @@ def test_red_a_collect_never_accepted_fails_the_collect_check():
     assert not found["checks"]["collect"]["accepted"] and not found["checks"]["collect"]["success"]
 
 
+def test_red_a_collect_odin_did_not_dispatch_is_not_counted():
+    # U62: S8 counts only ODIN's own DISPATCH records, never COSMOS's command counts, which hold the demo's own.
+    records = CHECK_INS + [COLLECT[0], COLLECT[2]] + [answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 3, 12))]
+    collect = check_phase_1(records, TRUTH)["checks"]["collect"]
+    assert not collect["accepted"] and not collect["success"]
+
+
 def test_red_a_value_cosmos_did_not_show_at_its_time_fails_the_health_status_check():
     records = CHECK_INS + [answer(21), answer(32, ("TEMP1", 85.0, 30), ("COLLECTS", 3, 30))]
     assert check_phase_1(records, TRUTH)["checks"]["health_status"]["success"]

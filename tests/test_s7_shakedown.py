@@ -151,6 +151,36 @@ def test_the_collect_goes_to_cosmos_and_its_outcome_is_read_from_insts_accept_co
         "ACCEPTED", 1, None, None)
 
 
+def test_commands_by_others_is_cosmos_command_history_less_odins_own_sends():
+    # U62: COSMOS's count of each INST command, from every sender, less the connector's own sends.
+    fake = FakeInst(PASSWORD).start()
+    try:
+        cosmos = inst(DICTIONARY, url=fake.url, password=PASSWORD)
+        assert cosmos.commands_by_others() == 0
+        cosmos.send("COLLECT", COLLECT)
+        assert (cosmos.commands_by_others(), cosmos.sent) == (0, 1)
+        fake.demo_command("ABORT")
+        fake.demo_command("CLEAR")
+        assert cosmos.commands_by_others() == 2
+    finally:
+        fake.stop()
+
+
+def test_red_an_outcome_a_command_odin_did_not_send_could_have_touched_is_no_acknowledgement(tmp_path, monkeypatch):
+    # U62: the demo's limits response sends an ABORT of its own as ODIN's collect arrives, moving INST's shared
+    # accept counter within the collect's window, so the counters cannot say whose move is whose.
+    fake = FakeInst(PASSWORD, period_s=1 / RATE, answers_with="ABORT").start()
+    try:
+        run = fly(tmp_path, monkeypatch, fake, shakedown_odin([]))
+    finally:
+        fake.stop()
+    assert [c for _, _, c, _ in fake.sent] == ["COLLECT"]
+    [outcome] = bodies(run, "OUTCOME")
+    assert (outcome["outcome"], outcome["frame_met_s"]) == ("NO_ACKNOWLEDGEMENT", None)
+    others = [r["body"]["commands_by_others"] for r in read_jsonl(run.folder / "truth.jsonl") if r["type"] == "COSMOS_PACKET"]
+    assert (others[0], others[-1]) == (0, 1)
+
+
 def test_a_huginn_command_in_phase_1_is_refused_as_not_in_the_dictionary(flown):
     run, _, _ = flown
     [refused] = [d for d in bodies(run, "DECISION") if d["decision"] == "REFUSE"]
