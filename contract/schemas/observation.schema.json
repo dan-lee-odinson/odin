@@ -3,7 +3,7 @@
   "title": "Observation",
   "description": "What ODIN sees of the spacecraft on a turn (CONTRACT.md v0.6 §6.4, §16.2). Point names, units and value types are those of HUGINN's pinned dictionary. During a telemetry outage there is no new frame and the observation says so; nothing is filled in. Every field is always present, null when its subject does not exist (§16 U15).",
   "type": "object",
-  "required": ["source", "frame_met_s", "received_utc", "age_s", "staleness_state", "points"],
+  "required": ["source", "frame_met_s", "received_utc", "age_s", "staleness_state", "ground_link", "points"],
   "additionalProperties": false,
   "properties": {
     "source": {"description": "COSMOS in the ground seat, ONBOARD beside the simulator.", "enum": ["COSMOS", "ONBOARD"]},
@@ -23,6 +23,10 @@
       "description": "From the ground staleness monitor: yellow at 10 s and red at 30 s without a new CDH_FRAME_CNT (§6.1). The monitor is the ground seat's, so it is null in the onboard seat.",
       "enum": ["GREEN", "YELLOW", "RED", null]
     },
+    "ground_link": {
+      "description": "The ground station's link to the spacecraft as COSMOS reports it: HUGINN_INT's state and its received packet count, the Tlm pkts the Director read on CmdTlmServer for PROC-003-S02 (his scoring ruling of 28 October 2026, selection 1). Still CONNECTED with the count frozen is an absence of frames on a live link; a state other than CONNECTED, or a count advancing while the frame counter is not, is a ground-side loss. It is the ground seat's, so it is null in the onboard seat.",
+      "anyOf": [{"$ref": "#/definitions/ground_link"}, {"type": "null"}]
+    },
     "points": {
       "description": "All 16 HUGINN points from the latest frame; null if no frame has arrived.",
       "anyOf": [{"$ref": "#/definitions/points"}, {"type": "null"}]
@@ -36,10 +40,20 @@
        "age_s": {"type": "number", "minimum": 0},
        "points": {"$ref": "#/definitions/points"}}}},
     {"if": {"required": ["source"], "properties": {"source": {"const": "COSMOS"}}},
-     "then": {"properties": {"staleness_state": {"enum": ["GREEN", "YELLOW", "RED"]}}},
-     "else": {"properties": {"staleness_state": {"type": "null"}}}}
+     "then": {"properties": {"staleness_state": {"enum": ["GREEN", "YELLOW", "RED"]},
+                             "ground_link": {"$ref": "#/definitions/ground_link"}}},
+     "else": {"properties": {"staleness_state": {"type": "null"}, "ground_link": {"type": "null"}}}}
   ],
   "definitions": {
+    "ground_link": {
+      "type": "object",
+      "required": ["state", "received_count"],
+      "additionalProperties": false,
+      "properties": {
+        "state": {"description": "HUGINN_INT's state as COSMOS reports it.", "enum": ["CONNECTED", "ATTEMPTING", "DISCONNECTED"]},
+        "received_count": {"description": "The packets HUGINN_INT has received, as COSMOS counts them.", "type": "integer", "minimum": 0}
+      }
+    },
     "limit_state": {
       "description": "A point's limit state (§16.2 U7). Points with numeric thresholds in the dictionary use GREEN, YELLOW_LOW, YELLOW_HIGH, RED_LOW and RED_HIGH, by COSMOS's rule; EPS_MODE is RED in its annunciating state and GREEN otherwise; every other point is NONE. Each point below allows only the states its dictionary limits can produce. Staleness is reported separately, in staleness_state.",
       "enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "RED", "NONE"]

@@ -63,7 +63,7 @@ def test_limit_states_follow_cosmos_rule_from_the_dictionary(name, value, state)
 def test_the_points_are_what_the_observation_schema_allows():
     points = frames.points(frames.decode_frame(frames.CODEC.encode(a_frame(EPS_MODE="SAFE"))))
     observation = {"source": "ONBOARD", "frame_met_s": 0, "received_utc": "2026-10-28T12:00:00.000Z",
-                   "age_s": 0, "staleness_state": None, "points": points}
+                   "age_s": 0, "staleness_state": None, "ground_link": None, "points": points}
     assert check("observation", observation) == []
     assert points["EPS_MODE"] == {"value": "SAFE", "units": "n/a", "limit_state": "RED"}
 

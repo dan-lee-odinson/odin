@@ -7,8 +7,11 @@
   "additionalProperties": false,
   "properties": {
     "text": {"description": "The transcript.", "type": "string"},
-    "audio_sha256": {"description": "The hash of the audio, written as §4 writes every hash.", "$ref": "common.schema.json#/definitions/sha256"},
-    "source": {"description": "RECORDED in scored runs; LIVE in the demo and the finals.", "enum": ["LIVE", "RECORDED"]},
+    "audio_sha256": {"description": "The hash of the audio, written as §4 writes every hash; null for TEXT, which has no audio.", "anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]},
+    "source": {"description": "RECORDED in scored runs; LIVE in the demo and the finals; TEXT for the Director's words delivered as text until the voice path is ready (his scoring ruling of 28 October 2026, §4).", "enum": ["LIVE", "RECORDED", "TEXT"]},
     "utc": {"$ref": "common.schema.json#/definitions/utc"}
-  }
+  },
+  "if": {"required": ["source"], "properties": {"source": {"const": "TEXT"}}},
+  "then": {"properties": {"audio_sha256": {"type": "null"}}},
+  "else": {"properties": {"audio_sha256": {"$ref": "common.schema.json#/definitions/sha256"}}}
 }

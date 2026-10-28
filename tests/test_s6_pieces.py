@@ -70,12 +70,25 @@ def test_the_ground_monitor_turns_yellow_at_10_s_and_red_at_30_s(age, state):
 def test_an_outage_is_an_observation_with_nothing_filled_in():
     store = FrameStore("ONBOARD")
     assert store.observation(5) == {"source": "ONBOARD", "frame_met_s": None, "received_utc": None, "age_s": None,
-                                    "staleness_state": None, "points": None}
+                                    "staleness_state": None, "ground_link": None, "points": None}
     store.receive(frame(5), "2026-10-28T14:00:05.000Z", 5)
     seen = store.observation(12)
     assert (seen["frame_met_s"], seen["age_s"], seen["points"]["EPS_LOAD_I"]) == (
         5, 7, {"value": 0.5, "units": "A", "limit_state": "GREEN"})
     assert check("observation", seen) == []
+
+
+def test_the_ground_seat_sees_the_ground_link_as_cosmos_reports_it_and_the_onboard_seat_never():
+    # The Director's scoring ruling of 28 October 2026, selection 1: what he read on CmdTlmServer for PROC-003-S02.
+    link = {"state": "CONNECTED", "received_count": 9576}
+    ground = FrameStore("COSMOS")
+    ground.receive(frame(1), "2026-10-28T14:00:01.000Z", 1)
+    seen = ground.observation(2, ground_link=link)
+    assert seen["ground_link"] == link and check("observation", seen) == []
+    with pytest.raises(ValueError):
+        ground.observation(2)
+    with pytest.raises(ValueError):
+        FrameStore("ONBOARD").observation(2, ground_link=link)
 
 
 def test_the_ground_seat_reads_staleness_from_new_frame_counts():

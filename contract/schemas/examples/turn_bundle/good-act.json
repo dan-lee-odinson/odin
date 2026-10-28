@@ -23,6 +23,7 @@
     "received_utc": "2026-10-28T14:10:04.150Z",
     "age_s": 0.1,
     "staleness_state": "GREEN",
+    "ground_link": {"state": "CONNECTED", "received_count": 3100},
     "points": {
       "EPS_BATT_V": {"value": 7.9, "units": "V", "limit_state": "GREEN"},
       "EPS_BATT_I": {"value": 0.4, "units": "A", "limit_state": "GREEN"},

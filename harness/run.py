@@ -31,6 +31,7 @@ from gateway import server as baldur_server
 from gateway.gateway import Gateway
 from gateway.signed import KEYS_DIR, load_yaml
 from harness import docs
+from harness.checkins import PHASES, pass_check_ins
 from harness.bundle import build_bundle, bundle_bytes, read_records
 from harness.server import Refused, make_server
 from harness.telemetry import FrameStore
@@ -63,10 +64,14 @@ def recorded(check_ins):
 
 class Run:
     def __init__(self, *, run_id, scenario, scenario_id, phase, mode, plan_paths, act_path, root, procedures,
-                 config, seat="ONBOARD", pacing="CHARGED", rate=1.0, check_ins=(), revoke_at=None, restore=None,
-                 docs_folder=docs.CACHE, keys_dir=KEYS_DIR, addresses=None, utc_clock=utc_now):
+                 config, seat="ONBOARD", pacing="CHARGED", rate=1.0, check_ins=(), pass_transcript=None,
+                 revoke_at=None, restore=None, docs_folder=docs.CACHE, keys_dir=KEYS_DIR, addresses=None,
+                 utc_clock=utc_now):
         """config: the run's frozen configuration as RUN_START records it (RUN_START_CONFIG). check_ins:
-        recorded check-ins to play, as (met_s, POST /checkin body). revoke_at: the scripted revocation's
+        recorded check-ins to play, as (met_s, POST /checkin body); a phase-2 or phase-3 run also carries
+        one at each contact's loss of signal minus 90 s (harness/checkins.py). pass_transcript: that
+        check-in's frozen transcript {text, audio_sha256}, or None for the words as text until it exists.
+        revoke_at: the scripted revocation's
         MET, in the one revoke scenario. restore: (met_s, restore act path). addresses: {harness,
         baldur0, log} to serve on, each (host, port); config/ports.yaml's by default."""
         if seat != "ONBOARD":
@@ -75,6 +80,7 @@ class Run:
         self.plan_paths, self.act_path, self.procedures, self.config = list(plan_paths), act_path, procedures, config
         self.seat, self.pacing, self.rate = seat, pacing, rate
         self.check_ins = recorded(check_ins)
+        self.pass_transcript = pass_transcript
         self.revoke_at, self.restore = revoke_at, restore
         self.docs_folder, self.keys_dir, self.addresses = docs_folder, keys_dir, addresses or {}
         self._utc = utc_clock
@@ -154,6 +160,9 @@ class Run:
         self.truth = TruthLog.create(self.folder / "truth.jsonl", met_clock=self.met_s, utc_clock=self._utc)
         self.simulator = Simulator(self.scenario, windows=self._windows, truth=self.truth,
                                    start_at=max(self.start_met_s, first_aos))
+        if self.phase in PHASES:
+            self.check_ins = sorted(self.check_ins + pass_check_ins(self._windows, self.pass_transcript),
+                                    key=lambda item: item[0])
         self.watcher = Watcher(self._windows)
         self.clock = RunClock(self.simulator, until_met_s=self.end_met_s, pacing=self.pacing, rate=self.rate,
                               on_tick=self._on_tick)
@@ -194,6 +203,8 @@ class Run:
             check_ins = []
             while self.check_ins and self.check_ins[0][0] <= met:
                 _, body = self.check_ins.pop(0)
+                if body["utc"] is None:   # a pass check-in is stamped when it is delivered
+                    body = dict(body, utc=self._utc())
                 self.events.append("CHECK_IN", body)
                 check_ins.append((trigger("CHECK_IN", met), body["text"]))
             revoked = None

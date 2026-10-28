@@ -16,6 +16,7 @@ import threading
 import pytest
 
 from contract.validate import check
+from harness.checkins import WORDS
 from log.event_log import verify_event_log, verify_truth
 from tests.harness_world import CHECK_IN, PASS_PLAN, PASS_PLAN_SHA256, PROCEDURE, HarnessWorld
 
@@ -131,4 +132,14 @@ def test_the_run_is_recorded_whole_from_run_start_to_run_end(flown):
     assert records[0]["type"] == "RUN_START" and records[-1]["type"] == "RUN_END"
     assert records[-1]["body"] == {"reason": "COMPLETE", "turns": len(seen)}
     assert [r["body"]["state"] for r in records if r["type"] == "CONTACT"] == ["AOS", "LOS"]
-    assert [r["body"]["text"] for r in records if r["type"] == "CHECK_IN"] == [CHECK_IN["text"]]
+    assert [r["body"]["text"] for r in records if r["type"] == "CHECK_IN"] == [CHECK_IN["text"], WORDS]
+
+
+def test_the_pass_carries_the_directors_check_in_at_loss_of_signal_minus_90_s(flown):
+    # The Director's scoring ruling of 28 October 2026, §4: as text until his recording is transcribed.
+    _, seen, _, records = flown
+    [report] = [b for b in seen if b["report_kind"] == "CHECK_IN" and b["triggers"][0]["met_s"] == 1140]
+    assert (report["check_in_text"], report["met_s"]) == (WORDS, 1140)
+    [logged] = [r for r in records if r["type"] == "CHECK_IN" and r["met_s"] == 1140]
+    assert (logged["body"]["source"], logged["body"]["audio_sha256"]) == ("TEXT", None)
+    assert check("checkin", logged["body"]) == []

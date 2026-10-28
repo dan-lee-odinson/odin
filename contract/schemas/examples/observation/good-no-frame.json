@@ -4,5 +4,6 @@
   "received_utc": null,
   "age_s": null,
   "staleness_state": null,
+  "ground_link": null,
   "points": null
 }

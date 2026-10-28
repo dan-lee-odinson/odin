@@ -54,8 +54,13 @@ class FrameStore:
         with self._lock:
             return ground_staleness(self._last_new_count, met_s)
 
-    def observation(self, met_s):
-        """§6.4: during an outage there is no new frame and the observation says so; nothing is filled in."""
+    def observation(self, met_s, ground_link=None):
+        """§6.4: during an outage there is no new frame and the observation says so; nothing is filled in.
+        ground_link: in the ground seat, HUGINN_INT's {state, received_count} as COSMOS reports them, read
+        through the connector (S5; the Director's scoring ruling of 28 October 2026, selection 1). The
+        onboard seat has no ground link, so it is null there."""
+        if (self.source == "COSMOS") != (ground_link is not None):
+            raise ValueError("the ground seat's observation carries the ground link, and only the ground seat's")
         with self._lock:
             newest = self._frames[-1] if self._frames else None
         frame, received_utc = newest if newest else (None, None)
@@ -64,6 +69,7 @@ class FrameStore:
                 "received_utc": received_utc,
                 "age_s": met_s - frame["CDH_MET"] if frame else None,
                 "staleness_state": self.staleness(met_s),
+                "ground_link": ground_link,
                 "points": points(frame) if frame else None}
 
     def history(self, names, met_s, window_s):

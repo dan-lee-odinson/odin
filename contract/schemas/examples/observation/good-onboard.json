@@ -4,6 +4,7 @@
   "received_utc": "2026-10-28T14:50:00.120Z",
   "age_s": 0.1,
   "staleness_state": null,
+  "ground_link": null,
   "points": {
     "EPS_BATT_V": {"value": 7.6, "units": "V", "limit_state": "GREEN"},
     "EPS_BATT_I": {"value": -0.5, "units": "A", "limit_state": "GREEN"},
