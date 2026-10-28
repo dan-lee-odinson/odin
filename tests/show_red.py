@@ -1,7 +1,7 @@
 """Show the repository tests failing on purpose in the real working tree, then put it back.
 
     python tests/show_red.py          every stage
-    python tests/show_red.py s1       one stage (s0, s1, s2, s3, s4, s6, inputs, deposits)
+    python tests/show_red.py s1       one stage (s0, s1, s2, s3, s4, s6, inputs, models, deposits)
 
 For each case: run the real test (it passes), plant one defect, run it again (it must fail),
 restore the tree, confirm the restored bytes, and run it a third time (it passes). Planted
@@ -443,6 +443,17 @@ CASES = {"s0": [
      change_file("inputs-pre-existing/procedures/v0.2/PROC-002.md",
                  replace_once(b"If the point you confirmed at S01 is EPS_LOAD_I, record branch load alarm and go to S03.\n",
                               b""))),
+], "models": [
+    ("spark set to reasoning medium, not the high the Director ruled",
+     "tests/test_config_models.py::test_each_model_carries_the_ruled_settings_and_their_source[spark]",
+     change_file("config/models.yaml", replace_once(b"  reasoning_effort: high\n", b"  reasoning_effort: medium\n"))),
+    ("spark_open keeping M3's 600 s measurement timeout, not the 120 s ruled for scored runs",
+     "tests/test_config_models.py::test_each_model_carries_the_ruled_settings_and_their_source[spark_open]",
+     change_file("config/models.yaml", replace_once(b"  reasoning_effort: xhigh\n  max_output_tokens: 32000\n  timeout_s: 120\n",
+                                                    b"  reasoning_effort: xhigh\n  max_output_tokens: 32000\n  timeout_s: 600\n"))),
+    ("spark at xhigh, a level M3 never measured for it",
+     "tests/test_config_models.py::test_each_level_is_one_m3_measured_for_that_model[spark]",
+     change_file("config/models.yaml", replace_once(b"  reasoning_effort: high\n", b"  reasoning_effort: xhigh\n"))),
 ], "deposits": [
     ("one byte changed in the committed deposit deposits/MC-M1-01.zip",
      "tests/test_deposits.py::test_each_committed_deposit_is_odin_at_its_commit",
