@@ -11,7 +11,7 @@ import time
 import urllib.error
 import urllib.request
 
-from odin.spend.meter import CONFIG_BUCKET
+from odin.spend.meter import CONFIG_BUCKET, SpendStop
 
 READONLY_TOOLS = [
     {"type": "function", "function": {"name": "docs_lookup", "parameters": {
@@ -130,7 +130,7 @@ class ChatAdapter:
                         max_output_tokens=self.max_output_tokens, turn_id=turn_id,
                         call_index=call_index, status="SPEND_STOP", usage=None,
                         reserved=0.0, actual=None, latency=None))
-                raise RuntimeError("SPEND_STOP: spend meter refused the call")
+                raise SpendStop("spend meter refused the call")
         started = time.monotonic()
         status, payload = self.http_post(
             url, {"Authorization": f"Bearer {self._key()}"}, body, self.timeout_s)

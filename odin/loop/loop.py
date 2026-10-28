@@ -12,6 +12,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from odin.spend.meter import SpendStop
+
 from .canonical import sha256_tag
 from .prompt import build_prompt  # noqa: F401  (re-exported for callers)
 from .signing import build_signed_request
@@ -137,6 +139,15 @@ class TurnLoop:
             result = self.adapter.complete(
                 prompt=prompt_bytes, bundle=bundle, call_index=1, meter=self.meter,
                 turn_id=turn_id, model_call_sink=sink, tool_handler=self._tool_handler)
+        except SpendStop as exc:
+            # M8: after a spend stop ODIN sends nothing more.
+            for record in sink:
+                record["run_id"] = run_id
+                self._log("MODEL_CALL", record)
+            if not sink:
+                self._log("MODEL_CALL", self._model_call_record(
+                    bundle, 1, None, status="SPEND_STOP"))
+            return {"turn_id": turn_id, "outcome": "spend_stop", "detail": str(exc)}
         except Exception as exc:  # timeout/error: no request, logged (§9.5)
             for record in sink:
                 record["run_id"] = run_id
@@ -214,23 +225,37 @@ class TurnLoop:
         return {"turn_id": turn_id, "outcome": "request", "request": request,
                 "decision": decision, "cut_off": bool(result.get("cut_off"))}
 
-    def run(self, max_turns=1000, max_waits=10000) -> list:
+    def run(self, max_turns=None, max_waits=10000) -> list:
+        """Run until the harness says the run is complete (max_turns=None
+        means no cap). Sets self.run_completed only on run_complete."""
+        self.run_completed = False
         results = []
         waits = 0
-        while len(results) < max_turns and waits <= max_waits:
+        while (max_turns is None or len(results) < max_turns) and waits <= max_waits:
             try:
                 # U39: GET /turn/next may wait up to 120 s; a timeout is not
                 # an error — the loop asks again and never crashes on it.
                 status, body = _http_json("GET", f"{self.harness_url}/turn/next",
                                           timeout=120, transport=self.transport)
-            except (TimeoutError, ConnectionError, urllib.error.URLError):
+            except TimeoutError:
                 waits += 1
                 continue
+            except urllib.error.URLError as exc:
+                # A long-poll timeout asks again (U39); a refused or
+                # unreachable harness is an error, not a wait.
+                if isinstance(exc.reason, TimeoutError):
+                    waits += 1
+                    continue
+                raise ConnectionError(str(exc.reason)) from exc
             if status >= 400:
                 results.append(self._service_error(
                     results[-1]["turn_id"] + 1 if results else 1, "harness/turn", status))
                 break
             if json.loads(body).get("run_complete"):
+                self.run_completed = True
                 break
-            results.append(self.run_turn(body))
+            result = self.run_turn(body)
+            results.append(result)
+            if result["outcome"] == "spend_stop":
+                break  # M8: sends nothing more after a spend stop
         return results

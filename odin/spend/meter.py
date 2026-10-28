@@ -38,6 +38,10 @@ SPEND_KEYS = {
 }
 
 
+class SpendStop(RuntimeError):
+    """A call refused by a spend stop. ODIN sends nothing more (M8)."""
+
+
 class Reservation:
     def __init__(self, meter, *, config, bucket, reserved_usd, turn_id, call_index):
         self._meter = meter
