@@ -455,18 +455,20 @@ class Run:
         self._end("COMPLETE")
         return RUN_COMPLETE
 
-    def _end(self, reason):
+    def _end(self, reason, detail=None):
         """RUN_END, once. A run whose COSMOS refused a command ends with ERROR whatever ended it, with COSMOS's
-        refusal text as its detail (U59)."""
+        refusal text as its detail (U59). Any other detail is kept only for an ERROR."""
         with self._lock:
             if self.ended is None:
                 reason = "ERROR" if self.failed is not None else reason
                 self.ended = reason
+                detail = self.failed if self.failed is not None else detail
                 self.events.append("RUN_END", {"reason": reason, "turns": self.turn_id,
-                                               "detail": self.failed if reason == "ERROR" else None})
+                                               "detail": detail if reason == "ERROR" else None})
 
-    def stop(self, reason="ABORTED"):
-        """Stop the clock and the servers. RUN_END is written with reason unless the run has ended. A
+    def stop(self, reason="ABORTED", detail=None):
+        """Stop the clock and the servers. RUN_END is written with reason, and for an ERROR with detail, unless
+        the run has ended. A
         scored run's truth file is then compressed for its commit (the Director's ruling on U36), and the
         run's folder moved to runs/scored/ or runs/dev/ (U46). Call it once ODIN has stopped, since ODIN
         keeps its inputs in the folder."""
@@ -478,7 +480,7 @@ class Run:
             server.shutdown()
             server.server_close()
         self._servers = []
-        self._end(reason)
+        self._end(reason, detail)
         if self.mode == "SCORED" and self.simulator is not None and (self.folder / "truth.jsonl").exists():
             compress_truth(self.folder / "truth.jsonl")
         if self.folder != self.final and self.folder.exists():
