@@ -3,8 +3,10 @@
 The harness writes RUN_START and has BALDUR-0 verify the plan chain and the arming act; a run either
 fails stops before it starts. Before anything is written, ODIN's instructions and prompt template are
 checked against their frozen record, and RUN_START carries both hashes (harness/instructions.py; the
-Director's ruling on U54, 28 October 2026). The run's contact windows come from its verified plan chain (the
-Director's ruling of 27 October 2026). The simulator then steps on the run's clock. After each tick
+Director's ruling on U54, 28 October 2026). The six schemas the instructions are rendered from and the
+run's model settings are checked against their own freeze record (harness/freeze.py, U55). The run's
+contact windows come from its verified plan chain (the Director's ruling of 27 October 2026). The
+simulator then steps on the run's clock. After each tick
 the harness gives BALDUR-0 the frame the seat received, so outcomes are read from telemetry, and turns
 what happened into triggers. ODIN takes its turns at GET /turn/next, one in flight at a time, and the
 event log, BALDUR-0 and the harness each serve their endpoints on 127.0.0.1.
@@ -32,7 +34,7 @@ from contract.validate import check
 from gateway import server as baldur_server
 from gateway.gateway import Gateway
 from gateway.signed import KEYS_DIR, load_yaml
-from harness import docs, instructions
+from harness import docs, freeze, instructions
 from harness.checkins import PHASES, pass_check_ins
 from harness.bundle import build_bundle, bundle_bytes, read_records
 from harness.server import Refused, make_server
@@ -137,8 +139,10 @@ class Run:
 
     def start(self):
         """Start the run. False if it stopped before starting, with RUN_END written. Raises NotFrozen, before
-        anything is written, if ODIN's instructions or prompt template differ from their frozen record (U54)."""
+        anything is written, if ODIN's instructions or prompt template differ from their frozen record (U54),
+        or the six schemas or the run's model settings from theirs (U55)."""
         self.frozen = instructions.frozen(self.config["model_config"])
+        freeze.check(self.config["model_config"])
         for folder in (self.folder, self.final):
             if folder.exists():
                 raise FileExistsError(f"{folder} already exists; a run's folder is never reused")

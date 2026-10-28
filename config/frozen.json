@@ -1,0 +1,16 @@
+{
+  "description": "The freeze record (CONTRACT.md §10.4; the Director's ruling on U55, 28 October 2026). schemas: the SHA-256 of each contract schema ODIN's instructions are rendered from, as a whole file. models: each model's settings, the SHA-256 of the canonical JSON (§4) of its block in config/models.yaml, a date written as its ISO 8601 text. A run refuses to start if the schemas or its model's settings differ (harness/freeze.py). A model added to config/models.yaml comes to the Director first, then gets its own entry.",
+  "date": "2026-10-28",
+  "schemas": {
+    "contract/schemas/answer.schema.json": "sha256:d027563de2e6d2dc6c8e5ef260a183050c10324d3f22d070e3b3f4a300ac2e7e",
+    "contract/schemas/report_body.schema.json": "sha256:f77c34533d5c5dc4363ce89bf5515930b2503ae78f6007c4834bb84dd811f6c3",
+    "contract/schemas/report.schema.json": "sha256:47f5d96a217ea1c710a086aef7a7d015691041151e198ad17685c0600dbde1ec",
+    "contract/schemas/turn_bundle.schema.json": "sha256:5fd78e3c8863f185226662d1b39b2da90b1b059d99a9abb28cb7220d2db5cc62",
+    "contract/schemas/observation.schema.json": "sha256:6653468213b347f3b1c3f7b760977e439106d52a660af3214404a52e2c7528e0",
+    "contract/schemas/common.schema.json": "sha256:3c56f9dc4d08337770838050a0b002b970e6640977cd73ad7566b9701722afce"
+  },
+  "models": {
+    "spark": "sha256:764c3a01537ba11e8f3fd303c750773498a39e77de9f8552774b15eb491d71a3",
+    "spark_open": "sha256:94d25d66a4f9dd48f061d9bb6a41482ccb1b94c061f44799d689a70cbc792d2c"
+  }
+}
