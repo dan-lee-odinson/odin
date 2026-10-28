@@ -15,6 +15,7 @@
     "reasoning_effort",
     "answer_method",
     "config_sha256",
+    "instructions_sha256",
     "prompt_template_sha256",
     "plan_chain_sha256",
     "reference_sha256"
@@ -41,7 +42,14 @@
       "enum": ["STRUCTURED_OUTPUT", "ANSWER_TOOLS", "SCRIPTED"]
     },
     "config_sha256": {"description": "The run's frozen configuration (§11.1).", "$ref": "common.schema.json#/definitions/sha256"},
-    "prompt_template_sha256": {"anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]},
+    "instructions_sha256": {
+      "description": "ODIN's frozen instructions, the prompt hash of §10.2, read from Muse Code's frozen record (the Director's ruling on U54, 28 October 2026); null for the stand-in, which renders no prompt (U15).",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]
+    },
+    "prompt_template_sha256": {
+      "description": "ODIN's prompt template, read from the same frozen record (U54); null for the stand-in (U15).",
+      "anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]
+    },
     "plan_chain_sha256": {
       "description": "The SHA-256 of the canonical JSON (§4) list of the chain's plan-file hashes, in chain order; null for a run with no plan chain.",
       "anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]
@@ -62,7 +70,13 @@
     },
     {
       "if": {"required": ["model_config"], "properties": {"model_config": {"const": "stand_in"}}},
-      "then": {"properties": {"answer_method": {"const": "SCRIPTED"}}}
+      "then": {
+        "properties": {
+          "answer_method": {"const": "SCRIPTED"},
+          "instructions_sha256": {"type": "null"},
+          "prompt_template_sha256": {"type": "null"}
+        }
+      }
     },
     {
       "if": {
@@ -70,7 +84,13 @@
         "properties": {"model_config": {"enum": ["spark", "spark_open", "glimmer_local"]}}
       },
       "then": {
-        "properties": {"provider": {"type": "string"}, "model_id": {"type": "string"}, "reasoning_effort": {"type": "string"}}
+        "properties": {
+          "provider": {"type": "string"},
+          "model_id": {"type": "string"},
+          "reasoning_effort": {"type": "string"},
+          "instructions_sha256": {"$ref": "common.schema.json#/definitions/sha256"},
+          "prompt_template_sha256": {"$ref": "common.schema.json#/definitions/sha256"}
+        }
       }
     }
   ]

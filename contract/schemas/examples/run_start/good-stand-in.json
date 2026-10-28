@@ -10,7 +10,8 @@
   "reasoning_effort": null,
   "answer_method": "SCRIPTED",
   "config_sha256": "sha256:163d05cf2526403529b8271df49f4aef12a94eb54098720de4dd2b6479924e62",
-  "prompt_template_sha256": "sha256:ea966d0fd6f0ff567fe36a4cd943bf3199e89b4cb5603760a3bb1f207da7ee90",
+  "instructions_sha256": null,
+  "prompt_template_sha256": null,
   "plan_chain_sha256": "sha256:d75d24be28a658b069fd0df43e9778785755541b90b31b312cebf7cb0c082a7b",
   "reference_sha256": null
 }

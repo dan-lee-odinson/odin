@@ -532,6 +532,16 @@ CASES = {"s0": [
     ("a scenario's label in the seal",
      "tests/test_phase3_seal.py::test_the_seal_names_no_scenario_and_no_plan",
      change_file("phase3/SEAL.md", replace_once(b"# Phase 3's seal\n", b"# Phase 3's seal, H07 to H09\n"))),
+], "freeze": [
+    ("one changed byte in ODIN's frozen instructions (U54)",
+     "tests/test_s6_instructions.py::test_the_files_on_disk_are_the_frozen_ones_the_director_accepted",
+     change_file("odin/instructions/system_prompt.md", replace_once(b"You are ODIN, Project AESIR", b"You are ODIN, Project AESIr"))),
+    ("one changed byte in ODIN's prompt template (U54)",
+     "tests/test_s6_instructions.py::test_the_files_on_disk_are_the_frozen_ones_the_director_accepted",
+     change_file("odin/loop/prompt.py", replace_once(b"Prompt assembly (U43)", b"Prompt assembly (U44)"))),
+    ("a RUN_START without instructions_sha256 accepted (U54)",
+     "tests/test_s1_schemas.py::test_red_bad_example_is_rejected[run_start - a RUN_START without instructions_sha256]",
+     change_file("contract/schemas/run_start.schema.json", replace_once(b'    "instructions_sha256",\n', b""))),
 ], "models": [
     ("spark set to reasoning medium, not the high the Director ruled",
      "tests/test_config_models.py::test_each_model_carries_the_ruled_settings_and_their_source[spark]",

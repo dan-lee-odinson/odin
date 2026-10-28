@@ -23,8 +23,7 @@ PASS_PLAN_SHA256 = "sha256:" + hashlib.sha256(PASS_PLAN).hexdigest()
 CHECK_IN = {"text": "ODIN, what just changed on the bus?", "audio_sha256": "sha256:" + "64" * 32,
             "source": "RECORDED", "utc": "2026-10-28T14:10:58.900Z"}
 CONFIG = {"seed": 20260731, "model_config": "stand_in", "provider": None, "model_id": None,
-          "reasoning_effort": None, "answer_method": "SCRIPTED", "prompt_template_sha256": None,
-          "reference_sha256": None}
+          "reasoning_effort": None, "answer_method": "SCRIPTED", "reference_sha256": None}
 LOCAL = {name: ("127.0.0.1", 0) for name in ("harness", "baldur0", "log")}
 DOCS = REPO_ROOT / "tests" / "fixtures" / "cosmos-docs"
 

@@ -1,7 +1,9 @@
 """One run, from RUN_START to RUN_END (CONTRACT.md §6, §8, §9.4, §10, §12).
 
 The harness writes RUN_START and has BALDUR-0 verify the plan chain and the arming act; a run either
-fails stops before it starts. The run's contact windows come from its verified plan chain (the
+fails stops before it starts. Before anything is written, ODIN's instructions and prompt template are
+checked against their frozen record, and RUN_START carries both hashes (harness/instructions.py; the
+Director's ruling on U54, 28 October 2026). The run's contact windows come from its verified plan chain (the
 Director's ruling of 27 October 2026). The simulator then steps on the run's clock. After each tick
 the harness gives BALDUR-0 the frame the seat received, so outcomes are read from telemetry, and turns
 what happened into triggers. ODIN takes its turns at GET /turn/next, one in flight at a time, and the
@@ -30,7 +32,7 @@ from contract.validate import check
 from gateway import server as baldur_server
 from gateway.gateway import Gateway
 from gateway.signed import KEYS_DIR, load_yaml
-from harness import docs
+from harness import docs, instructions
 from harness.checkins import PHASES, pass_check_ins
 from harness.bundle import build_bundle, bundle_bytes, read_records
 from harness.server import Refused, make_server
@@ -47,7 +49,7 @@ from wrapper.simulator import Simulator
 
 RUN_COMPLETE = json.dumps({"run_complete": True}).encode("utf-8")
 RUN_START_CONFIG = ("seed", "model_config", "provider", "model_id", "reasoning_effort", "answer_method",
-                    "prompt_template_sha256", "reference_sha256")
+                    "reference_sha256")
 
 
 def recorded(check_ins):
@@ -119,7 +121,7 @@ class Run:
         chain_hashes = [sha256_tag(Path(p).read_bytes()) for p in self.plan_paths]
         return {"run_id": self.run_id, "scenario_id": self.scenario_id, "phase": self.phase, "mode": self.mode,
                 **{name: self.config[name] for name in RUN_START_CONFIG},
-                "config_sha256": sha256_tag(canonical_json(self.config)),
+                "config_sha256": sha256_tag(canonical_json(self.config)), **self.frozen,
                 "plan_chain_sha256": sha256_tag(canonical_json(chain_hashes)) if chain_hashes else None}
 
     def _claimed_start(self):
@@ -134,7 +136,9 @@ class Run:
         return min(starts, default=0)
 
     def start(self):
-        """Start the run. False if it stopped before starting, with RUN_END written."""
+        """Start the run. False if it stopped before starting, with RUN_END written. Raises NotFrozen, before
+        anything is written, if ODIN's instructions or prompt template differ from their frozen record (U54)."""
+        self.frozen = instructions.frozen(self.config["model_config"])
         for folder in (self.folder, self.final):
             if folder.exists():
                 raise FileExistsError(f"{folder} already exists; a run's folder is never reused")

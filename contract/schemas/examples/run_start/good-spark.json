@@ -10,7 +10,8 @@
   "reasoning_effort": "medium",
   "answer_method": "STRUCTURED_OUTPUT",
   "config_sha256": "sha256:53af1538c69ae5ab8a127b5cc3f346b9c4d3665b6487b4cf8114a5a146f4b4df",
-  "prompt_template_sha256": "sha256:ea966d0fd6f0ff567fe36a4cd943bf3199e89b4cb5603760a3bb1f207da7ee90",
+  "instructions_sha256": "sha256:3a91b23fd4a533c04a8821fa01743c7d6e0062b6956a02eae703864220cf9f8c",
+  "prompt_template_sha256": "sha256:63286e9bfd310af6ee5b7e34df867f78a3d483e7e4c192d375bf5c552fd5a282",
   "plan_chain_sha256": "sha256:d75d24be28a658b069fd0df43e9778785755541b90b31b312cebf7cb0c082a7b",
   "reference_sha256": "sha256:9159bf99fe60896830132fc452d307736239b0b9f3713fee475f571d7459bd05"
 }
