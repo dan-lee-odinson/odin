@@ -48,6 +48,13 @@ def test_red_ve_import_is_caught(tmp_path, form):
     assert check_no_ve_import(tmp_path) != []
 
 
+def test_red_a_viewer_file_importing_ve_is_caught(tmp_path):
+    # The repository's viewer/ is walked like every folder but .git, deps and cache.
+    (tmp_path / "viewer").mkdir()
+    (tmp_path / "viewer" / "convert.py").write_text(f"import {VE}\n", encoding="utf-8")
+    assert check_no_ve_import(tmp_path) == [f"viewer/convert.py:1: imports {VE}"]
+
+
 def test_red_script_running_ve_as_a_module_is_caught(tmp_path):
     (tmp_path / "run.ps1").write_text(f"python -m {VE}\n", encoding="utf-8")
     assert check_no_ve_import(tmp_path) != []
@@ -59,12 +66,17 @@ PATH_FORMS = {
     "replay folder in YAML": ("probe.yaml", f"source: deps/{H}/replay/\n"),
     "replay schema in JSON": ("probe.json", f'{{"schema": "deps/{H}/defs/{SCHEMA}.yaml"}}\n'),
     "replay schema in PowerShell": ("probe.ps1", f"Get-Content defs\\{SCHEMA}.md\n"),
+    # VERDA, the viewer, deposited into viewer/: a static page, its stylesheet and its converter.
+    "viewer page in HTML": ("viewer/index.html", f'<script src="../deps/{H}/viewer/app.js"></script>\n'),
+    "viewer stylesheet": ("viewer/page.css", f"@import url('../deps/{H}/{VE}/style.css');\n"),
+    "viewer converter": ("viewer/convert.py", f"SOURCE = 'deps/{H}/replay/'\n"),
 }
 
 
 @pytest.mark.parametrize("form", PATH_FORMS)
 def test_red_forbidden_path_is_caught(tmp_path, form):
     name, text = PATH_FORMS[form]
+    (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
     (tmp_path / name).write_text(text, encoding="utf-8")
     assert check_no_forbidden_huginn_paths(tmp_path) != []
 

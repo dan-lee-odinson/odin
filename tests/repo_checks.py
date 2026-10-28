@@ -31,6 +31,7 @@ SKIP_ANYWHERE = {".git", ".venv", "venv", "__pycache__", ".pytest_cache", "node_
 CODE_SUFFIXES = {
     ".py", ".pyi", ".ps1", ".psm1", ".sh", ".bash", ".bat", ".cmd", ".js", ".mjs", ".cjs",
     ".ts", ".tsx", ".jsx", ".rb", ".yaml", ".yml", ".toml", ".json", ".ini", ".cfg",
+    ".html", ".htm", ".css",   # VERDA's page, viewer/ (the Director's word of 28 October 2026)
 }
 CODE_NAMES = {"Dockerfile", "Makefile"}
 

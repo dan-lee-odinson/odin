@@ -122,6 +122,9 @@ CASES = {"s0": [
     ("the workspace refresh leaving out Muse Code's rules, .agents/AGENTS.md",
      "tests/test_tools_refresh_workspace.py::test_muse_codes_rules_are_copied_and_checked_like_the_rest",
      change_file("tools/refresh_workspace.py", replace_once(b'SHARED = (".agents/AGENTS.md", ', b"SHARED = ("))),
+    ("a viewer page left out of the clean-room scan",
+     "tests/test_s0_huginn_guard.py::test_red_forbidden_path_is_caught[viewer page in HTML]",
+     change_file("tests/repo_checks.py", replace_once(b'    ".html", ".htm", ".css",', b"   "))),
 ], "s1": [
     ("a good answer example with the payload state set to STANDBY",
      "tests/test_s1_schemas.py::test_good_example_validates[answer/good-command-payload.json]",
