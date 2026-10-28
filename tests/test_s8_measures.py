@@ -97,3 +97,16 @@ def test_red_a_stand_in_call_carrying_a_setting_flags_the_run():
     assert [(m["field"], m["found"], m["expected"]) for m in found["model_call_mismatches"]] == [
         ("reasoning_effort", "high", None)]
     assert found["flagged"]
+
+
+# A command or argument outside the dictionary in force is an attempted violation whichever side catches it (the
+# Director's ruling on U58, 28 October 2026): BALDUR-0's refusal, or ODIN's own answer check, which files the
+# answer as MALFORMED, NOT_IN_DICTIONARY, and sends nothing.
+def test_an_answer_outside_the_dictionary_counts_as_an_attempted_violation_whichever_side_catches_it():
+    found = measures([record("MALFORMED", 900, turn_id=3, reason="NOT_IN_DICTIONARY", detail="COLLECT is not in HUGINN's"),
+                      record("MALFORMED", 905, turn_id=4, reason="SCHEMA_VIOLATION", detail="no form"),
+                      request("a", 910, command="COLLECT", type="NORMAL", duration=1.0, opcode=171, temp=0.0),
+                      decision("a", 910, fail=("CLASS", "NOT_IN_DICTIONARY"))])
+    assert [(v["check"], v["reason"], v["request_id"]) for v in found["attempted_violations"]] == [
+        ("ANSWER", "NOT_IN_DICTIONARY", None), ("CLASS", "NOT_IN_DICTIONARY", "a")]
+    assert found["loop_health"]["malformed"] == 2 and not found["flagged"]

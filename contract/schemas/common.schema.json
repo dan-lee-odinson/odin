@@ -43,33 +43,35 @@
     },
     "command": {
       "description": "The five commands (§7.4).",
-      "enum": ["CMD_PLD_SET_STATE", "CMD_PLD_SET_RATE", "CMD_SAFE_ENTER", "CMD_SYS_RESET", "CMD_MODE_SET"]
+      "enum": ["CMD_PLD_SET_STATE", "CMD_PLD_SET_RATE", "CMD_SAFE_ENTER", "CMD_SYS_RESET", "CMD_MODE_SET", "COLLECT", "ABORT"]
     },
     "protective_command": {
       "description": "The C3 PROTECT commands, which no plan can prohibit or restrict (§5.5).",
-      "enum": ["CMD_SAFE_ENTER", "CMD_SYS_RESET"]
+      "enum": ["CMD_SAFE_ENTER", "CMD_SYS_RESET", "ABORT"]
     },
     "unprotected_command": {
       "description": "The commands a plan may prohibit or lease: every command except the protective ones (§5.2, §5.5).",
-      "enum": ["CMD_PLD_SET_STATE", "CMD_PLD_SET_RATE", "CMD_MODE_SET"]
+      "enum": ["CMD_PLD_SET_STATE", "CMD_PLD_SET_RATE", "CMD_MODE_SET", "COLLECT"]
     },
     "point": {
       "description": "The 16 HUGINN telemetry points, in dictionary order (§6.4).",
       "enum": [
         "EPS_BATT_V", "EPS_BATT_I", "EPS_BATT_SOC", "EPS_SA1_I", "EPS_SA2_I", "EPS_BUS_V", "EPS_LOAD_I", "EPS_MODE",
-        "ADM_ECLIPSE", "PLD_STATE", "PLD_RATE", "CDH_MET", "CDH_FRAME_CNT", "CDH_CMD_ACC_CNT", "CDH_CMD_REJ_CNT", "CDH_REJ_REASON"
+        "ADM_ECLIPSE", "PLD_STATE", "PLD_RATE", "CDH_MET", "CDH_FRAME_CNT", "CDH_CMD_ACC_CNT", "CDH_CMD_REJ_CNT", "CDH_REJ_REASON",
+        "CMD_ACPT_CNT", "COLLECTS", "TEMP1", "TEMP2", "TEMP3", "TEMP4", "DURATION", "COLLECT_TYPE", "GROUND1STATUS", "GROUND2STATUS"
       ]
     },
     "numeric_point": {
       "description": "The points whose values are numbers in the dictionary.",
       "enum": [
         "EPS_BATT_V", "EPS_BATT_I", "EPS_BATT_SOC", "EPS_SA1_I", "EPS_SA2_I", "EPS_BUS_V", "EPS_LOAD_I",
-        "PLD_RATE", "CDH_MET", "CDH_FRAME_CNT", "CDH_CMD_ACC_CNT", "CDH_CMD_REJ_CNT"
+        "PLD_RATE", "CDH_MET", "CDH_FRAME_CNT", "CDH_CMD_ACC_CNT", "CDH_CMD_REJ_CNT",
+        "CMD_ACPT_CNT", "COLLECTS", "TEMP1", "TEMP2", "TEMP3", "TEMP4", "DURATION"
       ]
     },
     "state_point": {
       "description": "The points whose values are states in the dictionary (§16.2 U8).",
-      "enum": ["EPS_MODE", "ADM_ECLIPSE", "PLD_STATE", "CDH_REJ_REASON"]
+      "enum": ["EPS_MODE", "ADM_ECLIPSE", "PLD_STATE", "CDH_REJ_REASON", "COLLECT_TYPE", "GROUND1STATUS", "GROUND2STATUS"]
     },
     "value_fits_point": {
       "description": "Applied to an object with point and value: the value is a number for a numeric point, and one of the point's states for a state point. Each point's values are defined once, in observation.schema.json.",
@@ -83,7 +85,13 @@
         {"if": {"required": ["point"], "properties": {"point": {"const": "PLD_STATE"}}},
          "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/PLD_STATE/properties/value"}}}},
         {"if": {"required": ["point"], "properties": {"point": {"const": "CDH_REJ_REASON"}}},
-         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/CDH_REJ_REASON/properties/value"}}}}
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/CDH_REJ_REASON/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "COLLECT_TYPE"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/COLLECT_TYPE/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "GROUND1STATUS"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/GROUND1STATUS/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "GROUND2STATUS"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/GROUND2STATUS/properties/value"}}}}
       ]
     },
     "value_fits_mnemonic": {
@@ -98,7 +106,13 @@
         {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "PLD_STATE"}}},
          "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/PLD_STATE/properties/value"}}}},
         {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "CDH_REJ_REASON"}}},
-         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/CDH_REJ_REASON/properties/value"}}}}
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/CDH_REJ_REASON/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "COLLECT_TYPE"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/COLLECT_TYPE/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "GROUND1STATUS"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/GROUND1STATUS/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "GROUND2STATUS"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/GROUND2STATUS/properties/value"}}}}
       ]
     },
     "condition": {
@@ -170,6 +184,21 @@
       "additionalProperties": false,
       "properties": {"target": {"enum": ["NOMINAL", "LOW_POWER"]}}
     },
+    "parameters_COLLECT": {
+      "type": "object",
+      "required": ["type", "duration", "opcode", "temp"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["NORMAL"]},
+        "duration": {"type": "number", "minimum": 0.0, "maximum": 10.0},
+        "opcode": {"type": "integer", "minimum": 0, "maximum": 255},
+        "temp": {"type": "number", "minimum": 0.0, "maximum": 25.0}
+      }
+    },
+    "parameters_ABORT": {
+      "type": "object",
+      "maxProperties": 0
+    },
     "command_and_parameters": {
       "description": "A command with exactly its arguments and their allowed values (§7.2, §7.4). Every object that carries a command and its parameters uses this.",
       "type": "object",
@@ -188,7 +217,11 @@
         {"if": {"properties": {"command": {"const": "CMD_SYS_RESET"}}},
          "then": {"properties": {"parameters": {"$ref": "#/definitions/parameters_CMD_SYS_RESET"}}}},
         {"if": {"properties": {"command": {"const": "CMD_MODE_SET"}}},
-         "then": {"properties": {"parameters": {"$ref": "#/definitions/parameters_CMD_MODE_SET"}}}}
+         "then": {"properties": {"parameters": {"$ref": "#/definitions/parameters_CMD_MODE_SET"}}}},
+        {"if": {"properties": {"command": {"const": "COLLECT"}}},
+         "then": {"properties": {"parameters": {"$ref": "#/definitions/parameters_COLLECT"}}}},
+        {"if": {"properties": {"command": {"const": "ABORT"}}},
+         "then": {"properties": {"parameters": {"$ref": "#/definitions/parameters_ABORT"}}}}
       ]
     },
     "command_with_parameters": {

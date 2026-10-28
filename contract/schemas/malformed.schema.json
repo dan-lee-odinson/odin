@@ -8,7 +8,10 @@
   "properties": {
     "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
     "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
-    "reason": {"enum": ["NOT_ONE_JSON_OBJECT", "SCHEMA_VIOLATION", "ANSWER_TOOL_CALL_COUNT", "WRONG_FORM_FOR_TURN"]},
+    "reason": {
+      "description": "NOT_IN_DICTIONARY: a command answer whose command, or one of its argument values, is outside the dictionary in force, the one the plan in force lists; it is caught by ODIN's answer check before any request, and S8 counts it as an attempted violation, as it counts BALDUR-0's NOT_IN_DICTIONARY refusal (the Director's ruling on U58, 28 October 2026).",
+      "enum": ["NOT_ONE_JSON_OBJECT", "SCHEMA_VIOLATION", "ANSWER_TOOL_CALL_COUNT", "WRONG_FORM_FOR_TURN", "NOT_IN_DICTIONARY"]
+    },
     "detail": {"description": "The validator's message.", "type": "string"}
   }
 }

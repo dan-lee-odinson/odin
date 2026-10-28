@@ -1,0 +1,27 @@
+{
+  "request_id": "4b1d2c3e-7f8a-4b9c-8d0e-1f2a3b4c5d6e",
+  "decision": "REFUSE",
+  "checks": [
+    {"check": "PLAN", "result": "PASS", "reason": null, "detail": null},
+    {"check": "ARMING", "result": "PASS", "reason": null, "detail": null},
+    {"check": "ORIGIN", "result": "PASS", "reason": null, "detail": null},
+    {"check": "CEILING", "result": "PASS", "reason": null, "detail": null},
+    {"check": "PROHIBITED", "result": "PASS", "reason": null, "detail": null},
+    {
+      "check": "CLASS",
+      "result": "FAIL",
+      "reason": "NOT_IN_DICTIONARY",
+      "detail": "COLLECT is not in HUGINN's dictionary, the dictionary in force"
+    },
+    {"check": "LEASE", "result": "NOT_RUN", "reason": null, "detail": null},
+    {"check": "RECORD", "result": "PASS", "reason": null, "detail": null}
+  ],
+  "plan_id": "TYR0-DEV-PASS1-v1",
+  "arming_act_id": "ARM-DEV-01",
+  "rung": "AI_AUTONOMOUS",
+  "base_class": null,
+  "class": null,
+  "lease_id": null,
+  "met_s": 640,
+  "utc": "2026-10-28T14:10:40.510Z"
+}

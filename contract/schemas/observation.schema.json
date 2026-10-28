@@ -29,7 +29,7 @@
     },
     "points": {
       "description": "All 16 HUGINN points from the latest frame; null if no frame has arrived.",
-      "anyOf": [{"$ref": "#/definitions/points"}, {"type": "null"}]
+      "anyOf": [{"$ref": "#/definitions/points"}, {"$ref": "#/definitions/inst_points"}, {"type": "null"}]
     }
   },
   "allOf": [
@@ -38,7 +38,7 @@
      "else": {"properties": {
        "received_utc": {"$ref": "common.schema.json#/definitions/utc"},
        "age_s": {"type": "number", "minimum": 0},
-       "points": {"$ref": "#/definitions/points"}}}},
+       "points": {"anyOf": [{"$ref": "#/definitions/points"}, {"$ref": "#/definitions/inst_points"}]}}}},
     {"if": {"required": ["source"], "properties": {"source": {"const": "COSMOS"}}},
      "then": {"properties": {"staleness_state": {"enum": ["GREEN", "YELLOW", "RED"]},
                              "ground_link": {"$ref": "#/definitions/ground_link"}}},
@@ -107,6 +107,34 @@
           "properties": {"value": {"type": "integer", "minimum": 0, "maximum": 65535}, "units": {"const": "n/a"}, "limit_state": {"const": "NONE"}}},
         "CDH_REJ_REASON": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
           "properties": {"value": {"enum": ["NONE", "UNKNOWN_OPCODE", "ARG_RANGE", "MODE_INHIBIT"]}, "units": {"const": "n/a"}, "limit_state": {"const": "NONE"}}}
+      }
+    },
+    "inst_points": {
+      "description": "The items phase 1 reads from COSMOS's demo target, INST HEALTH_STATUS, as COSMOS gives them: each value, its units, and COSMOS's own limits state, STALE for a stale packet (the Director's ruling on U58, 28 October 2026; config/dictionaries/INST.yaml).",
+      "type": "object",
+      "required": ["CMD_ACPT_CNT", "COLLECTS", "TEMP1", "TEMP2", "TEMP3", "TEMP4", "DURATION", "COLLECT_TYPE", "GROUND1STATUS", "GROUND2STATUS"],
+      "additionalProperties": false,
+      "properties": {
+        "CMD_ACPT_CNT": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "integer", "minimum": 0, "maximum": 4294967295}, "units": {"type": "null"}, "limit_state": {"enum": [null, "STALE"]}}},
+        "COLLECTS": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "integer", "minimum": 0, "maximum": 65535}, "units": {"type": "null"}, "limit_state": {"enum": [null, "STALE"]}}},
+        "TEMP1": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "GREEN_LOW", "GREEN_HIGH", "BLUE", "STALE"]}}},
+        "TEMP2": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "STALE"]}}},
+        "TEMP3": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "STALE"]}}},
+        "TEMP4": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "STALE"]}}},
+        "DURATION": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"type": "number"}, "units": {"type": "null"}, "limit_state": {"enum": [null, "STALE"]}}},
+        "COLLECT_TYPE": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"enum": ["NORMAL", "SPECIAL", "ERROR"]}, "units": {"type": "null"}, "limit_state": {"enum": [null, "STALE"]}}},
+        "GROUND1STATUS": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"enum": ["CONNECTED", "UNAVAILABLE"]}, "units": {"type": "null"}, "limit_state": {"enum": ["GREEN", "YELLOW", "STALE"]}}},
+        "GROUND2STATUS": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
+          "properties": {"value": {"enum": ["CONNECTED", "UNAVAILABLE"]}, "units": {"type": "null"}, "limit_state": {"enum": ["GREEN", "YELLOW", "STALE"]}}}
       }
     }
   }

@@ -16,6 +16,7 @@ from tests.repo_checks import REPO_ROOT
 
 EXAMPLE_DIR = SCHEMA_DIR / "examples"
 DICTIONARY = REPO_ROOT / "deps" / "huginn" / "defs" / "tlm_cmd.yaml"
+PHASE_1 = REPO_ROOT / "config" / "dictionaries" / "INST.yaml"
 
 # Schemas that only hold definitions for the others, so no document is checked against them.
 DEFINITIONS_ONLY = {"common"}
@@ -122,22 +123,29 @@ def _parameters_schema(command):
             "additionalProperties": False, "properties": properties}
 
 
-def check_schemas_match_dictionary(dictionary_path=DICTIONARY, schema_dir=SCHEMA_DIR):
+def check_schemas_match_dictionary(dictionary_path=DICTIONARY, schema_dir=SCHEMA_DIR, phase_1_path=PHASE_1):
+    """HUGINN's points and commands as its dictionary gives them, each common list holding HUGINN's and then phase
+    1's INST's (the Director's ruling on U58, 28 October 2026), which tests/test_s7_dictionary.py checks in turn."""
     dictionary = yaml.safe_load(Path(dictionary_path).read_text(encoding="utf-8"))
+    phase_1 = yaml.safe_load(Path(phase_1_path).read_text(encoding="utf-8"))
     common = load_schema("common", schema_dir)["definitions"]
     observed = load_schema("observation", schema_dir)["definitions"]["points"]
 
     problems = []
     points = [p for group in dictionary["telemetry_groups"] for p in group["points"]]
     names = [p["mnemonic"] for p in points]
-    if common["point"]["enum"] != names:
-        problems.append(f"common point list {common['point']['enum']} is not the dictionary's {names}")
+    inst = [p for group in phase_1["telemetry_groups"] for p in group["points"]]
+    inst_names = [p["mnemonic"] for p in inst]
+    if common["point"]["enum"] != names + inst_names:
+        problems.append(f"common point list {common['point']['enum']} is not the dictionary's {names}, then INST's")
     if observed["required"] != names or sorted(observed["properties"]) != sorted(names):
         problems.append("the observation's points are not the dictionary's")
     states = [p["mnemonic"] for p in points if p["type"] == "enum"]
-    if (common["state_point"]["enum"] != states
-            or common["numeric_point"]["enum"] != [n for n in names if n not in states]):
-        problems.append("common's state and numeric points are not the dictionary's")
+    inst_states = [p["mnemonic"] for p in inst if p["type"] == "enum"]
+    if (common["state_point"]["enum"] != states + inst_states
+            or common["numeric_point"]["enum"] != [n for n in names if n not in states]
+            + [n for n in inst_names if n not in inst_states]):
+        problems.append("common's state and numeric points are not the dictionary's, then INST's")
     for point in points:
         entry = observed["properties"].get(point["mnemonic"])
         if entry is None:
@@ -153,7 +161,7 @@ def check_schemas_match_dictionary(dictionary_path=DICTIONARY, schema_dir=SCHEMA
 
     commands = dictionary["commands"]
     mnemonics = [c["mnemonic"] for c in commands]
-    if common["command"]["enum"] != mnemonics:
+    if common["command"]["enum"] != mnemonics + [c["mnemonic"] for c in phase_1["commands"]]:
         problems.append(f"common command list {common['command']['enum']} is not the dictionary's {mnemonics}")
     for command in commands:
         defined = common.get("parameters_" + command["mnemonic"])

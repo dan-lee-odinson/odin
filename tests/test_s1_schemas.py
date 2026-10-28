@@ -100,6 +100,7 @@ REFUSE = "decision_record/good-refuse.json"
 REFUSE_LEASE = "decision_record/good-refuse-lease.json"
 REFUSE_PLAN = "decision_record/good-refuse-plan-mismatch.json"
 REFUSE_RUN = "decision_record/good-refuse-wrong-run.json"
+REFUSE_DICTIONARY = "decision_record/good-refuse-not-in-dictionary.json"
 VOID_BASIS = "decision_voided/good-basis-changed.json"
 VOID_FAIL = "decision_voided/good-condition-failed.json"
 VOID_PLAN = "decision_voided/good-plan-mismatch.json"
@@ -354,6 +355,11 @@ BAD = [
     ("decision_record", "a rung this build does not use", ALLOW, setting("rung", to="SUPERVISED")),
     ("decision_record", "checks missing", REFUSE, dropping("checks")),
     ("decision_record", "seven checks, not eight", ALLOW, dropping("checks", 7)),
+    # The Director's ruling on U58, 28 October 2026: a command outside the dictionary in force has no class there
+    ("decision_record", "a NOT_IN_DICTIONARY refusal giving a class", REFUSE_DICTIONARY, setting("base_class", to="C1")),
+    ("decision_record", "a NOT_IN_DICTIONARY refusal whose CLASS check passed", REFUSE_DICTIONARY, setting("checks", 5, "result", to="PASS")),
+    ("malformed", "a reason ODIN's answer check does not give", "malformed/good-not-in-dictionary.json",
+     setting("reason", to="OUTSIDE_PLAN")),
     ("decision_record", "a ninth check", ALLOW,
      appending("checks", item={"check": "RECORD", "result": "PASS", "reason": None, "detail": None})),
     ("decision_record", "checks out of order", ALLOW, swapping("checks", first=0, second=1)),

@@ -11,7 +11,7 @@ neither overlap nor leave a gap.
 from dataclasses import dataclass
 
 from contract.validate import check
-from gateway.rules import PROTECTIVE
+from gateway import dictionaries
 from gateway.signed import KEYS_DIR, PLAN_NAMESPACE, field, read_signed
 
 
@@ -43,18 +43,24 @@ class Chain:
 
 
 def _protective_restrictions(document):
-    """§5.5: a plan may not prohibit or lease CMD_SAFE_ENTER or CMD_SYS_RESET. Any other field that
-    could condition or limit them is a field §5.1 does not list, which the schema refuses."""
+    """§5.5: a plan may not prohibit or lease the protective commands of its dictionary in force, CMD_SAFE_ENTER
+    and CMD_SYS_RESET in HUGINN's, ABORT in phase 1's (the Director's rulings of 27 October 2026, §5, and on
+    U58). Any other field that could condition or limit them is a field §5.1 does not list, which the schema
+    refuses. A plan that lists two dictionaries is refused as inconsistent (_consistency)."""
     if not isinstance(document, dict):
+        return []
+    try:
+        protective = dictionaries.for_plan(document).protective
+    except ValueError:
         return []
     found = []
     prohibited = document.get("prohibited")
     if isinstance(prohibited, list):
-        found += [f"prohibited names {command}" for command in prohibited if command in PROTECTIVE]
+        found += [f"prohibited names {command}" for command in prohibited if command in protective]
     leases = document.get("leases")
     if isinstance(leases, list):
         found += [f"lease {lease.get('lease_id')!r} names {lease.get('command')}" for lease in leases
-                  if isinstance(lease, dict) and lease.get("command") in PROTECTIVE]
+                  if isinstance(lease, dict) and lease.get("command") in protective]
     return found
 
 
@@ -106,6 +112,10 @@ def _consistency(plan):
             if shared is not None:
                 problems.append(f"leases {one['lease_id']!r} and {other['lease_id']!r} both cover "
                                 f"{one['command']} with {shared}")
+    # A plan flies one dictionary, the one it lists (the Director's ruling on U58, 28 October 2026).
+    listed = dictionaries.listed(plan)
+    if len(listed) > 1:
+        problems.append(f"lists {len(listed)} dictionaries, {', '.join(e['name'] for e in listed)}; a plan flies one")
     return problems
 
 

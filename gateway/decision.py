@@ -14,7 +14,8 @@ from dataclasses import dataclass, field
 from cryptography.exceptions import InvalidSignature
 
 from gateway.acts import parse_utc
-from gateway.rules import COMMAND_CLASS, PROTECTIVE, RUNG_ALLOWS, arguments_covered, failing, is_fresh, staleness
+from gateway.dictionaries import for_plan
+from gateway.rules import RUNG_ALLOWS, arguments_covered, failing, is_fresh, staleness
 from log.canonical import canonical_json
 
 CHECKS = ("PLAN", "ARMING", "ORIGIN", "CEILING", "PROHIBITED", "CLASS", "LEASE", "RECORD")
@@ -107,9 +108,16 @@ def _prohibited(request, ctx, found):
 
 
 def _class(request, ctx, found):
-    base = COMMAND_CLASS[request["command"]]
+    # The dictionary in force is the one the plan in force lists (the Director's ruling on U58, 28 October
+    # 2026): a command or argument value outside it is refused here, an attempted violation, and its class
+    # and protective commands are that dictionary's.
+    dictionary = for_plan(ctx.plan.document)
+    outside = dictionary.refusal(request["command"], request["parameters"])
+    if outside:
+        return "NOT_IN_DICTIONARY", outside
+    base = dictionary.classes[request["command"]]
     found["base_class"] = base
-    if request["command"] not in PROTECTIVE and not is_fresh(ctx.frame, ctx.met_s):
+    if request["command"] not in dictionary.protective and not is_fresh(ctx.frame, ctx.met_s):
         # §9.6 and the Director's ruling on U25 (27 October 2026): on stale or missing telemetry every
         # command but the protective ones is refused here, the mode command included, whatever its
         # lease's conditions, and the record keeps the dictionary's class.
