@@ -524,6 +524,14 @@ CASES = {"s0": [
     ("the Director's state-of-charge crossing read at 36 %, not 35 %",
      "tests/test_s8_director.py::test_the_flight_figures_are_the_rulings[PASS-2B]",
      change_file("eval/director.py", replace_once(b'if f["EPS_BATT_SOC"] < 35)', b'if f["EPS_BATT_SOC"] < 36)'))),
+], "phase3": [
+    ("a second hash in the seal",
+     "tests/test_phase3_seal.py::test_the_seal_holds_exactly_one_hash",
+     change_file("phase3/SEAL.md", replace_once(b"Nothing changes once the runs start.\n",
+                                                b"Nothing changes once the runs start.\nsha256:" + b"ab" * 32 + b"\n"))),
+    ("a scenario's label in the seal",
+     "tests/test_phase3_seal.py::test_the_seal_names_no_scenario_and_no_plan",
+     change_file("phase3/SEAL.md", replace_once(b"# Phase 3's seal\n", b"# Phase 3's seal, H07 to H09\n"))),
 ], "models": [
     ("spark set to reasoning medium, not the high the Director ruled",
      "tests/test_config_models.py::test_each_model_carries_the_ruled_settings_and_their_source[spark]",
