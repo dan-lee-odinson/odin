@@ -1,14 +1,15 @@
 """spark_open adapter (CONTRACT §11.1): Baseten, answers by tool calling.
 
 One answer tool per §7.1 form plus the §7.5 report. Conversion of recorded
-tool calls is pure (no network) so M1 tests it offline. `reasoning_content`
-is never the answer. The live `complete` path needs BASETEN_API_KEY and is
-not exercised in M1.
+tool calls is pure (no network). `reasoning_content` is never the answer.
+No built-in settings: reasoning level (set explicitly on every call,
+never Baseten's xhigh default unless configured), output cap and timeout
+come from configuration; given none, the adapter raises.
 """
 import json
-import os
 
 from odin.loop.validate import validate_against_schema, validate_act_text, validate_report_text
+from .openai_compat import ChatAdapter, READONLY_TOOLS
 
 ANSWER_TOOL_NAMES = {"answer_command", "answer_escalation", "answer_none", "answer_report"}
 READONLY_TOOL_NAMES = {"docs_lookup", "history"}
@@ -93,18 +94,56 @@ def convert_tool_calls(tool_calls, turn_kind="ACT", report_kind=None, reasoning_
     return ok, validated, reason, detail
 
 
-class SparkOpenAdapter:
+class SparkOpenAdapter(ChatAdapter):
     name = "spark_open"
     provider = "Baseten Model API"
     model_id = MODEL_ID
     endpoint = ENDPOINT
+    env_var = "BASETEN_API_KEY"
 
-    def __init__(self, reasoning_effort="medium", max_output_tokens=4096, timeout_s=120):
-        self.reasoning_effort = reasoning_effort
-        self.max_output_tokens = max_output_tokens
-        self.timeout_s = timeout_s
-
-    def complete(self, *, prompt: bytes, bundle: dict, call_index: int = 1) -> dict:
-        if not os.environ.get("BASETEN_API_KEY"):
-            raise RuntimeError("BASETEN_API_KEY not set; spark_open live calls are out of scope for M1")
-        raise RuntimeError("spark_open live call not exercised in M1; conversion tested on recorded responses")
+    def complete(self, *, prompt: bytes, bundle: dict, call_index: int = 1,
+                 meter=None, turn_id=None, model_call_sink=None, tool_handler=None) -> dict:
+        turn_id = turn_id if turn_id is not None else bundle.get("turn_id", 1)
+        tools = list(ANSWER_TOOLS) + (list(READONLY_TOOLS) if tool_handler else [])
+        messages = [{"role": "user", "content": prompt.decode("utf-8")}]
+        sink = model_call_sink if model_call_sink is not None else []
+        collected, index, total_latency, last_usage, cut_off = [], call_index, 0.0, {}, False
+        while True:
+            payload, usage, latency = self._one_call(
+                messages, tools=tools, meter=meter, turn_id=turn_id,
+                call_index=index, sink=sink)
+            index += 1
+            total_latency += latency
+            last_usage = usage
+            choice = (payload.get("choices") or [{}])[0]
+            cut_off = choice.get("finish_reason") == "length"
+            message = choice.get("message") or {}
+            tool_calls = message.get("tool_calls") or []
+            collected.extend(tool_calls)
+            readonly = [c for c in tool_calls
+                        if (c.get("function") or {}).get("name") in READONLY_TOOL_NAMES]
+            if readonly and tool_handler:
+                messages.append({"role": "assistant", "content": message.get("content"),
+                                 "tool_calls": tool_calls})
+                for call in readonly:
+                    fn = call["function"]
+                    try:
+                        args = json.loads(fn.get("arguments") or "{}")
+                    except Exception:
+                        args = {}
+                    messages.append({"role": "tool", "tool_call_id": call.get("id", ""),
+                                     "content": str(tool_handler(fn["name"], args))})
+                continue
+            break
+        return {
+            "raw": json.dumps(collected), "channel": "TOOL_CALLS", "status": "OK",
+            "input_tokens": last_usage.get("prompt_tokens"),
+            "cached_input_tokens": (last_usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0),
+            "output_tokens": last_usage.get("completion_tokens"),
+            "reasoning_tokens": (last_usage.get("completion_tokens_details") or {}).get("reasoning_tokens"),
+            "latency_s": total_latency, "provider_usage": last_usage,
+            "provider": self.provider, "model_id": self.model_id,
+            "reasoning_effort": self.reasoning_effort,
+            "max_output_tokens": self.max_output_tokens,
+            "cut_off": cut_off, "model_calls": sink,
+        }

@@ -1,0 +1,8 @@
+# M3 settings (Director's ruling, 2026-10-27): every M3 call uses an output
+# cap of 32,000 tokens (reasoning included) and a 10-minute timeout.
+# Adapters carry no built-in settings; this file is where M3's come from.
+output_tokens: 32000
+timeout_s: 600
+levels:
+  spark: [low, medium, high]
+  spark_open: [low, medium, high, xhigh]

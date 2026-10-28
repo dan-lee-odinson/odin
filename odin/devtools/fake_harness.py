@@ -30,6 +30,8 @@ class FakeServices:
         self.escalations = []
         self.reports = []
         self.checkins = []
+        self.request_attempts = 0
+        self.force_status = {}
         self._server = None
         self.url = "inprocess://fake"
 
@@ -39,6 +41,8 @@ class FakeServices:
         parsed = urlparse(url)
         path = parsed.path or url  # allow bare paths
         body = json.loads(data) if data else {}
+        if method == "POST" and path.endswith("/request"):
+            self.request_attempts += 1
         if method == "GET" and path == "/turn/next":
             if self._bundles:
                 return 200, self._bundles.pop(0)
@@ -62,26 +66,68 @@ class FakeServices:
             self.reports.append(body)
             return 200, json.dumps({"record_id": len(self.reports)}).encode()
         if method == "POST" and path == "/request":
+            # U30: every decision (ALLOW or REFUSE) is 200 with the decision
+            # record; an invalid body is 400 with problems, nothing logged.
+            if path in self.force_status or "/request" in self.force_status:
+                return self.force_status.get(path, self.force_status.get("/request")), \
+                    json.dumps({"problems": ["forced by test"]}).encode()
+            problems = validate_against_schema("command_request.schema.json", body)
+            if problems:
+                return 400, json.dumps({"problems": problems}).encode()
             self.requests.append(body)
             try:
                 ok = signing.verify_request(body, self.public_key_path)
             except Exception:
                 ok = False
-            decision = {
-                "request_id": body.get("request_id"), "decision": "ALLOW" if ok else "REFUSE",
-                "checks": [], "plan_id": body.get("plan_id"), "arming_act_id": "ARM-DEV-01",
-                "rung": "AI_AUTONOMOUS", "base_class": None, "class": None,
-                "lease_id": None, "met_s": body.get("met_s"), "utc": body.get("utc"),
-            }
+            decision = self._decision(body, ok)
             self.decisions.append(decision)
-            return (200 if ok else 403), json.dumps(decision).encode()
+            return 200, json.dumps(decision).encode()
         if method == "POST" and path == "/escalation":
+            problems = validate_against_schema("escalation.schema.json", body)
+            if problems:
+                return 400, json.dumps({"problems": problems}).encode()
             self.escalations.append(body)
             return 200, json.dumps({"record_id": len(self.escalations), "delivery": "NOW"}).encode()
         if method == "POST" and path == "/checkin":
             self.checkins.append(body)
             return 200, json.dumps({"ok": True}).encode()
         return 404, json.dumps({"error": "not found"}).encode()
+
+    _CLASSES = {"CMD_PLD_SET_STATE": "C1", "CMD_PLD_SET_RATE": "C2",
+                "CMD_SAFE_ENTER": "C3", "CMD_SYS_RESET": "C3", "CMD_MODE_SET": "C4"}
+
+    def _decision(self, request, signature_ok):
+        names = ["PLAN", "ARMING", "ORIGIN", "CEILING", "PROHIBITED", "CLASS", "LEASE", "RECORD"]
+        command_class = self._CLASSES.get(request.get("command"))
+        if signature_ok:
+            checks = [{"check": n, "result": "PASS", "reason": None, "detail": None}
+                      for n in names]
+            return {
+                "request_id": request.get("request_id"), "decision": "ALLOW",
+                "checks": checks, "plan_id": request.get("plan_id"),
+                "arming_act_id": "ARM-DEV-01", "rung": "AI_AUTONOMOUS",
+                "base_class": command_class, "class": command_class,
+                "lease_id": "L1" if command_class == "C4" else None,
+                "met_s": request.get("met_s"), "utc": request.get("utc"),
+            }
+        checks = []
+        for name in names:
+            if name in ("PLAN", "ARMING"):
+                checks.append({"check": name, "result": "PASS", "reason": None, "detail": None})
+            elif name == "ORIGIN":
+                checks.append({"check": name, "result": "FAIL",
+                               "reason": "BAD_SIGNATURE", "detail": None})
+            elif name == "RECORD":
+                checks.append({"check": name, "result": "PASS", "reason": None, "detail": None})
+            else:
+                checks.append({"check": name, "result": "NOT_RUN", "reason": None, "detail": None})
+        return {
+            "request_id": request.get("request_id"), "decision": "REFUSE",
+            "checks": checks, "plan_id": request.get("plan_id"),
+            "arming_act_id": "ARM-DEV-01", "rung": "AI_AUTONOMOUS",
+            "base_class": None, "class": None, "lease_id": None,
+            "met_s": request.get("met_s"), "utc": request.get("utc"),
+        }
 
     # -- real HTTP (Director demo only; not used by tests) ------------------
     def start(self):

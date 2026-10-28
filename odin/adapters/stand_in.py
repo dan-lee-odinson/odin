@@ -9,7 +9,7 @@ class StandInAdapter:
         """script: callable(turn_id, bundle) -> raw answer text, or a list of raw texts."""
         self._script = script
 
-    def complete(self, *, prompt: bytes, bundle: dict, call_index: int = 1) -> dict:
+    def complete(self, *, prompt: bytes, bundle: dict, call_index: int = 1, **_ignored) -> dict:
         if callable(self._script):
             raw = self._script(bundle["turn_id"], bundle)
         else:

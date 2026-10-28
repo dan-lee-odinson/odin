@@ -8,6 +8,7 @@ sign and send at most one request ("one answer, one request").
 (Director's ruling); AGENT_INPUT (§16.5) also records the prompt hash.
 """
 import json
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -20,8 +21,11 @@ from .validate import validate_act_text, validate_report_text
 def _urllib_transport(method, url, data=None, timeout=30):
     req = urllib.request.Request(url, data=data, method=method,
                                  headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.status, resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, resp.read()
+    except urllib.error.HTTPError as exc:  # U30: 4xx is an outcome, not a crash
+        return exc.code, exc.read()
 
 
 def _http_json(method, url, payload=None, timeout=30, transport=None):
@@ -33,7 +37,8 @@ def _http_json(method, url, payload=None, timeout=30, transport=None):
 
 class TurnLoop:
     def __init__(self, *, harness_url, baldur_url, log_url, adapter, repo_root,
-                 private_key_path=None, instructions="", frozen_reference="", transport=None):
+                 private_key_path=None, instructions="", frozen_reference="", transport=None,
+                 meter=None):
         self.harness_url = harness_url.rstrip("/")
         self.baldur_url = baldur_url.rstrip("/")
         self.log_url = log_url.rstrip("/")
@@ -43,11 +48,31 @@ class TurnLoop:
         self.instructions = instructions
         self.frozen_reference = frozen_reference
         self.transport = transport
+        self.meter = meter
+        self.errors = []
 
     # -- logging ---------------------------------------------------------
     def _log(self, record_type, body):
-        _http_json("POST", f"{self.log_url}/log/agent", {"type": record_type, "body": body},
-                   transport=self.transport)
+        status, _ = _http_json("POST", f"{self.log_url}/log/agent",
+                               {"type": record_type, "body": body},
+                               transport=self.transport)
+        return status
+
+    def _tool_handler(self, name, args):
+        if name == "docs_lookup":
+            _, body = _http_json("GET", f"{self.harness_url}/docs/lookup?q={args.get('q', '')}",
+                                 transport=self.transport)
+            return body.decode("utf-8")
+        _, body = _http_json(
+            "GET",
+            f"{self.harness_url}/history?points={args.get('points', '')}&window_s={args.get('window_s', 300)}",
+            transport=self.transport)
+        return body.decode("utf-8")
+
+    def _service_error(self, turn_id, service, status):
+        # U30: a 400/404 ends the turn, no retry, never a crash.
+        self.errors.append({"turn_id": turn_id, "service": service, "status": status})
+        return {"turn_id": turn_id, "outcome": "error", "service": service, "status": status}
 
     def _model_call_record(self, bundle, call_index, result, status=None):
         return {
@@ -86,12 +111,24 @@ class TurnLoop:
                                   "bundle_sha256": bundle_hash, "prompt_sha256": prompt_hash})
         plan = bundle.get("plan") or {}
         plan_id = plan.get("plan_id")
+        sink = []
         try:
-            result = self.adapter.complete(prompt=prompt_bytes, bundle=bundle, call_index=1)
+            result = self.adapter.complete(
+                prompt=prompt_bytes, bundle=bundle, call_index=1, meter=self.meter,
+                turn_id=turn_id, model_call_sink=sink, tool_handler=self._tool_handler)
         except Exception as exc:  # timeout/error: no request, logged (§9.5)
-            self._log("MODEL_CALL", self._model_call_record(bundle, 1, None, status="ERROR"))
+            for record in sink:
+                record["run_id"] = run_id
+                self._log("MODEL_CALL", record)
+            if not sink:
+                self._log("MODEL_CALL", self._model_call_record(bundle, 1, None, status="ERROR"))
             return {"turn_id": turn_id, "outcome": "error", "detail": str(exc)}
-        self._log("MODEL_CALL", self._model_call_record(bundle, 1, result))
+        if sink:
+            for record in sink:
+                record["run_id"] = run_id
+                self._log("MODEL_CALL", record)
+        else:
+            self._log("MODEL_CALL", self._model_call_record(bundle, 1, result))
         channel = result.get("channel", "CONTENT")
         raw = result.get("raw", "")
         self._log("CANDIDATE", {"run_id": run_id, "turn_id": turn_id, "channel": channel, "raw": raw})
@@ -120,7 +157,10 @@ class TurnLoop:
                 "report_kind": bundle["report_kind"], "run_id": run_id, "turn_id": turn_id,
                 "met_s": bundle["met_s"], "utc": bundle["utc"], "plan_id": plan_id, **answer,
             }
-            _http_json("POST", f"{self.log_url}/report", report, transport=self.transport)
+            status, _ = _http_json("POST", f"{self.log_url}/report", report,
+                                   transport=self.transport)
+            if status >= 400:
+                return self._service_error(turn_id, "log/report", status)
             return {"turn_id": turn_id, "outcome": "report", "report": report}
 
         kind = answer.get("kind")
@@ -130,7 +170,10 @@ class TurnLoop:
             escalation = {**answer, "run_id": run_id, "turn_id": turn_id,
                           "met_s": bundle["met_s"], "utc": bundle["utc"],
                           "plan_id": plan_id, "agent_input_hash": bundle_hash}
-            _http_json("POST", f"{self.baldur_url}/escalation", escalation, transport=self.transport)
+            status, _ = _http_json("POST", f"{self.baldur_url}/escalation", escalation,
+                                   transport=self.transport)
+            if status >= 400:
+                return self._service_error(turn_id, "baldur/escalation", status)
             return {"turn_id": turn_id, "outcome": "escalation", "escalation": escalation}
         # kind == command: fill loop-owned fields, sign, send one request.
         request = build_signed_request(
@@ -138,13 +181,27 @@ class TurnLoop:
             rationale=answer.get("rationale"), run_id=run_id, turn_id=turn_id,
             plan_id=plan_id, met_s=bundle["met_s"], utc=bundle["utc"],
             agent_input_hash=bundle_hash, private_key_path=self.private_key_path)
-        _http_json("POST", f"{self.baldur_url}/request", request, transport=self.transport)
-        return {"turn_id": turn_id, "outcome": "request", "request": request}
+        status, body = _http_json("POST", f"{self.baldur_url}/request", request,
+                                  transport=self.transport)
+        if status >= 400:  # U30: ends the turn, no retry, never a crash
+            return self._service_error(turn_id, "baldur/request", status)
+        decision = json.loads(body) if body else {}
+        if decision.get("decision") == "REFUSE":
+            # U30: a 200 REFUSE is a normal outcome; nothing more is sent.
+            return {"turn_id": turn_id, "outcome": "refused", "request": request,
+                    "decision": decision, "cut_off": bool(result.get("cut_off"))}
+        return {"turn_id": turn_id, "outcome": "request", "request": request,
+                "decision": decision, "cut_off": bool(result.get("cut_off"))}
 
     def run(self, max_turns=1000) -> list:
         results = []
         for _ in range(max_turns):
-            _, body = _http_json("GET", f"{self.harness_url}/turn/next", timeout=30, transport=self.transport)
+            status, body = _http_json("GET", f"{self.harness_url}/turn/next", timeout=30,
+                                      transport=self.transport)
+            if status >= 400:
+                results.append(self._service_error(
+                    results[-1]["turn_id"] + 1 if results else 1, "harness/turn", status))
+                break
             if json.loads(body).get("run_complete"):
                 break
             results.append(self.run_turn(body))
