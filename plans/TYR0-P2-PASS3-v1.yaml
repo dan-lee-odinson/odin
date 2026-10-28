@@ -63,3 +63,7 @@ references:
     sha256: sha256:d6c934ff1193f9a7ca1ec443a68918f6edb65e525422dd0796fdefcffaabd87d
   - name: "HUGINN console card of 11 October 2026, as flown"
     sha256: sha256:c063de2c646ddc41ed751df8413cf052beb5b52ac10819b9c8f1e348e7ecb083
+  - name: "HUGINN command and telemetry dictionary v0.5 (HUGINN b4dbe61)"
+    sha256: sha256:985105875e6e41c4896cd635efbd15fe037349da228027261cc7ce059c930648
+  - name: "BALDUR-0's command classes, generated from its class configuration"
+    sha256: sha256:a913461086c4ce337991be25dfde3c5915c0adef0643fee1fd5ec3732caafc61

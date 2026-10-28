@@ -5,10 +5,12 @@ PASS-3 flew on; the console card of 27 October nowhere in the repository; each p
 contact window one of those the U35 tests use, every procedure it names placed, and every other hash it
 lists either a file here or an all-zero placeholder still to fill; contact A's telemetry frozen; and the
 six acts as section 3 lists them. The plans and acts are unsigned until the Director signs them after
-phase 1."""
+phase 1. By his ruling of 28 October, HUGINN's dictionary v0.5 is here byte for byte, and every plan lists
+it, then BALDUR-0's generated class table, as its last two references."""
 
 import hashlib
 import re
+import subprocess
 
 import pytest
 import yaml
@@ -18,6 +20,7 @@ from gateway.plans import _consistency, _protective_restrictions
 from gateway.signed import load_yaml
 from tests.huginn_scenarios import FLOWN
 from tests.repo_checks import REPO_ROOT, iter_files
+from tools.class_table import FROZEN as CLASS_TABLE
 from tools.contact_a_telemetry import FROZEN, generate
 from tools.identity_scan import scan
 
@@ -26,6 +29,7 @@ PLANS = sorted((REPO_ROOT / "plans").glob("*.yaml"))
 ACTS = sorted((REPO_ROOT / "acts").glob("*.yaml"))
 ZEROS = "sha256:" + "0" * 64
 CARD_OF_27_OCTOBER = "sha256:bb6dd70e260792651a6c2e9c5c240e2bad7d53d6ba949064c45c6d0dd039fd8e"
+DICTIONARY = "sha256:985105875e6e41c4896cd635efbd15fe037349da228027261cc7ce059c930648"   # v0.5 at b4dbe61
 LABEL_ROW = re.compile(r"^\| `([^`]+)` \| ([^|]+) \| ([^|]+) \| `(sha256:[0-9a-f]{64})` \|$", re.MULTILINE)
 VERSION_LINE = re.compile(r"^Procedures version: (\S+) ", re.MULTILINE)
 # D-017 rulings 2 and 3, the red-line of PROC-002-S02 made before PASS-3: a load alarm goes to S03.
@@ -149,6 +153,20 @@ def test_contact_a_is_frozen_and_listed_by_pass_2b():
     [reference] = [r for r in plan(REPO_ROOT / "plans" / "TYR0-P2-PASS2B-v1.yaml")["references"]
                    if r["name"].startswith("Contact A telemetry")]
     assert reference["sha256"] == digest(frozen)
+
+
+def test_the_dictionary_is_huginns_v0_5_at_b4dbe61_byte_for_byte():
+    copy = (INPUTS / "dictionary" / "tlm_cmd_dictionary_v0.5.md").read_bytes()
+    pinned = subprocess.run(["git", "-C", str(REPO_ROOT / "deps" / "huginn"), "show", "b4dbe61:docs/tlm_cmd_dictionary.md"],
+                            capture_output=True, check=True).stdout
+    assert copy == pinned and digest(copy) == DICTIONARY
+
+
+@pytest.mark.parametrize("path", PLANS, ids=lambda p: p.stem)
+def test_each_plan_ends_its_references_with_the_dictionary_and_baldur0s_class_table(path):
+    assert [(r["name"], r["sha256"]) for r in plan(path)["references"][-2:]] == [
+        ("HUGINN command and telemetry dictionary v0.5 (HUGINN b4dbe61)", DICTIONARY),
+        ("BALDUR-0's command classes, generated from its class configuration", digest(CLASS_TABLE.read_bytes()))]
 
 
 # -- the arming acts ---------------------------------------------------------------------------------------

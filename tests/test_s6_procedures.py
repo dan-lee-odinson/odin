@@ -50,8 +50,12 @@ def test_every_pass_carries_the_frozen_cosmos_reference_and_its_own_inputs(libra
     reference = (REPO_ROOT / REFERENCE).read_bytes()
     assert digest(reference) == "sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f"
     assert all(attached[0]["text"].encode("utf-8") == reference for attached in by_stem.values())
-    assert [a["text"].encode("utf-8") for a in by_stem["TYR0-P2-PASS2B-v1"][1:]] == [(REPO_ROOT / CONTACT_A).read_bytes()]
-    assert [len(by_stem[p.stem]) for p in PLANS] == [1, 1, 2, 3, 3]   # PASS-3 and 4: their pass plan and the card
+    assert [a["text"].encode("utf-8") for a in by_stem["TYR0-P2-PASS2B-v1"][1:2]] == [(REPO_ROOT / CONTACT_A).read_bytes()]
+    # Every pass: the reference, then its own inputs, then the dictionary and BALDUR-0's class table.
+    assert [len(by_stem[p.stem]) for p in PLANS] == [3, 3, 4, 5, 5]
+    assert all([a["name"] for a in attached[-2:]] == ["HUGINN command and telemetry dictionary v0.5 (HUGINN b4dbe61)",
+                                                       "BALDUR-0's command classes, generated from its class configuration"]
+               for attached in by_stem.values())
 
 
 def test_red_a_placeholder_is_not_attached(library):

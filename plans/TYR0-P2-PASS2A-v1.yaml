@@ -59,3 +59,7 @@ references:
     sha256: sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f
   - name: "ODIN's phase-1 console notes (frozen after phase 1)"
     sha256: sha256:0000000000000000000000000000000000000000000000000000000000000000
+  - name: "HUGINN command and telemetry dictionary v0.5 (HUGINN b4dbe61)"
+    sha256: sha256:985105875e6e41c4896cd635efbd15fe037349da228027261cc7ce059c930648
+  - name: "BALDUR-0's command classes, generated from its class configuration"
+    sha256: sha256:a913461086c4ce337991be25dfde3c5915c0adef0643fee1fd5ec3732caafc61

@@ -2,9 +2,10 @@
 
 Placed 27 October 2026 by the Director's rulings of that day, section 4, each copied byte for byte from
 the source named and scanned first for private identity details (`tools/identity_scan.py`), which found
-none. ODIN sees these through its turn bundles: the procedures as the plans in force name them, and the
-pass plans and the console card as the plans' references list them. A file's date is the date of the
-record, or of the commit that last changed it at the source.
+none. HUGINN's command and telemetry dictionary was added on 28 October 2026 by the Director's ruling of
+that day. ODIN sees these through its turn bundles: the procedures as the plans in force name them, and
+the pass plans, the console card and the dictionary as the plans' references list them. A file's date is
+the date of the record, or of the commit that last changed it at the source.
 
 | File | Dated | Source | SHA-256 |
 |---|---|---|---|
@@ -19,6 +20,7 @@ record, or of the commit that last changed it at the source.
 | `procedures/v0.3/PROC-003.md` | 2026-10-11 | HUGINN e75569f, procedures/PROC-003.md | `sha256:5f8f776aec2c7a3082e99097d428607c5b4b84204b8a062cb367cbd8433caeab` |
 | `pass-plans/2026-10-11-P3_pass_plan.md` | 2026-10-11 | HUGINN e75569f, docs/pass_reports/2026-10-11-P3/pass_plan.md | `sha256:d6c934ff1193f9a7ca1ec443a68918f6edb65e525422dd0796fdefcffaabd87d` |
 | `pass-plans/2026-10-11-P4_pass_plan.md` | 2026-10-11 | HUGINN e75569f, docs/pass_reports/2026-10-11-P4/pass_plan.md | `sha256:fd915c96e9dde5428d3d7720f736284f553d60963ac2d2a1ffebd99db6eacbdf` |
+| `dictionary/tlm_cmd_dictionary_v0.5.md` | 2026-07-29 | pre-existing: HUGINN dictionary v0.5 of 29 July 2026, HUGINN b4dbe61, docs/tlm_cmd_dictionary.md | `sha256:985105875e6e41c4896cd635efbd15fe037349da228027261cc7ce059c930648` |
 | `console-card/HUGINN_CONSOLE_CARD_2026-10-11.html` | 2026-10-11 | the Director's kept copy, ODIN\console-card\ | `sha256:c063de2c646ddc41ed751df8413cf052beb5b52ac10819b9c8f1e348e7ecb083` |
 
 Procedures v0.1 and v0.2 come from the Director's private HUGINN repository, by his ruling of 27 October
