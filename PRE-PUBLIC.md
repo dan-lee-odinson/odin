@@ -1,0 +1,13 @@
+# Before the repository goes public
+
+The list S10 works from (00_HANDOFF.md §4, S10, Monday 2 November 2026). Claude Code keeps it and adds each
+item the Director names, the day he names it. At S10 every item is settled in the README or the pre-public
+report; the Director reads the report and switches the repository public himself.
+
+| # | Item | Raised | What settles it | Status |
+|---|---|---|---|---|
+| 1 | **A secrets scan of the whole history**, every commit and every deposit zip, not only the working tree | 00_HANDOFF.md, S10 | The scan's result in the pre-public report | Open |
+| 2 | **Any NASA insignia or third-party images**, each with its source and terms | 00_HANDOFF.md, S10 | A list in the pre-public report, empty or with source and terms for each | Open |
+| 3 | **OpenC3's material.** `odin/study/cosmos_reference.md` (frozen at `sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f`, MC-M4-01) and the `odin/study/LICENSE.md` beside it are OpenC3's material, under the OpenC3 Builder's License, outside the repository's own license. Both stay byte for byte. The license names OpenC3's public contact address, which the identity scan flags; it is not a private detail | The Director, 27 October 2026 | The README names both files as OpenC3's material under the OpenC3 Builder's License, outside the repository's license | Open |
+| 4 | **Material that is not public today.** `inputs-pre-existing/comparison-only/LEARNING_LOG.md`, from the Director's local huginn-ops-evidence folder, which is not on GitHub, and procedures v0.1 and v0.2 in `inputs-pre-existing/procedures/`, from his private HUGINN history (`5b49075`, `552231e`), become public with the repository | Raised when they were placed, 27 October 2026; the Director, 27 October 2026 | The Director's ruling, before 2 November | Waiting for the Director's ruling |
+| 5 | **A fresh clone passes its tests.** Muse Code's `odin/tests/test_m4_study.py::test_repository_contains_no_docs` checks `cache/cosmos-docs-7.2.1/`, which git ignores, so a clone without the cache fails it | The Director, 27 October 2026 | Either the README's reproduction steps build the cache first (`odin/study/fetch_docs.py`), or Muse Code's test skips when there is no cache; the Director is asking Muse Code for the second. At S10, run the tests in a fresh clone without the cache to show it | Open: Muse Code's change asked for |
