@@ -9,7 +9,7 @@
     "record_id": {"type": "integer", "minimum": 1},
     "utc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}(Z|\\+00:00)$"},
     "met_s": {"$ref": "#/definitions/met_s"},
-    "type": {"enum": ["TRUE_STATE", "FAULT_ONSET", "SCRIPTED_COMMAND_DROPPED"]},
+    "type": {"enum": ["TRUE_STATE", "FAULT_ONSET", "SCRIPTED_COMMAND_DROPPED", "COSMOS_PACKET"]},
     "body": {"type": "object"},
     "prev_hash": {"anyOf": [{"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, {"type": "null"}]}
   },
@@ -19,9 +19,27 @@
     {"if": {"properties": {"type": {"const": "FAULT_ONSET"}}},
      "then": {"properties": {"body": {"$ref": "#/definitions/fault_onset"}}}},
     {"if": {"properties": {"type": {"const": "SCRIPTED_COMMAND_DROPPED"}}},
-     "then": {"properties": {"body": {"$ref": "#/definitions/scripted_command_dropped"}}}}
+     "then": {"properties": {"body": {"$ref": "#/definitions/scripted_command_dropped"}}}},
+    {"if": {"properties": {"type": {"const": "COSMOS_PACKET"}}},
+     "then": {"properties": {"body": {"$ref": "#/definitions/cosmos_packet"}}}}
   ],
   "definitions": {
+    "cosmos_packet": {
+      "description": "Phase 1's truth: each INST HEALTH_STATUS packet the harness read from COSMOS, as COSMOS decommutated it, with its time and COSMOS's count, so S8 checks ODIN's answers against COSMOS at the time it gives (the Director's ruling on U58 and his scoring ruling of 28 October 2026). COSMOS's demo spacecraft simulates itself, so phase 1 has no TRUE_STATE.",
+      "type": "object",
+      "required": ["target", "packet", "received_count", "packet_utc", "received_utc", "items"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {"type": "string"},
+        "packet": {"type": "string"},
+        "received_count": {"type": "integer", "minimum": 1},
+        "packet_utc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"},
+        "received_utc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"},
+        "items": {"type": "object", "additionalProperties": {
+          "type": "object", "required": ["value", "limits_state"], "additionalProperties": false,
+          "properties": {"value": {"type": ["number", "string"]}, "limits_state": {"type": ["string", "null"]}}}}
+      }
+    },
     "met_s": {"description": "HUGINN's mission elapsed time, in seconds.", "type": "number", "minimum": 0},
     "true_state": {
       "description": "The model's state after the tick, read from HUGINN's spacecraft.",

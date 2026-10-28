@@ -193,3 +193,24 @@ def test_red_a_dictionary_whose_file_differs_from_the_registry_is_refused(tmp_pa
     monkeypatch.setattr(dictionaries, "ROOT", tmp_path)
     with pytest.raises(ValueError, match="not the sha256"):
         dictionaries.load(entry)
+
+
+# -- the phase-1 plan and ARM-PH1 ---------------------------------------------------------------------------
+
+PHASE_1_PLAN = REPO_ROOT / "plans" / "TYR0-PH1-SHAKEDOWN-v1.yaml"
+
+
+def test_the_phase_1_plan_is_well_formed_and_flies_insts_dictionary():
+    document = yaml.safe_load(PHASE_1_PLAN.read_text(encoding="utf-8"))
+    assert check("tyr0_plan", document) == [] and _consistency(document) == [] and _protective_restrictions(document) == []
+    assert dictionaries.for_plan(document).name == "INST"
+    assert (document["prohibited"], document["envelope"], document["leases"]) == ([], [], [])
+    assert document["contact_window"] == {"aos_met_s": document["valid_from_met_s"], "los_met_s": document["valid_until_met_s"]}
+    here = {inst_dictionary.sha256(p.read_bytes()) for p in (REPO_ROOT / "plans").glob("*.md")} | {
+        inst_dictionary.sha256((REPO_ROOT / "odin" / "study" / "cosmos_reference.md").read_bytes())}
+    assert {r["sha256"] for r in document["references"]} <= here
+
+
+def test_arm_ph1_lists_the_phase_1_plan_by_its_hash():
+    act = yaml.safe_load((REPO_ROOT / "acts" / "ARM-PH1.yaml").read_text(encoding="utf-8"))
+    assert act["plan_chain_hashes"] == [inst_dictionary.sha256(PHASE_1_PLAN.read_bytes())]

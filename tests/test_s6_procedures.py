@@ -12,7 +12,7 @@ from gateway.signed import load_yaml
 from harness.procedures import PLACEHOLDER, MissingProcedure, ProcedureLibrary
 from tests.repo_checks import REPO_ROOT
 
-PLANS = sorted((REPO_ROOT / "plans").glob("*.yaml"))
+PLANS = sorted((REPO_ROOT / "plans").glob("TYR0-P2-*.yaml"))   # phase 2's; phase 1's waits on its procedure (U43)
 CONTACT_A = "plans/TYR0-P2-PASS2B-v1.contact-a-telemetry.csv"
 REFERENCE = "odin/study/cosmos_reference.md"   # ODIN's frozen COSMOS reference, from Muse Code's M4 deposit
 

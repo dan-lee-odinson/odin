@@ -14,7 +14,7 @@ import urllib.error
 
 import pytest
 
-from connector.api import CosmosApi, CosmosError, send_method, utc_of
+from connector.api import CosmosApi, CosmosError, decoded, send_method, utc_of
 from contract.validate import check
 from eval.results import score_run, summarize
 from harness import run as harness_run
@@ -64,6 +64,12 @@ def test_cosmos_marks_hazardous_the_same_commands_as_the_dictionary():
     assert marked == HAZARDOUS
 
 
+def test_a_float_cosmos_json_cannot_carry_is_kept_as_its_text():
+    assert [decoded({"json_class": "Float", "raw": raw}) for raw in ("Infinity", "-Infinity", "NaN")] == [
+        "Infinity", "-Infinity", "NaN"]
+    assert decoded(1.5) == 1.5 and decoded("ON") == "ON"
+
+
 def test_received_time_is_written_as_section_4s_utc():
     assert utc_of(86400 + 3661.2509) == "1970-01-02T01:01:01.250Z"
 
@@ -90,7 +96,8 @@ def test_parameters_go_by_cosmos_names(cosmos):
 
 def test_before_any_packet_cosmos_shows_no_frame(cosmos):
     _, api, _ = cosmos
-    assert api.packet() == {"frame": None, "received_count": 0, "received_utc": None}
+    assert api.packet() == {"frame": None, "limits": None, "received_count": 0, "received_utc": None,
+                            "packet_utc": None}
     assert api.ground_link() == {"state": "ATTEMPTING", "received_count": 0}
 
 
@@ -178,7 +185,7 @@ def test_odin_sees_cosmos_view_with_the_ground_link(flown):
 def test_the_ground_seat_receives_the_frames_the_spacecraft_sent_with_cosmos_values(flown):
     run, _, _ = flown
     onboard = {f["CDH_MET"]: f for f in run.simulator.tap.history()}
-    ground = [frame for frame, _ in run.store._frames]
+    ground = run.store.frames()
     assert ground and all(frame == onboard[frame["CDH_MET"]] for frame in ground)
     assert [f["CDH_MET"] for f in ground] == sorted({f["CDH_MET"] for f in ground})
     assert all(800 <= f["CDH_MET"] < 900 for f in ground)

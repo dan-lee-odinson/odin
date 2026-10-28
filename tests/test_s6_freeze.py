@@ -23,7 +23,7 @@ SCHEMA_HASHES = {
     "contract/schemas/report_body.schema.json": "sha256:f77c34533d5c5dc4363ce89bf5515930b2503ae78f6007c4834bb84dd811f6c3",
     "contract/schemas/report.schema.json": "sha256:47f5d96a217ea1c710a086aef7a7d015691041151e198ad17685c0600dbde1ec",
     "contract/schemas/turn_bundle.schema.json": "sha256:5fd78e3c8863f185226662d1b39b2da90b1b059d99a9abb28cb7220d2db5cc62",
-    "contract/schemas/observation.schema.json": "sha256:bd27aa5ea1e8ef4472e3001f602c623f02e8a7f1bbcac966be8e0e99dc125b45",
+    "contract/schemas/observation.schema.json": "sha256:922da49688278ad0db9c3376b0006e21f993513dd355bfac5dc4926373cbfabf",
     "contract/schemas/common.schema.json": "sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378716eb9dc",
 }
 # Each model's block as the Director ruled it on 27 October 2026 (config/models.yaml at 9aa39d8).

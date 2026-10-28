@@ -42,13 +42,14 @@ def _one(query, name):
     return values[0]
 
 
-def history_arguments(query):
+def history_arguments(query, known=tuple(POINTS)):
     """{points, window_s} from GET /history's query, points comma-separated (the Director's ruling on
-    U19), window_s a whole number of seconds from 1 to 3,600 (§16.5)."""
+    U19), window_s a whole number of seconds from 1 to 3,600 (§16.5). known: the points of the dictionary in
+    force, HUGINN's 16 by default and INST's in phase 1 (U58)."""
     names = [name for name in _one(query, "points").split(",") if name]
-    unknown = [name for name in names if name not in POINTS]
+    unknown = [name for name in names if name not in known]
     window = _one(query, "window_s")
-    problems = [f"points: {name} is not one of HUGINN's 16 points" for name in unknown]
+    problems = [f"points: {name} is not one of the dictionary in force's points" for name in unknown]
     if not names:
         problems.append("points: name at least one point")
     if not window.isdigit() or not 1 <= int(window) <= MAX_WINDOW_S:
@@ -74,7 +75,7 @@ def make_server(run, address=None):
                 elif url.path == "/docs/lookup":
                     self._reply(200, run.docs_lookup(_one(query, "q")))
                 elif url.path == "/history":
-                    self._reply(200, run.history(**history_arguments(query)))
+                    self._reply(200, run.history(**history_arguments(query, run.store.view.names)))
                 else:
                     raise Refused(404, [f"no endpoint GET {url.path}; the harness serves /turn/next, "
                                         f"/docs/lookup and /history"])

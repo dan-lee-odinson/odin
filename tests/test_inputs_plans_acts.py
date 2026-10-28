@@ -25,7 +25,7 @@ from tools.contact_a_telemetry import FROZEN, generate
 from tools.identity_scan import scan
 
 INPUTS = REPO_ROOT / "inputs-pre-existing"
-PLANS = sorted((REPO_ROOT / "plans").glob("*.yaml"))
+PLANS = sorted((REPO_ROOT / "plans").glob("TYR0-P2-*.yaml"))   # phase 2's; phase 1's is tests/test_s7_dictionary.py's
 ACTS = sorted((REPO_ROOT / "acts").glob("*.yaml"))
 ZEROS = "sha256:" + "0" * 64
 CARD_OF_27_OCTOBER = "sha256:bb6dd70e260792651a6c2e9c5c240e2bad7d53d6ba949064c45c6d0dd039fd8e"

@@ -73,7 +73,7 @@ def main():
     check("ODIN saw COSMOS's view with the ground link CONNECTED",
           bool(seen) and {o["source"] for o in seen} == {"COSMOS"} and states == {"CONNECTED"}, states)
     onboard = {f["CDH_MET"]: f for f in run.simulator.tap.history()}
-    ground = [frame for frame, _ in run.store._frames]
+    ground = run.store.frames()
     check("the ground seat's frames carry the values the spacecraft sent",
           bool(ground) and all(frame == onboard[frame["CDH_MET"]] for frame in ground),
           f"{len(ground)} frames from COSMOS, {len(onboard)} generated")

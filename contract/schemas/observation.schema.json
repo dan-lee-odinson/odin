@@ -56,7 +56,7 @@
     },
     "limit_state": {
       "description": "A point's limit state (§16.2 U7). Points with numeric thresholds in the dictionary use GREEN, YELLOW_LOW, YELLOW_HIGH, RED_LOW and RED_HIGH, by COSMOS's rule; EPS_MODE is RED in its annunciating state and GREEN otherwise; every other point is NONE. Each point below allows only the states its dictionary limits can produce. Staleness is reported separately, in staleness_state.",
-      "enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "RED", "NONE"]
+      "enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "RED", "NONE", "GREEN_LOW", "GREEN_HIGH", "BLUE", "YELLOW"]
     },
     "points": {
       "type": "object",
@@ -120,15 +120,15 @@
         "COLLECTS": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
           "properties": {"value": {"type": "integer", "minimum": 0, "maximum": 65535}, "units": {"type": "null"}, "limit_state": {"enum": [null, "STALE"]}}},
         "TEMP1": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
-          "properties": {"value": {"type": "number"}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "GREEN_LOW", "GREEN_HIGH", "BLUE", "STALE"]}}},
+          "properties": {"value": {"anyOf": [{"type": "number"}, {"enum": ["Infinity", "-Infinity", "NaN"]}]}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "GREEN_LOW", "GREEN_HIGH", "BLUE", "STALE"]}}},
         "TEMP2": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
-          "properties": {"value": {"type": "number"}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "STALE"]}}},
+          "properties": {"value": {"anyOf": [{"type": "number"}, {"enum": ["Infinity", "-Infinity", "NaN"]}]}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "STALE"]}}},
         "TEMP3": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
-          "properties": {"value": {"type": "number"}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "STALE"]}}},
+          "properties": {"value": {"anyOf": [{"type": "number"}, {"enum": ["Infinity", "-Infinity", "NaN"]}]}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "STALE"]}}},
         "TEMP4": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
-          "properties": {"value": {"type": "number"}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "STALE"]}}},
+          "properties": {"value": {"anyOf": [{"type": "number"}, {"enum": ["Infinity", "-Infinity", "NaN"]}]}, "units": {"const": "C"}, "limit_state": {"enum": ["GREEN", "YELLOW_LOW", "YELLOW_HIGH", "RED_LOW", "RED_HIGH", "STALE"]}}},
         "DURATION": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
-          "properties": {"value": {"type": "number"}, "units": {"type": "null"}, "limit_state": {"enum": [null, "STALE"]}}},
+          "properties": {"value": {"anyOf": [{"type": "number"}, {"enum": ["Infinity", "-Infinity", "NaN"]}]}, "units": {"type": "null"}, "limit_state": {"enum": [null, "STALE"]}}},
         "COLLECT_TYPE": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,
           "properties": {"value": {"enum": ["NORMAL", "SPECIAL", "ERROR"]}, "units": {"type": "null"}, "limit_state": {"enum": [null, "STALE"]}}},
         "GROUND1STATUS": {"type": "object", "required": ["value", "units", "limit_state"], "additionalProperties": false,

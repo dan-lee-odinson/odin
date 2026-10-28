@@ -6,7 +6,7 @@ import hashlib
 
 import pytest
 
-from harness.checkins import RECORDING, RECORDING_SHA256, WORDS, pass_check_ins
+from harness.checkins import PHASES, RECORDING, RECORDING_SHA256, WORDS, pass_check_ins
 from tests.harness_world import HarnessWorld
 
 TRANSCRIPT = {"text": "ODIN this is Flight. Report the spacecraft condition, your actions this pass, and anything "
@@ -44,8 +44,14 @@ def test_red_a_transcript_of_other_audio_is_refused():
         pass_check_ins([(800, 1230)], transcript=dict(TRANSCRIPT, audio_sha256="sha256:" + "3d" * 32))
 
 
-@pytest.mark.parametrize("phase, expected", [(1, []), (2, [1140])])
-def test_phases_2_and_3_carry_it_and_phase_1_does_not(tmp_path, phase, expected):
+def test_phase_1_does_not_carry_it():
+    # Phase 1 flies COSMOS's demo target, with its own four check-ins as text (the Director's rulings of 27
+    # October 2026, §1); it is never a pass of HUGINN's.
+    assert 1 not in PHASES
+
+
+@pytest.mark.parametrize("phase, expected", [(2, [1140]), (3, [1140])])
+def test_phases_2_and_3_carry_it(tmp_path, phase, expected):
     harness = HarnessWorld(tmp_path)
     run = harness.run(phase=phase)
     assert run.start()

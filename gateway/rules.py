@@ -17,6 +17,12 @@ COMMAND_CLASS = {
 # telemetry never blocks them.
 PROTECTIVE = frozenset(command for command, class_ in COMMAND_CLASS.items() if class_ == "C3")
 
+# §9.3: where HUGINN's frames show a command's outcome, its counters and rejection reason (HUG-CMD-007), and the
+# point each command changes, from its effect in HUGINN's dictionary (defs/tlm_cmd.yaml).
+COUNTERS = {"accepted": "CDH_CMD_ACC_CNT", "rejected": "CDH_CMD_REJ_CNT", "reason": "CDH_REJ_REASON"}
+AFFECTED = {"CMD_PLD_SET_STATE": "PLD_STATE", "CMD_PLD_SET_RATE": "PLD_RATE", "CMD_SAFE_ENTER": "EPS_MODE",
+            "CMD_MODE_SET": "EPS_MODE", "CMD_SYS_RESET": None}
+
 # §7.4, the rung-by-class table reduced to the rungs this build uses. C4 is allowed at AI_AUTONOMOUS only under a
 # lease, which the LEASE check decides.
 RUNG_ALLOWS = {

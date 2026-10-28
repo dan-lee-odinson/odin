@@ -6,7 +6,8 @@ ODIN_COSMOS_* user environment variables and is never shown. The harness holds i
 (U38).
 
 Telemetry is HUGINN's housekeeping packet as COSMOS decommutated it, its 16 points with COSMOS's received
-time and count. Commands go out only through send(), which the harness gives BALDUR-0 as its COSMOS route, so
+time and count; in phase 1, the demo target's INST HEALTH_STATUS, its ten items with COSMOS's own limit states
+(the Director's ruling on U58, 28 October 2026; inst()). Commands go out only through send(), which the harness gives BALDUR-0 as its COSMOS route, so
 only a command BALDUR-0 allowed and rechecked reaches it. A command HUGINN's dictionary marks hazardous goes
 through COSMOS's no-hazardous-check send, as §9.3 requires; COSMOS would refuse it through the ordinary one.
 Every other command goes through the ordinary send.
@@ -34,17 +35,30 @@ def utc_of(seconds):
     return moment.strftime("%Y-%m-%dT%H:%M:%S.") + f"{moment.microsecond // 1000:03d}Z"
 
 
+def decoded(value):
+    """A value as COSMOS's JSON gives it. A float JSON cannot carry, as the demo's TEMP2 is at times, comes as
+    {json_class: Float, raw: Infinity, -Infinity or NaN}, and is kept as that text, since no record in this
+    build can carry it as a number (found in S7's live check, 28 October 2026)."""
+    if isinstance(value, dict) and value.get("json_class") == "Float":
+        return value["raw"]
+    return value
+
+
 def send_method(command):
     """cmd_no_hazardous_check for a command HUGINN's dictionary marks hazardous, cmd for any other."""
     return "cmd_no_hazardous_check" if COMMANDS[command]["hazardous"] else "cmd"
 
 
 class CosmosApi:
-    def __init__(self, url=API_URL, password=None, timeout_s=5):
-        """password: COSMOS's service password; by default from the ODIN_COSMOS_* variables."""
+    def __init__(self, url=API_URL, password=None, timeout_s=5, *, target=TARGET, packet=PACKET, interface=INTERFACE,
+                 points=tuple(POINTS), hazardous=send_method):
+        """password: COSMOS's service password; by default from the ODIN_COSMOS_* variables. target, packet,
+        interface and points: what the seat reads, HUGINN's by default. hazardous: the send a command goes by."""
         self.url = url
         self._password = password if password is not None else credentials()["OPENC3_SERVICE_PASSWORD"]
         self.timeout_s = timeout_s
+        self.target, self.packet_name, self.interface, self.points = target, packet, interface, tuple(points)
+        self._send_method = hazardous
 
     def call(self, method, *params, **keywords):
         body = json.dumps({"jsonrpc": "2.0", "method": method, "params": list(params), "id": next(_ids),
@@ -58,21 +72,39 @@ class CosmosApi:
         return answer["result"]
 
     def packet(self):
-        """HUGINN's newest housekeeping packet as COSMOS holds it: {frame, received_count, received_utc}, the
-        frame being the 16 points in the dictionary's order with COSMOS's converted values. received_count is
-        COSMOS's count of the packet since it started, 0 before the first."""
-        items = {name: value for name, value, *_ in self.call("get_tlm_packet", TARGET, PACKET)}
+        """The newest packet as COSMOS holds it: {frame, limits, received_count, received_utc, packet_utc}, the
+        frame being the points in the dictionary's order with COSMOS's converted values, and limits COSMOS's
+        own limit state for each. received_count is COSMOS's count of the packet since it started, 0 before
+        the first."""
+        rows = self.call("get_tlm_packet", self.target, self.packet_name)
+        items = {name: decoded(value) for name, value, *_ in rows}
+        limits = {name: rest[0] if rest else None for name, _, *rest in rows}
         count = items.get("RECEIVED_COUNT") or 0
-        return {"frame": {name: items[name] for name in POINTS} if count else None, "received_count": count,
-                "received_utc": utc_of(items["RECEIVED_TIMESECONDS"]) if count else None}
+        return {"frame": {name: items[name] for name in self.points} if count else None,
+                "limits": {name: limits[name] for name in self.points} if count else None,
+                "received_count": count,
+                "received_utc": utc_of(items["RECEIVED_TIMESECONDS"]) if count else None,
+                "packet_utc": utc_of(items["PACKET_TIMESECONDS"]) if count and items.get("PACKET_TIMESECONDS") else None}
 
     def ground_link(self):
-        """HUGINN_INT's {state, received_count} as COSMOS reports them (the observation's ground_link)."""
-        interface = self.call("get_interface", INTERFACE)
+        """The seat's interface's {state, received_count} as COSMOS reports them (the observation's ground_link):
+        HUGINN_INT, or in phase 1 the demo's own INST_INT."""
+        interface = self.call("get_interface", self.interface)
         return {"state": interface["state"], "received_count": interface["rxcnt"]}
 
     def send(self, command, parameters):
         """Send one command BALDUR-0 allowed. Returns the send used."""
-        method = send_method(command)
-        self.call(method, TARGET, command, {name.upper(): value for name, value in parameters.items()})
+        method = self._send_method(command)
+        self.call(method, self.target, command, {name.upper(): value for name, value in parameters.items()})
         return method
+
+
+def inst(dictionary, **options):
+    """The connector for phase 1: COSMOS's demo target, INST HEALTH_STATUS, the items of phase 1's dictionary,
+    and the demo's own interface, INST_INT. None of its commands is hazardous in COSMOS (§1 of the Director's
+    rulings of 27 October 2026), so each goes by the ordinary send."""
+    group = dictionary["telemetry_groups"][0]
+    hazardous = {command["mnemonic"]: command["hazardous"] for command in dictionary["commands"]}
+    return CosmosApi(target="INST", packet=group["name"], interface="INST_INT",
+                     points=[point["mnemonic"] for point in group["points"]],
+                     hazardous=lambda command: "cmd_no_hazardous_check" if hazardous[command] else "cmd", **options)

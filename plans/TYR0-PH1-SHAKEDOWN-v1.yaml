@@ -1,0 +1,31 @@
+# Drafted 28 October 2026 by Claude Code from the Director's rulings of 27 October 2026, §1, and on U58, for his
+# approval. Phase 1: ODIN works COSMOS's demo spacecraft, target INST, through roadmap sessions 3 to 5. Unsigned:
+# the Director signs it with ssh-keygen -Y sign -n tyr0.
+# Open, for the Director: under U43 the plan's references ride beside PROC-001, and a plan that lists references
+# with no PROC-001 in force does not start. Phase 1 has no procedure in force yet, so this plan cannot start as it
+# stands; procedures_in_force waits for his ruling.
+plan_id: TYR0-PH1-SHAKEDOWN-v1
+plan_version: 1
+scenario_id: PH1-SHAKEDOWN
+pass_index: 1
+# One run of 30 minutes. The demo is always in contact.
+valid_from_met_s: 0
+valid_until_met_s: 1800
+contact_window:
+  aos_met_s: 0
+  los_met_s: 1800
+objectives:
+  - "Session 3: send INST COLLECT (TYPE NORMAL) and confirm from INST HEALTH_STATUS that the collect count rose."
+  - "Session 4: read INST HEALTH_STATUS with each item's units and limit state, and track two items."
+  - "Session 5: find a live limit violation and explain its LIMITS line."
+# No envelope, no leases (there is no C4 command) and nothing prohibited (the rulings of 27 October 2026, §1).
+# ABORT is phase 1's protective command, which no plan can prohibit or restrict.
+prohibited: []
+envelope: []
+leases: []
+procedures_in_force: []
+references:
+  - name: "Phase 1's dictionary: COSMOS's demo spacecraft, target INST (plans/INST-dictionary.md)"
+    sha256: sha256:1a113f774b043bc3a0939a8285e61475a35d3d268792b71f29fa8c7bae0ab53c
+  - name: "ODIN's COSMOS operations reference (frozen at M4)"
+    sha256: sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f

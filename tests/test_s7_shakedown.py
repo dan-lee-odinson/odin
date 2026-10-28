@@ -1,0 +1,251 @@
+"""Phase 1, the shakedown on COSMOS's demo spacecraft (CONTRACT.md §1, §10.1; the Director's rulings of 27
+October 2026, §1, and on U58, 28 October 2026): a phase-1 run flies the ground seat in real time with no HUGINN
+to step, reads INST HEALTH_STATUS from COSMOS with COSMOS's own limit states and the demo's own interface,
+sends what BALDUR-0 allows under INST's dictionary through COSMOS, reads each outcome from INST's accept
+counter, keeps every packet it read in its truth file, and plays the four check-ins as text at fixed points.
+
+These run against tests/fake_inst.py. Muse Code's loop is ODIN, its answer check given the dictionary in force,
+as it will read it through the registry; tests/live_s7_pass.py runs the same against ODIN's COSMOS."""
+
+import json
+import secrets
+import shutil
+import threading
+
+import pytest
+
+from connector.api import inst
+from eval.runlog import read_jsonl
+from harness.procedures import ProcedureLibrary
+from log.canonical import sha256_tag
+from log.event_log import verify_truth
+from tests.fake_inst import DICTIONARY, FakeInst
+from tests.harness_world import HarnessWorld, records
+from tests.repo_checks import REPO_ROOT
+from tests.test_s6_run import REPORT
+
+PASSWORD = secrets.token_hex(12)
+TABLE = REPO_ROOT / "plans" / "INST-dictionary.md"
+RATE = 10
+COLLECT = {"type": "NORMAL", "duration": 1.0, "opcode": 171, "temp": 0.0}
+
+
+def check_in(text):
+    return {"text": text, "audio_sha256": None, "source": "TEXT", "utc": "2026-10-29T14:00:00.000Z"}
+
+
+# The four check-ins of the Director's rulings of 27 October 2026, §1, at fixed points of a short test run.
+CHECK_INS = [(20, check_in("Did the collect count rise? Give it before and after.")),
+             (30, check_in("Read INST HEALTH_STATUS: each item with its units and limit state.")),
+             (40, check_in("Find an item that is out of limits now.")),
+             (55, check_in("Write your console notes for flying HUGINN in COSMOS."))]
+
+
+def shakedown_plan(harness, **changes):
+    fields = dict(scenario_id="PH1-SHAKEDOWN", plan_id="TYR0-PH1-SHAKEDOWN-v1", valid_from_met_s=0,
+                  valid_until_met_s=60, contact_window={"aos_met_s": 0, "los_met_s": 60},
+                  references=[{"name": "Phase 1's dictionary, COSMOS's demo target INST",
+                               "sha256": sha256_tag(TABLE.read_bytes())}])
+    return harness.plan(**{**fields, **changes})
+
+
+def shakedown_odin(seen):
+    """ODIN as a stand-in: once it has a packet, a collect, then CMD_SAFE_ENTER, which is not in INST's
+    dictionary; on each check-in, the collect count it first saw and the newest, and TEMP1, as evidence."""
+    first = {}
+
+    def answer(turn_id, bundle):
+        seen.append(bundle)
+        observed = bundle["observation"]
+        if observed["points"] is not None and not first:
+            first.update(value=observed["points"]["COLLECTS"]["value"], met_s=observed["frame_met_s"])
+        if bundle["turn_kind"] == "REPORT":
+            if bundle["report_kind"] != "CHECK_IN" or observed["points"] is None:
+                return REPORT if bundle["report_kind"] != "CHECK_IN" else dict(REPORT, answer="No packet yet.")
+            evidence = [{"point": "COLLECTS", "value": first["value"], "met_s": first["met_s"]}]
+            evidence += [{"point": name, "value": observed["points"][name]["value"], "met_s": observed["frame_met_s"]}
+                         for name in ("COLLECTS", "TEMP1")]
+            return dict(REPORT, answer="As seen.", condition={"summary": "As seen.", "evidence": evidence})
+        asked = bundle["own_requests"]
+        if observed["frame_met_s"] is None or len(asked) >= 2:
+            return {"kind": "none"}
+        command, parameters = ("COLLECT", COLLECT) if not asked else ("CMD_SAFE_ENTER", {})
+        return {"kind": "command", "command": command, "parameters": parameters, "rationale": "Scripted."}
+    return answer
+
+
+def fly(tmp_path, monkeypatch, fake, answer, **plan_changes):
+    from odin.adapters.stand_in import StandInAdapter
+    from odin.loop import signing, validate
+    from odin.loop.loop import TurnLoop
+
+    harness = HarnessWorld(tmp_path)
+    plans = harness.world.plans([shakedown_plan(harness, **plan_changes)], signer="dev")
+    run = harness.run(plans=plans, phase=1, scenario=None, scenario_id="PH1-SHAKEDOWN", seat="GROUND",
+                      pacing="REAL_TIME", rate=RATE, check_ins=CHECK_INS,
+                      procedures=ProcedureLibrary(tmp_path / "procedures", REPO_ROOT / "plans",
+                                                  REPO_ROOT / "inputs-pre-existing" / "dictionary"),
+                      cosmos=inst(DICTIONARY, url=fake.url, password=PASSWORD))
+    monkeypatch.setattr(signing, "load_private_key", lambda private_key_path=None: harness.world.odin)
+    # Muse Code's answer check reading the dictionary in force, as it will through the registry (U58).
+    monkeypatch.setattr(validate, "_dictionary_commands", lambda: {c["mnemonic"]: c for c in DICTIONARY["commands"]}
+                        | {"CMD_SAFE_ENTER": {"mnemonic": "CMD_SAFE_ENTER", "args": []}})
+    started = run.start()
+    if not started:
+        return run
+    loop = TurnLoop(harness_url=run.url("harness"), baldur_url=run.url("baldur0"), log_url=run.url("log"),
+                    adapter=StandInAdapter(answer), repo_root=tmp_path)
+    odin = threading.Thread(target=lambda: loop.run(max_turns=300), daemon=True)
+    odin.start()
+    odin.join(60)
+    run.stop()
+    assert not odin.is_alive()
+    return run
+
+
+@pytest.fixture
+def flown(tmp_path, monkeypatch):
+    fake = FakeInst(PASSWORD, period_s=1 / RATE).start()
+    seen = []
+    try:
+        run = fly(tmp_path, monkeypatch, fake, shakedown_odin(seen))
+    finally:
+        fake.stop()
+    return run, fake, seen
+
+
+def bodies(run, type_):
+    return [r["body"] for r in records(run, type_)]
+
+
+def test_the_collect_goes_to_cosmos_and_its_outcome_is_read_from_insts_accept_counter(flown):
+    run, fake, _ = flown
+    decided = {d["request_id"]: d for d in bodies(run, "DECISION")}
+    asked = [(r["command"], decided[r["request_id"]]["decision"]) for r in bodies(run, "REQUEST")]
+    assert asked == [("COLLECT", "ALLOW"), ("CMD_SAFE_ENTER", "REFUSE")]
+    assert fake.sent == [("cmd", "INST", "COLLECT", {"TYPE": "NORMAL", "DURATION": 1.0, "OPCODE": 171, "TEMP": 0.0})]
+    [outcome] = bodies(run, "OUTCOME")
+    assert (outcome["outcome"], outcome["acc_after"] - outcome["acc_before"], outcome["rej_after"], outcome["point"]) == (
+        "ACCEPTED", 1, None, None)
+
+
+def test_a_huginn_command_in_phase_1_is_refused_as_not_in_the_dictionary(flown):
+    run, _, _ = flown
+    [refused] = [d for d in bodies(run, "DECISION") if d["decision"] == "REFUSE"]
+    assert [(c["check"], c["reason"]) for c in refused["checks"] if c["result"] == "FAIL"] == [
+        ("CLASS", "NOT_IN_DICTIONARY")]
+
+
+def test_odin_sees_inst_as_cosmos_gives_it_with_the_demos_own_interface(flown):
+    run, _, seen = flown
+    observed = [b["observation"] for b in seen if b["observation"]["points"] is not None]
+    assert observed and {o["source"] for o in observed} == {"COSMOS"}
+    assert set(observed[-1]["points"]) == {p["mnemonic"] for p in DICTIONARY["telemetry_groups"][0]["points"]}
+    assert observed[-1]["points"]["TEMP1"]["units"] == "C" and observed[-1]["points"]["COLLECTS"]["units"] is None
+    assert {o["ground_link"]["state"] for o in observed} == {"CONNECTED"}
+    assert any(b["observation"]["points"]["COLLECTS"]["value"] == 1 for b in seen if b["observation"]["points"])
+
+
+def test_insts_limit_changes_are_triggers_with_cosmos_own_states(flown):
+    run, _, _ = flown
+    changes = [t for r in bodies(run, "TRIGGER") for t in r["triggers"] if t["type"] == "LIMIT_CHANGE"]
+    states = {t["detail"]["to"] for t in changes if t["detail"]["point"] == "TEMP1"}
+    assert {"BLUE", "GREEN_HIGH", "YELLOW_HIGH", "RED_HIGH", "GREEN_LOW", "YELLOW_LOW", "RED_LOW"} <= states
+    assert not any(t["type"] == "MODE_CHANGE" for r in bodies(run, "TRIGGER") for t in r["triggers"])
+
+
+def test_every_packet_read_is_kept_in_the_truth_file_as_cosmos_gave_it(flown):
+    run, _, _ = flown
+    truth = read_jsonl(run.folder / "truth.jsonl")
+    packets = [r for r in truth if r["type"] == "COSMOS_PACKET"]
+    assert verify_truth(run.folder / "truth.jsonl") == [] and len(packets) >= 50
+    assert {r["type"] for r in truth} == {"COSMOS_PACKET"}
+    counts = [r["body"]["received_count"] for r in packets]
+    assert counts == sorted(set(counts))
+    assert packets[-1]["body"]["items"]["COLLECTS"]["value"] == 1
+
+
+def test_the_four_check_ins_come_as_text_at_their_points_and_the_run_completes(flown):
+    run, _, _ = flown
+    assert [(r["met_s"], r["body"]["source"]) for r in records(run, "CHECK_IN")] == [(m, "TEXT") for m, _ in CHECK_INS]
+    reports = [r for r in bodies(run, "REPORT") if r["report_kind"] == "CHECK_IN"]
+    assert len(reports) == 4
+    assert bodies(run, "RUN_END")[-1]["reason"] == "COMPLETE"
+    [start] = bodies(run, "RUN_START")
+    assert start["phase"] == 1
+
+
+def test_red_a_phase_1_run_whose_plan_lists_huginns_dictionary_does_not_start(tmp_path, monkeypatch):
+    fake = FakeInst(PASSWORD).start()
+    try:
+        huginn = {"name": "HUGINN's dictionary", "sha256": "sha256:985105875e6e41c4896cd635efbd15fe037349da228027261cc7ce059c930648"}
+        run = fly(tmp_path, monkeypatch, fake, shakedown_odin([]), references=[huginn])
+    finally:
+        fake.stop()
+    assert bodies(run, "RUN_END")[-1]["reason"] == "ERROR"
+    assert "phase 1 flies INST's dictionary" in bodies(run, "RUN_END")[-1]["detail"]
+    assert fake.sent == []
+
+
+def test_red_a_phase_1_run_without_the_demo_loaded_does_not_start(tmp_path, monkeypatch):
+    fake = FakeInst(PASSWORD, state="DISCONNECTED").start()
+    try:
+        run = fly(tmp_path, monkeypatch, fake, shakedown_odin([]))
+    finally:
+        fake.stop()
+    assert "load the demo plugin first" in bodies(run, "RUN_END")[-1]["detail"]
+
+
+def test_red_phase_1_is_flown_from_the_ground_seat_only(tmp_path):
+    with pytest.raises(ValueError, match="phase 1 flies the ground seat"):
+        HarnessWorld(tmp_path).run(phase=1, seat="ONBOARD")
+
+
+def test_the_phase_1_table_rides_beside_proc_001_in_the_bundle(flown):
+    run, _, seen = flown
+    attachments = [a for b in seen if b["procedures"] for p in b["procedures"] for a in p["attachments"]]
+    assert attachments and attachments[0]["sha256"] == sha256_tag(TABLE.read_bytes())
+    assert json.loads(json.dumps(attachments[0]["text"])).startswith("Generated by tools/inst_dictionary.py")
+
+
+def test_cosmos_floats_json_cannot_carry_are_kept_as_cosmos_text(flown):
+    run, _, seen = flown
+    kept = [r["body"]["items"]["TEMP2"] for r in read_jsonl(run.folder / "truth.jsonl") if r["type"] == "COSMOS_PACKET"]
+    assert {(i["value"], i["limits_state"]) for i in kept if isinstance(i["value"], str)} <= {
+        ("Infinity", "RED_HIGH"), ("-Infinity", "RED_LOW"), ("NaN", "RED_LOW")}
+    assert any(isinstance(i["value"], str) for i in kept)
+
+
+def test_red_a_tick_that_fails_ends_the_run_with_error_and_the_failure(tmp_path, monkeypatch):
+    from harness import run as harness_run
+    real, calls = harness_run.Run._cosmos_packet, []
+
+    def failing(self, met):
+        calls.append(met)
+        if len(calls) == 5:
+            raise RuntimeError("made to fail")
+        return real(self, met)
+
+    monkeypatch.setattr(harness_run.Run, "_cosmos_packet", failing)
+    fake = FakeInst(PASSWORD, period_s=1 / RATE).start()
+    try:
+        run = fly(tmp_path, monkeypatch, fake, shakedown_odin([]))
+    finally:
+        fake.stop()
+    [end] = bodies(run, "RUN_END")
+    assert end["reason"] == "ERROR" and end["detail"].startswith("the harness failed at MET") and "made to fail" in end["detail"]
+
+
+def test_the_demo_plugin_is_loaded_into_odins_cosmos_with_its_inst_target_alone(tmp_path):
+    from connector import cosmos
+    copy, load, unload = cosmos.demo_load_commands(tmp_path / "demo.gem")
+    for command in (copy, load, unload, *cosmos.demo_unload_commands()):
+        assert command[:4] == ["docker", "compose", "-p", "odin"]
+    assert copy[-3:] == ["cp", str(tmp_path / "demo.gem"), f"{cosmos.API_SERVICE}:{cosmos.DEMO_GEM_IN_CONTAINER}"]
+    settings = load[-1]
+    for name in ("inst2_target_name", "example_target_name", "templated_target_name", "system_target_name",
+                 "inst_router_name", "example_microservice_name", "templated_microservice_name"):
+        assert f'plugin["variables"]["{name}"] = ""' in settings
+    assert 'plugin["variables"]["log_retain_time"] = "86400"' in settings
+    assert unload[unload.index("env"):unload.index("env") + 3] == ["env", "-u", "OPENC3_LOCAL_MODE"]
+    assert "openc3-cosmos-demo-" in cosmos.demo_unload_commands()[0][-1]

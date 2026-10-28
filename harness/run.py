@@ -31,9 +31,10 @@ import threading
 import time
 from pathlib import Path
 
-from connector.api import CosmosApi, CosmosError
+from connector.api import CosmosApi, CosmosError, inst
 from contract.validate import check
 from gateway import server as baldur_server
+from gateway.dictionaries import for_plan
 from gateway.gateway import Gateway
 from gateway.signed import KEYS_DIR, load_yaml
 from harness import docs, freeze, instructions
@@ -41,7 +42,8 @@ from harness.adapter import adapter_settings
 from harness.checkins import PHASES, pass_check_ins
 from harness.bundle import build_bundle, bundle_bytes, read_records
 from harness.server import Refused, make_server
-from harness.telemetry import FrameStore
+from harness.shakedown import Shakedown
+from harness.telemetry import FrameStore, InstView
 from harness.triggers import TriggerQueue, trigger
 from harness.watch import Watcher
 from log import server as log_server
@@ -72,9 +74,11 @@ def recorded(check_ins):
     """The recorded check-ins a run plays, as (met_s, POST /checkin body), in MET order. Each is a
     transcript made once through Muse Code's voice path and frozen with its audio's hash, then delivered
     at its MET in every run (the Director's ruling on U44, 27 October 2026, where CONTRACT.md §13 has each
-    recording played through the voice path in every run). The live demo uses the voice path live."""
+    recording played through the voice path in every run). The live demo uses the voice path live. Phase
+    1's four check-ins come as text at fixed points (the Director's rulings of 27 October 2026, §1)."""
     for met_s, body in check_ins:
-        problems = check("checkin", body) + ([] if body.get("source") == "RECORDED" else ["source is not RECORDED"])
+        problems = check("checkin", body) + ([] if body.get("source") in ("RECORDED", "TEXT")
+                                             else ["source is neither RECORDED nor TEXT"])
         if problems:
             raise ValueError(f"the recorded check-in at MET {met_s} is not one: {problems}")
     return sorted(check_ins, key=lambda item: item[0])
@@ -101,6 +105,8 @@ class Run:
             raise ValueError(f"seat {seat!r} is not one of {SEATS}")
         if seat == "GROUND" and pacing != "REAL_TIME":
             raise ValueError("the ground seat runs in real time (CONTRACT.md §10.1)")
+        if phase == 1 and seat != "GROUND":
+            raise ValueError("phase 1 flies the ground seat (CONTRACT.md §10.1)")
         self.run_id, self.scenario, self.scenario_id, self.phase, self.mode = run_id, scenario, scenario_id, phase, mode
         self.plan_paths, self.act_path, self.procedures, self.config = list(plan_paths), act_path, procedures, config
         self.endpoint = endpoint
@@ -123,7 +129,8 @@ class Run:
         self.turn_id = 0
         self._polls = 0   # GET /turn/next requests so far; only the newest may take a turn
         self.ended = None   # RUN_END's reason once written
-        self.failed = None   # COSMOS's refusal of a command BALDUR-0 allowed, which ends the run (U59)
+        self.failed = None   # why the run has ended with ERROR: COSMOS's refusal of a command BALDUR-0 allowed
+        # (U59), or a tick's failure
         self._lock = threading.RLock()
         self._servers = []
         self._served_at = None
@@ -175,6 +182,39 @@ class Run:
             if time.monotonic() >= deadline:
                 return None
             time.sleep(0.02)
+
+    def _start_shakedown(self, plans):
+        """Phase 1 (the Director's ruling on U58, 28 October 2026): the plan flies INST's dictionary, and the
+        seat reads COSMOS's demo target, INST HEALTH_STATUS, through the demo's own interface, INST_INT, which
+        must be connected, the demo plugin loaded (python -m connector.cosmos demo-load). Only packets counted
+        after the run started are its own. Returns why the run cannot start, or None."""
+        dictionary = for_plan(plans[0].document)
+        if dictionary.name != "INST":
+            return f"phase 1 flies INST's dictionary; {plans[0].plan_id} lists {dictionary.name}'s"
+        self.store = FrameStore("COSMOS", InstView(dictionary.document))
+        self.cosmos = self.cosmos or inst(dictionary.document)
+        link = self.cosmos.ground_link()
+        if link["state"] != "CONNECTED":
+            return f"COSMOS's demo interface INST_INT is {link['state']}: load the demo plugin first"
+        self._ground_count = self.cosmos.packet()["received_count"]
+        return None
+
+    def _cosmos_packet(self, met):
+        """In phase 1, the INST HEALTH_STATUS packet COSMOS received since the last tick, or None. Each is kept
+        in the run's truth file as COSMOS gave it, so S8 checks ODIN's answers against COSMOS (U58)."""
+        packet = self.cosmos.packet()
+        if packet["received_count"] <= self._ground_count:
+            return None
+        self._ground_count = packet["received_count"]
+        self.store.receive(packet["frame"], packet["received_utc"], met, count=packet["received_count"],
+                           limits=packet["limits"])
+        self.truth.append("COSMOS_PACKET", {
+            "target": self.cosmos.target, "packet": self.cosmos.packet_name,
+            "received_count": packet["received_count"],
+            "packet_utc": packet["packet_utc"] or packet["received_utc"], "received_utc": packet["received_utc"],
+            "items": {name: {"value": value, "limits_state": packet["limits"][name]}
+                      for name, value in packet["frame"].items()}})
+        return packet["frame"]
 
     def _start_ground(self):
         """The ground seat's link, which COSMOS's HUGINN_INT dials. False unless COSMOS has dialed it and
@@ -235,7 +275,7 @@ class Run:
         self.start_met_s = self._claimed_start()
         self.events = EventLog.create(self.folder / "events.jsonl", met_clock=self.met_s, utc_clock=self._utc)
         self.events.append("RUN_START", self._run_start())
-        self.gateway = Gateway(self.events, met_clock=self.met_s, telemetry=self.store.telemetry, sender=self._send,
+        self.gateway = Gateway(self.events, met_clock=self.met_s, telemetry=lambda: self.store.telemetry(), sender=self._send,
                                utc_clock=self._utc, seat=lambda: self.seat, contact=self.contact, keys_dir=self.keys_dir)
         if not self.gateway.start_run(run_id=self.run_id, scenario_id=self.scenario_id, mode=self.mode,
                                       plan_paths=self.plan_paths, act_path=self.act_path):
@@ -251,16 +291,24 @@ class Run:
         self._windows = sorted((p.document["contact_window"]["aos_met_s"], p.document["contact_window"]["los_met_s"])
                                for p in plans)
         first_aos = min((aos for aos, los in self._windows if los > self.start_met_s), default=self.start_met_s)
-        if self.seat == "GROUND" and not self._start_ground():
+        if self.phase == 1:
+            refusal = self._start_shakedown(plans)
+            if refusal:
+                self.stop("ERROR", detail=refusal)
+                return False
+        elif self.seat == "GROUND" and not self._start_ground():
             self.stop("ERROR")
             return False
         self.truth = TruthLog.create(self.folder / "truth.jsonl", met_clock=self.met_s, utc_clock=self._utc)
-        self.simulator = Simulator(self.scenario, windows=self._windows, link=self.link, truth=self.truth,
-                                   start_at=max(self.start_met_s, first_aos))
+        if self.phase == 1:
+            self.simulator = Shakedown(start_at=self.start_met_s)
+        else:
+            self.simulator = Simulator(self.scenario, windows=self._windows, link=self.link, truth=self.truth,
+                                       start_at=max(self.start_met_s, first_aos))
         if self.phase in PHASES:
             self.check_ins = sorted(self.check_ins + pass_check_ins(self._windows, self.pass_transcript),
                                     key=lambda item: item[0])
-        self.watcher = Watcher(self._windows)
+        self.watcher = Watcher(self._windows, mode=self.store.view.mode)
         self.clock = RunClock(self.simulator, until_met_s=self.end_met_s, pacing=self.pacing, rate=self.rate,
                               on_tick=self._on_tick)
         self._serve(log_server.make_server(self.events, self.addresses.get("log")))
@@ -282,23 +330,40 @@ class Run:
     # -- each tick ---------------------------------------------------------------------------------
 
     def _on_tick(self, frame):
+        """Each tick's work. A failure the harness did not foresee ends the run with ERROR and the failure as
+        RUN_END's detail, as a COSMOS refusal does (U59), rather than stopping the clock unseen (found in S7's
+        live check, 28 October 2026)."""
+        try:
+            self._tick(frame)
+        except Exception as error:
+            with self._lock:
+                if self.failed is None:
+                    self.failed = f"the harness failed at MET {self.met_s()}: {error!r}"
+            self.clock.stop()
+            with self.queue.changed:
+                self.queue.changed.notify_all()
+
+    def _tick(self, frame):
         with self._lock:
-            if self.failed is not None:   # COSMOS refused a command: the run has ended (U59)
+            if self.failed is not None:   # COSMOS refused a command, or a tick failed: the run has ended (U59)
                 self.clock.stop()
                 return
             met = self.simulator.met_s
-            if self.seat == "GROUND":
+            if self.phase == 1:
+                received = self._cosmos_packet(met)
+            elif self.seat == "GROUND":
                 received = self._ground_frame(met)
             else:
                 received = self.simulator.tap.latest() if frame is not None else None
                 if received is not None:
                     self.store.receive(received, self._utc(), met)
             self.gateway.update_clock()
-            telemetry = {"frame_met_s": received["CDH_MET"], "points": dict(received)} if received else None
+            telemetry = self.store.telemetry() if received is not None else None
             outcomes = [trigger("OUTCOME", met, request_id=o["request_id"]) for o in self.gateway.observe(telemetry)
                         if o["outcome"] != "NO_ACKNOWLEDGEMENT"]
             plan = self.gateway.chain.plan_at(met)
             found = self.watcher.tick(met, plan_id=plan.plan_id if plan else None, frame=received,
+                                      limits=self.store.latest_limits() if received is not None else None,
                                       staleness=self.store.staleness(met))
             for contact in (t for t in found if t["type"] in ("AOS", "LOS")):
                 self.events.append("CONTACT", {"state": contact["type"]})

@@ -5,19 +5,21 @@ SHA-256 to the machine-readable dictionary, whose own SHA-256 is checked when it
 BALDUR-0 checks each request's command and arguments against it; a command or argument value outside it is
 refused at the CLASS check as NOT_IN_DICTIONARY, an attempted violation. Each command's class comes from it:
 HUGINN's from BALDUR-0's own class configuration (gateway/rules.py), INST's from its file. Its protective
-commands are its commands of class C3 (§5.5): CMD_SAFE_ENTER and CMD_SYS_RESET in HUGINN's, ABORT in INST's.
+commands are its commands of class C3 (§5.5): CMD_SAFE_ENTER and CMD_SYS_RESET in HUGINN's, ABORT in INST's. A
+command's outcome is read from its counters (§9.3): HUGINN's accepted and rejected counters and rejection reason,
+INST's accept counter alone, since the demo target counts no rejected commands.
 A plan that lists no registered dictionary flies HUGINN's, as every plan did before phase 1's; one that lists
 two is refused.
 """
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
 import yaml
 
-from gateway.rules import COMMAND_CLASS
+from gateway.rules import AFFECTED, COMMAND_CLASS, COUNTERS
 
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "config" / "dictionaries.yaml"
@@ -30,6 +32,9 @@ class Dictionary:
     target: str
     commands: dict   # mnemonic -> the dictionary's command, with its args
     classes: dict    # mnemonic -> C1 to C4
+    counters: dict   # accepted, rejected and reason: the points a command's outcome is read from, or None
+    affected: dict   # mnemonic -> the point the command changes, or None
+    document: dict = field(default=None, compare=False, repr=False)   # the dictionary's file, parsed
 
     @property
     def protective(self):
@@ -66,8 +71,13 @@ def _load(name, target, file, sha256, classes):
         raise ValueError(f"{file} is {found}, not the {sha256} the registry gives for {name}")
     document = yaml.safe_load(data)
     commands = {command["mnemonic"]: command for command in document["commands"]}
-    table = COMMAND_CLASS if classes == "gateway/rules.py" else {m: c["class"] for m, c in commands.items()}
-    return Dictionary(name, target, commands, {m: table[m] for m in commands})
+    if classes == "gateway/rules.py":   # HUGINN's: BALDUR-0's own class configuration and HUGINN's accounting
+        return Dictionary(name, target, commands, {m: COMMAND_CLASS[m] for m in commands}, dict(COUNTERS),
+                          {m: AFFECTED.get(m) for m in commands}, document)
+    counters = {"accepted": document["command_accounting"]["accepted"],
+                "rejected": document["command_accounting"]["rejected"], "reason": None}
+    return Dictionary(name, target, commands, {m: c["class"] for m, c in commands.items()}, counters,
+                      {m: None for m in commands}, document)
 
 
 def load(entry):

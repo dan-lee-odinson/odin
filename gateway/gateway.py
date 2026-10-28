@@ -21,6 +21,7 @@ from cryptography.hazmat.primitives.serialization import load_ssh_public_key
 
 from contract.validate import check
 from gateway import decision
+from gateway.dictionaries import for_plan
 from gateway.acts import verify_arming_act, verify_restore_act
 from gateway.plans import Chain, verify_chain
 from gateway.signed import KEYS_DIR
@@ -48,11 +49,10 @@ class _Awaiting:
     met_s: float       # when it was dispatched
     acc_before: int | None
     rej_before: int | None
+    counters: dict     # the dictionary in force's: where its outcome shows (gateway/dictionaries.py, U58)
+    affected: str | None
 
 
-# The point each command changes, from its effect in HUGINN's dictionary (defs/tlm_cmd.yaml).
-AFFECTED = {"CMD_PLD_SET_STATE": "PLD_STATE", "CMD_PLD_SET_RATE": "PLD_RATE", "CMD_SAFE_ENTER": "EPS_MODE",
-            "CMD_MODE_SET": "EPS_MODE", "CMD_SYS_RESET": None}
 NO_ACKNOWLEDGEMENT_S = 10
 
 
@@ -199,10 +199,13 @@ class Gateway:
         request = item.request
         route = "COSMOS" if self._seat() == "GROUND" else "UPLINK"
         frame = self._telemetry()
+        dictionary = for_plan(self._chain.plan_at(self._met_clock()).document)
+        counters = dictionary.counters
         self._sender(request["command"], request["parameters"], route)
         self._awaiting.append(_Awaiting(request, self._met_clock(),
-                                        frame["points"]["CDH_CMD_ACC_CNT"] if frame else None,
-                                        frame["points"]["CDH_CMD_REJ_CNT"] if frame else None))
+                                        frame["points"][counters["accepted"]] if frame else None,
+                                        frame["points"][counters["rejected"]] if frame and counters["rejected"] else None,
+                                        counters, dictionary.affected.get(request["command"])))
         if basis["lease_id"] is not None:   # a use is counted when the command is dispatched (§9.3)
             key = (basis["plan_id"], basis["lease_id"])
             self._lease_uses[key] = self._lease_uses.get(key, 0) + 1
@@ -245,10 +248,11 @@ class Gateway:
     def _resolve(self, frame):
         written = []
         points = frame["points"]
-        acc, rej = points["CDH_CMD_ACC_CNT"], points["CDH_CMD_REJ_CNT"]
         base_acc = base_rej = None
         while self._awaiting:
             item = self._awaiting[0]
+            acc = points[item.counters["accepted"]]
+            rej = points[item.counters["rejected"]] if item.counters["rejected"] else None
             if frame["frame_met_s"] <= item.met_s:
                 break   # a frame from before the dispatch cannot show its outcome
             if base_acc is None:
@@ -269,11 +273,12 @@ class Gateway:
 
     def _outcome(self, item, outcome, frame):
         points = frame["points"] if frame else None
-        affected = AFFECTED.get(item.request["command"])
+        affected, counters = item.affected, item.counters
         body = {"request_id": item.request["request_id"], "outcome": outcome,
-                "acc_before": item.acc_before, "acc_after": points["CDH_CMD_ACC_CNT"] if points else None,
-                "rej_before": item.rej_before, "rej_after": points["CDH_CMD_REJ_CNT"] if points else None,
-                "rej_reason": points["CDH_REJ_REASON"] if points else None,
+                "acc_before": item.acc_before, "acc_after": points[counters["accepted"]] if points else None,
+                "rej_before": item.rej_before,
+                "rej_after": points[counters["rejected"]] if points and counters["rejected"] else None,
+                "rej_reason": points[counters["reason"]] if points and counters["reason"] else None,
                 "point": {"mnemonic": affected, "value": points[affected]} if points and affected else None,
                 "frame_met_s": frame["frame_met_s"] if frame else None,
                 "met_s": self._met_clock(), "utc": self._utc_clock()}

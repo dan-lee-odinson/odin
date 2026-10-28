@@ -4,6 +4,8 @@
     python -m connector.cosmos credentials   once: make COSMOS's credentials, kept as environment variables
     python -m connector.cosmos up            start it
     python -m connector.cosmos plugin        once it is up: install HUGINN's plugin, dialing the link
+    python -m connector.cosmos demo-load     before a phase-1 run: load COSMOS's demo plugin, its INST target only
+    python -m connector.cosmos demo-unload   after it: unload the demo plugin
     python -m connector.cosmos status        its containers
     python -m connector.cosmos stop          stop its containers, keeping everything
     python -m connector.cosmos down          remove its containers and network, keeping its volumes
@@ -267,6 +269,76 @@ def install_plugin():
     return 0
 
 
+# -- COSMOS's demo plugin, for phase 1 only -------------------------------------------------------
+
+# The Director's ruling on U58 (28 October 2026): COSMOS's demo plugin is loaded into ODIN's COSMOS for a
+# phase-1 run only and unloaded after each run, since its 1 Hz targets filled 117 GB in August; never into
+# HUGINN's COSMOS, which nothing here addresses, every command naming the project odin. Only the INST target
+# and its simulated interface, INST_INT, are loaded: the plugin's own variables leave out its other targets,
+# its router and its microservices, and keep its logs for the shortest retention it offers. The gem is
+# OpenC3's own, copied from its init image (tools/inst_dictionary.py fetch), and checked by its SHA-256.
+DEMO_GEM_IN_CONTAINER = "/tmp/openc3-cosmos-demo-7.2.1.gem"
+DEMO_HASH = "/tmp/odin-demo-plugin.json"
+DEMO_PREFIX = "openc3-cosmos-demo-"
+DEMO_VARIABLES = {"inst2_target_name": "", "example_target_name": "", "templated_target_name": "",
+                  "system_target_name": "", "inst_router_name": "", "example_microservice_name": "",
+                  "templated_microservice_name": "", "log_retain_time": "86400"}
+_DEMO_NAMES = ('require "openc3"; require "openc3/models/plugin_model"; '
+               f'puts OpenC3::PluginModel.names(scope: "DEFAULT").select {{ |n| n.start_with?("{DEMO_PREFIX}") }}')
+
+
+def demo_load_commands(gem):
+    """Copy the demo gem into the API container, set its variables, and load it with local mode unset, as
+    HUGINN's plugin is loaded."""
+    run_in_api = ("exec", "-T", API_SERVICE)
+    settings = "; ".join(f'plugin["variables"]["{name}"] = "{value}"' for name, value in DEMO_VARIABLES.items())
+    variables = (f'require "json"; require "openc3"; require "openc3/models/plugin_model"; '
+                 f'plugin = OpenC3::PluginModel.install_phase1("{DEMO_GEM_IN_CONTAINER}", scope: "DEFAULT"); '
+                 f'{settings}; File.write("{DEMO_HASH}", JSON.generate(plugin))')
+    return [compose("cp", str(gem), f"{API_SERVICE}:{DEMO_GEM_IN_CONTAINER}"),
+            compose(*run_in_api, "ruby", "-e", variables),
+            compose(*run_in_api, "env", "-u", "OPENC3_LOCAL_MODE",
+                    "ruby", "/openc3/bin/openc3cli", "load", DEMO_GEM_IN_CONTAINER, "DEFAULT", DEMO_HASH)]
+
+
+def demo_unload_commands():
+    """Unload every installed demo plugin."""
+    return [compose("exec", "-T", API_SERVICE, "sh", "-c",
+                    f"for name in $(ruby -e '{_DEMO_NAMES}'); do "
+                    f"env -u OPENC3_LOCAL_MODE ruby /openc3/bin/openc3cli unload $name DEFAULT || exit 1; done")]
+
+
+def demo_installed(env):
+    """The demo plugins installed in ODIN's COSMOS, by name."""
+    result = subprocess.run(compose("exec", "-T", API_SERVICE, "ruby", "-e", _DEMO_NAMES), env=env,
+                            capture_output=True, text=True)
+    return result.stdout.split()
+
+
+def load_demo():
+    from tools.inst_dictionary import GEM, GEM_SHA256, sha256
+    if not GEM.exists() or sha256(GEM.read_bytes()) != GEM_SHA256:
+        raise SystemExit(f"{GEM} is missing or not the demo plugin's {GEM_SHA256}; "
+                         "python -m tools.inst_dictionary fetch copies it")
+    env = environment(credentials())
+    if demo_installed(env):
+        raise SystemExit("the demo plugin is already loaded; unload it first")
+    for command in demo_load_commands(GEM):
+        returncode = _run(command, env)
+        if returncode:
+            return returncode
+    return 0
+
+
+def unload_demo():
+    env = environment(credentials())
+    for command in demo_unload_commands():
+        returncode = _run(command, env)
+        if returncode:
+            return returncode
+    return 1 if demo_installed(env) else 0
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     command = argv[0] if argv else "status"
@@ -280,10 +352,15 @@ def main(argv=None):
         return up()
     if command == "plugin":
         return install_plugin()
+    if command == "demo-load":
+        return load_demo()
+    if command == "demo-unload":
+        return unload_demo()
     if command in ("status", "stop", "down"):
         env = environment(credentials())
         return _run(compose({"status": "ps", "stop": "stop", "down": "down"}[command]), env)
-    raise SystemExit(f"unknown command {command!r}; use credentials, up, plugin, status, stop or down")
+    raise SystemExit(f"unknown command {command!r}; use credentials, up, plugin, demo-load, demo-unload, status, "
+                     f"stop or down")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Outcome",
-  "description": "BALDUR-0's OUTCOME record: a dispatched command's result, read from telemetry and never assumed (CONTRACT.md v0.6 §9.3, §16.4 U17). It goes to the event log, not to ODIN, which reads outcomes from telemetry itself (§16.1 U6). The counters' change, plus the affected point, by the next frame; a reset's acknowledgement is the post-reset counter epoch (accepted 1, rejected 0); no counter change within 10 seconds is NO_ACKNOWLEDGEMENT. A field whose frame does not exist is null (§16 U15).",
+  "description": "BALDUR-0's OUTCOME record: a dispatched command's result, read from telemetry and never assumed (CONTRACT.md v0.6 §9.3, §16.4 U17). It goes to the event log, not to ODIN, which reads outcomes from telemetry itself (§16.1 U6). The counters' change, plus the affected point, by the next frame; a reset's acknowledgement is the post-reset counter epoch (accepted 1, rejected 0); no counter change within 10 seconds is NO_ACKNOWLEDGEMENT. A field whose frame does not exist is null (§16 U15). In phase 1 the counters are INST's: its accept counter, CMD_ACPT_CNT, and no rejected-command counter, so the rejection fields are null and a rejection shows only as NO_ACKNOWLEDGEMENT (the Director's ruling on U58, 28 October 2026).",
   "type": "object",
   "required": [
     "request_id", "outcome", "acc_before", "acc_after", "rej_before", "rej_after",
@@ -42,14 +42,22 @@
   "allOf": [
     {"if": {"required": ["outcome"], "properties": {"outcome": {"enum": ["ACCEPTED", "REJECTED"]}}},
      "then": {"properties": {
-       "acc_after": {"$ref": "#/definitions/count"},
-       "rej_after": {"$ref": "#/definitions/count"},
+       "acc_after": {"$ref": "#/definitions/wide_count"},
+       "rej_after": {"$ref": "#/definitions/counter"},
        "frame_met_s": {"$ref": "common.schema.json#/definitions/met_s"}}}},
     {"if": {"required": ["outcome"], "properties": {"outcome": {"const": "REJECTED"}}},
-     "then": {"properties": {"rej_reason": {"description": "A rejection sets CDH_REJ_REASON.", "enum": ["UNKNOWN_OPCODE", "ARG_RANGE", "MODE_INHIBIT"]}}}}
+     "then": {"properties": {"rej_after": {"$ref": "#/definitions/count"},
+                             "rej_reason": {"description": "A rejection sets CDH_REJ_REASON.", "enum": ["UNKNOWN_OPCODE", "ARG_RANGE", "MODE_INHIBIT"]}}}},
+    {"if": {"required": ["rej_before"], "properties": {"rej_before": {"type": "integer"}}},
+     "then": {"properties": {"acc_before": {"$ref": "#/definitions/count"}},
+              "if": {"required": ["outcome"], "properties": {"outcome": {"enum": ["ACCEPTED", "REJECTED"]}}},
+              "then": {"properties": {"acc_after": {"$ref": "#/definitions/count"}, "rej_after": {"$ref": "#/definitions/count"}}}}}
   ],
   "definitions": {
     "count": {"$ref": "observation.schema.json#/definitions/points/properties/CDH_CMD_ACC_CNT/properties/value"},
-    "counter": {"anyOf": [{"$ref": "#/definitions/count"}, {"type": "null"}]}
+    "wide_count": {"description": "HUGINN's counters, or INST's 32-bit accept counter, CMD_ACPT_CNT, when the record counts no rejections (U58).",
+                   "anyOf": [{"$ref": "#/definitions/count"},
+                             {"$ref": "observation.schema.json#/definitions/inst_points/properties/CMD_ACPT_CNT/properties/value"}]},
+    "counter": {"anyOf": [{"$ref": "#/definitions/wide_count"}, {"type": "null"}]}
   }
 }
