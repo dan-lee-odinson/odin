@@ -77,6 +77,9 @@ def main():
     check("the ground seat's frames carry the values the spacecraft sent",
           bool(ground) and all(frame == onboard[frame["CDH_MET"]] for frame in ground),
           f"{len(ground)} frames from COSMOS, {len(onboard)} generated")
+    missed = sorted(set(range(800, 900)) - {frame["CDH_MET"] for frame in ground})
+    print(f"  (in-contact frames the ground seat did not read on their own tick: {missed}; "
+          f"link sent {run.link.counts['SENT']})")
     print(f"run folder {run.folder}")
     print("every step held" if all(results) else f"{results.count(False)} step(s) failed")
     return 0 if all(results) else 1

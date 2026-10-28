@@ -3,10 +3,16 @@
   "title": "Run end",
   "description": "The harness's RUN_END record, the run's last (CONTRACT.md v0.6 §11.3, §12; the Director's ruling on U21, 26 October 2026).",
   "type": "object",
-  "required": ["reason", "turns"],
+  "required": ["reason", "turns", "detail"],
   "additionalProperties": false,
   "properties": {
     "reason": {"enum": ["COMPLETE", "SPEND_STOP", "PLAN_CHAIN_FAILED", "NOT_ARMED", "ERROR", "ABORTED"]},
-    "turns": {"description": "The turns ODIN took.", "type": "integer", "minimum": 0}
-  }
+    "turns": {"description": "The turns ODIN took.", "type": "integer", "minimum": 0},
+    "detail": {
+      "description": "Why a run ended with ERROR, where the harness knows: COSMOS's own refusal text when COSMOS refused a command BALDUR-0 allowed (the Director's ruling on U59, 28 October 2026). Null otherwise (§16 U15).",
+      "type": ["string", "null"]
+    }
+  },
+  "if": {"properties": {"reason": {"not": {"const": "ERROR"}}}},
+  "then": {"properties": {"detail": {"type": "null"}}}
 }

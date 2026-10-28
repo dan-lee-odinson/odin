@@ -31,7 +31,7 @@ import threading
 import time
 from pathlib import Path
 
-from connector.api import CosmosApi
+from connector.api import CosmosApi, CosmosError
 from contract.validate import check
 from gateway import server as baldur_server
 from gateway.gateway import Gateway
@@ -121,7 +121,9 @@ class Run:
         self.simulator = None
         self.clock = None
         self.turn_id = 0
+        self._polls = 0   # GET /turn/next requests so far; only the newest may take a turn
         self.ended = None   # RUN_END's reason once written
+        self.failed = None   # COSMOS's refusal of a command BALDUR-0 allowed, which ends the run (U59)
         self._lock = threading.RLock()
         self._servers = []
         self._served_at = None
@@ -139,9 +141,21 @@ class Run:
     def _send(self, command, parameters, route):
         """BALDUR-0's route (§9.3): the ground seat's is the COSMOS connector, which COSMOS sends up the link;
         the onboard seat's is the wrapper's uplink. BALDUR-0 calls it only for a command it allowed and
-        rechecked, so a command it refuses never reaches COSMOS."""
+        rechecked, so a command it refuses never reaches COSMOS.
+
+        If COSMOS refuses one, the run ends with ERROR and COSMOS's refusal text in RUN_END, and nothing more
+        is sent (the Director's ruling on U59, 28 October 2026). The send raises, so BALDUR-0 writes no
+        DISPATCH and the request stays unsent; ODIN's next GET /turn/next answers run_complete."""
         if route == "COSMOS":
-            self.cosmos.send(command, parameters)
+            if self.failed is not None:
+                raise CosmosError(f"not sent: the run has ended ({self.failed})")
+            try:
+                self.cosmos.send(command, parameters)
+            except CosmosError as refusal:
+                self.failed = f"COSMOS refused {command}: {refusal}"
+                with self.queue.changed:
+                    self.queue.changed.notify_all()
+                raise
         else:
             self.simulator.uplink(command, parameters)
 
@@ -163,15 +177,19 @@ class Run:
             time.sleep(0.02)
 
     def _start_ground(self):
-        """The ground seat's link, which COSMOS's HUGINN_INT dials. False if COSMOS has not dialed it within
-        DIAL_S, since a pass flown without it would receive nothing."""
+        """The ground seat's link, which COSMOS's HUGINN_INT dials. False unless COSMOS has dialed it and
+        reports HUGINN_INT CONNECTED within DIAL_S, since a pass flown without it would receive nothing. COSMOS
+        reports ATTEMPTING for a moment after the connection is made (found in S5's live check, 28 October
+        2026), and a frame sent then reaches the ground seat late."""
         self.cosmos = self.cosmos or CosmosApi()
         self._ground_count = self.cosmos.packet()["received_count"]
         self.link = Link(self._windows, address=self._link_at).start()
         deadline = time.monotonic() + DIAL_S
-        while self.link.clients < 1 and time.monotonic() < deadline:
+        while time.monotonic() < deadline:
+            if self.link.clients >= 1 and self.cosmos.ground_link()["state"] == "CONNECTED":
+                return True
             time.sleep(0.1)
-        return self.link.clients >= 1
+        return False
 
     # -- start -----------------------------------------------------------------------------------
 
@@ -265,6 +283,9 @@ class Run:
 
     def _on_tick(self, frame):
         with self._lock:
+            if self.failed is not None:   # COSMOS refused a command: the run has ended (U59)
+                self.clock.stop()
+                return
             met = self.simulator.met_s
             if self.seat == "GROUND":
                 received = self._ground_frame(met)
@@ -320,27 +341,44 @@ class Run:
 
     # GET /turn/next holds the request until a turn is due or the run is complete (the Director's ruling
     # on U39, 27 October 2026). A quiet stretch in real time lasts up to 60 s before PERIODIC, so Muse
-    # Code's loop waits 120 s, and on a wait that times out it asks again.
-    def next_turn(self):
-        """GET /turn/next: ODIN asking for its next turn ends the one in flight."""
+    # Code's loop waits 120 s, and on a wait that times out it asks again. The request it gave up is still
+    # held here when it asks again, so a turn that came due then could go to a closed connection and be
+    # lost (the Director's check of 28 October 2026). ODIN asks for one turn at a time, so a poll that a
+    # newer one has superseded, or whose client has hung up, takes no turn; and a turn taken by a poll whose
+    # client hung up while its bundle was being built is put back before anything of it is logged.
+    def next_turn(self, gone=None):
+        """GET /turn/next: ODIN asking for its next turn ends the one in flight. gone: whether this poll's
+        client has hung up. Returns the bundle's bytes, run_complete's, or None for an abandoned poll."""
+        with self._lock:
+            self._polls += 1
+            poll = self._polls
+
+        def abandoned():
+            return poll != self._polls or (gone is not None and gone())
+
         self._end_turn()
         with self.queue.changed:
             while True:
+                if abandoned():
+                    return None
                 turn = self.queue.take()
                 if turn is not None:
                     break
-                if self.clock is None or self.clock.finished:
+                if self.clock is None or self.clock.finished or self.failed is not None:
                     return self._complete()
                 if self.pacing == "CHARGED":
                     self.clock.resume()   # nothing is due: quiet time runs as fast as the simulator steps
                 self.queue.changed.wait(timeout=0.2)
         with self._lock:
-            self.turn_id += 1
             met = self.met_s()
-            bundle = build_bundle(run_id=self.run_id, turn_id=self.turn_id, turn=turn, met_s=met, utc=self._utc(),
+            bundle = build_bundle(run_id=self.run_id, turn_id=self.turn_id + 1, turn=turn, met_s=met, utc=self._utc(),
                                   contact_state=self.contact(), seat=self.seat, gateway=self.gateway,
                                   store=self.store, procedures=self.procedures, records=read_records(self.events.path),
                                   ground_link=self.cosmos.ground_link() if self.seat == "GROUND" else None)
+            if abandoned():
+                self.queue.put_back()
+                return None
+            self.turn_id += 1
             data = bundle_bytes(bundle)
             self.events.append("TRIGGER", {"turn_id": self.turn_id, "turn_kind": turn.turn_kind,
                                            "report_kind": turn.report_kind, "triggers": turn.triggers,
@@ -360,8 +398,16 @@ class Run:
                 return
             if not self.clock.finished:
                 self._charge_for_turn()
-                self.gateway.dispatch_pending()
+                self._dispatch()
             self.queue.finish()
+
+    def _dispatch(self):
+        """BALDUR-0 sends what it allowed and rechecked. A COSMOS refusal has already ended the run when the
+        send raises (U59), so it goes no further than here."""
+        try:
+            self.gateway.dispatch_pending()
+        except CosmosError:
+            pass
 
     def _after_request(self, record):
         """BALDUR-0 has decided and replied: the decision is a trigger (§6.1). An allowed command is
@@ -372,7 +418,7 @@ class Run:
                                    decision=record["decision"]))
             if self.queue.in_flight is not None and not self.clock.finished:
                 self._charge_for_turn()
-            self.gateway.dispatch_pending()
+            self._dispatch()
 
     # -- the tools and the check-in ------------------------------------------------------------------
 
@@ -410,10 +456,14 @@ class Run:
         return RUN_COMPLETE
 
     def _end(self, reason):
+        """RUN_END, once. A run whose COSMOS refused a command ends with ERROR whatever ended it, with COSMOS's
+        refusal text as its detail (U59)."""
         with self._lock:
             if self.ended is None:
+                reason = "ERROR" if self.failed is not None else reason
                 self.ended = reason
-                self.events.append("RUN_END", {"reason": reason, "turns": self.turn_id})
+                self.events.append("RUN_END", {"reason": reason, "turns": self.turn_id,
+                                               "detail": self.failed if reason == "ERROR" else None})
 
     def stop(self, reason="ABORTED"):
         """Stop the clock and the servers. RUN_END is written with reason unless the run has ended. A

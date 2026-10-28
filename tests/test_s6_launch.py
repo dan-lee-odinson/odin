@@ -14,7 +14,9 @@ from harness.launch import launch_odin, odin_environment
 PLANTED = {"ODIN_COSMOS_" + "REDIS_PASSWORD": "made-up-1", "ODIN_COSMOS_" + "SERVICE_PASSWORD": "made-up-2",
            "OPENC3_" + "SERVICE_PASSWORD": "made-up-3", "openc3_" + "redis_username": "made-up-4",
            "Odin_Cosmos_" + "Secret_Key_Base": "made-up-5"}
+# What Muse Code's start command reads, its signing key's path and the model API keys, passes through (M8).
 KEPT = {"PATH": "C:\\Windows", "ODIN_KEY_PATH": "C:\\keys\\odin", "META_" + "API_KEY": "made-up-6",
+        "BASETEN_" + "API_KEY": "made-up-7",
         "ODIN_COSMOSX": "not a credential's prefix", "MY_OPENC3_NOTE": "not a prefix either"}
 
 

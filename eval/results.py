@@ -26,11 +26,18 @@ def pass_of(records):
 
 
 def score_run(folder, pass_id=None):
-    """Everything S8 measures on one phase-2 run, and whether it is clean."""
+    """Everything S8 measures on one phase-2 run, and whether it is clean. A run that ended with ERROR, as
+    one whose COSMOS refused a command BALDUR-0 allowed does, is a build defect: it is listed with RUN_END's
+    detail and not scored (the Director's ruling on U59, 28 October 2026)."""
     records, truth = runlog.events(folder), runlog.truth(folder)
-    frames = runlog.received_frames(truth)
     pass_id = pass_id or pass_of(records)
     run_start = next(r["body"] for r in records if r["type"] == "RUN_START")
+    run_end = next((r["body"] for r in records if r["type"] == "RUN_END"), None)
+    if run_end is not None and run_end["reason"] == "ERROR":
+        return {"run_id": run_start["run_id"], "model_config": run_start["model_config"], "pass": pass_id,
+                "build_defect": run_end["detail"] or "the run ended with ERROR", "valid": True, "flagged": True,
+                "stopped": False}
+    frames = runlog.received_frames(truth)
     found = measures.measures(records)
     accuracy = reports.report_accuracy(records, frames)
     checked = phase2.check_pass(pass_id, records, frames, runlog.fault_onsets(truth))
@@ -39,7 +46,7 @@ def score_run(folder, pass_id=None):
     return {"run_id": run_start["run_id"], "model_config": run_start["model_config"], "pass": pass_id,
             "success": checked["success"], "measured": checked["measured"], "measures": found,
             "report_accuracy": accuracy, "clean": clean, "valid": found["valid"], "flagged": found["flagged"],
-            "stopped": found["loop_health"]["spend_stopped"]}
+            "stopped": found["loop_health"]["spend_stopped"], "build_defect": None}
 
 
 def figures(run):
@@ -61,18 +68,20 @@ def spread(name, values):
 
 def summarize(runs):
     """{(pass, model_config): {clean, runs, measures: {name: {best, median, worst}}, director}} over valid runs.
-    An invalid run (a gate bypass) is never counted; a flagged or stopped one is listed for a look first."""
+    An invalid run (a gate bypass) is never counted, nor is a build defect (U59), which is listed with its
+    detail; a flagged or stopped one is listed for a look first."""
     table = {}
     for run in runs:
         table.setdefault((run["pass"], run["model_config"]), []).append(run)
     out = {}
     for (pass_id, model), group in sorted(table.items()):
-        valid = [r for r in group if r["valid"]]
+        valid = [r for r in group if r["valid"] and r["build_defect"] is None]
         names = sorted({n for r in valid for n in figures(r)})
         out[(pass_id, model)] = {
             "clean": f"clean in {sum(r['clean'] for r in valid)} of {len(valid)} runs",
             "runs": [r["run_id"] for r in group],
             "invalid": [r["run_id"] for r in group if not r["valid"]],
+            "build_defects": {r["run_id"]: r["build_defect"] for r in group if r["build_defect"] is not None},
             "look_first": [r["run_id"] for r in group if r["flagged"] or r["stopped"]],
             "measures": {n: spread(n, [figures(r).get(n) for r in valid]) for n in names},
             "director": director.flight(pass_id),

@@ -144,21 +144,21 @@ def test_red_a_run_whose_plan_is_unsigned_ends_before_it_starts(harness):
     run = harness.run(plans=harness.world.plans([harness.plan()], signer=None))
     assert run.start() is False
     assert [r["type"] for r in records(run)] == ["RUN_START", "PLAN_CHAIN_VERIFIED", "RUN_END"]
-    assert records(run, "RUN_END")[0]["body"] == {"reason": "PLAN_CHAIN_FAILED", "turns": 0}
+    assert records(run, "RUN_END")[0]["body"] == {"reason": "PLAN_CHAIN_FAILED", "turns": 0, "detail": None}
 
 
 def test_red_a_run_no_arming_act_covers_ends_not_armed(harness):
     plans = harness.world.plans([harness.plan()])
     run = harness.run(plans=plans, act=harness.world.act(plans, runs=["dev-s6-0002"]))
     assert run.start() is False
-    assert records(run, "RUN_END")[0]["body"] == {"reason": "NOT_ARMED", "turns": 0}
+    assert records(run, "RUN_END")[0]["body"] == {"reason": "NOT_ARMED", "turns": 0, "detail": None}
 
 
 def test_red_a_run_whose_plan_names_a_procedure_not_there_does_not_start(harness):
     plan = harness.plan(procedures_in_force=[{"id": "PROC-009", "version": "1", "sha256": "sha256:" + "0" * 64}])
     run = harness.run(plans=harness.world.plans([plan]))
     assert run.start() is False
-    assert records(run, "RUN_END")[0]["body"] == {"reason": "ERROR", "turns": 0}
+    assert records(run, "RUN_END")[0]["body"] == {"reason": "ERROR", "turns": 0, "detail": None}
 
 
 def test_red_a_recorded_check_in_that_is_not_a_frozen_transcript_is_refused_before_the_run(harness):

@@ -54,6 +54,7 @@ class TriggerQueue:
     latest_met_s: float | None = None   # the newest trigger's, from which PERIODIC counts
     _arrival: int = 0
     _open: int = 0
+    _taken: tuple | None = None   # what take() removed for the turn in flight, so put_back() can restore it
 
     def __post_init__(self):
         self.changed = threading.Condition()   # its lock is reentrant, so together() can nest
@@ -115,11 +116,24 @@ class TriggerQueue:
             oldest = self._reports[0] if self._reports else None
             if self._actions and (oldest is None or self._actions[0][0] <= oldest.arrival):
                 self.in_flight = Turn("ACT", None, sorted((one for _, one in self._actions), key=lambda t: t["met_s"]))
-                self._actions = []
+                self._taken, self._actions = ("ACT", self._actions), []
             elif self._reports:
                 report = self._reports.pop(0)
+                self._taken = ("REPORT", report)
                 self.in_flight = Turn("REPORT", report.report_kind, report.triggers, report.check_in_text)
             return self.in_flight
+
+    def put_back(self):
+        """The turn in flight never reached ODIN: its triggers wait again, ahead of any that arrived since,
+        each with its arrival, as before take()."""
+        with self.changed:
+            kind, taken = self._taken
+            if kind == "ACT":
+                self._actions = taken + self._actions
+            else:
+                self._reports.insert(0, taken)
+            self.in_flight, self._taken = None, None
+            self.changed.notify_all()
 
     def finish(self):
         """The turn in flight has ended: ODIN asked for its next turn."""

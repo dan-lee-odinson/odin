@@ -8,6 +8,8 @@ arguments do not fit, gets 400 or 404 with its problems, and nothing is logged.
 """
 
 import json
+import select
+import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -66,7 +68,9 @@ def make_server(run, address=None):
             query = parse_qs(url.query, keep_blank_values=True)
             try:
                 if url.path == "/turn/next":
-                    self._send(200, run.next_turn())
+                    data = run.next_turn(gone=self._client_gone)
+                    if data is not None:   # None: ODIN gave this poll up and has asked again
+                        self._send(200, data)
                 elif url.path == "/docs/lookup":
                     self._reply(200, run.docs_lookup(_one(query, "q")))
                 elif url.path == "/history":
@@ -95,6 +99,15 @@ def make_server(run, address=None):
                 self._reply(200, run.check_in(body))
             except Refused as refusal:
                 self._reply(refusal.status, {"problems": refusal.problems})
+
+        def _client_gone(self):
+            """Whether the client has hung up: its connection reads as closed, or is reset. A request has no
+            body here, so anything readable on it is the end of the connection."""
+            try:
+                readable, _, _ = select.select([self.connection], [], [], 0)
+                return bool(readable) and self.connection.recv(1, socket.MSG_PEEK) == b""
+            except OSError:
+                return True
 
         def _reply(self, status, payload):
             self._send(status, json.dumps(payload).encode("utf-8"))

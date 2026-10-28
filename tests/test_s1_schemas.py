@@ -547,6 +547,10 @@ BAD = [
     ("spend_stop", "the reservation missing", SPEND_STOP, dropping("reserved_usd")),
     ("run_end", "a reason U21 does not list", "run_end/good-complete.json", setting("reason", to="TIMEOUT")),
     ("run_end", "turns below zero", "run_end/good-complete.json", setting("turns", to=-1)),
+    # The Director's ruling on U59, 28 October 2026: COSMOS's refusal text, for an ERROR only
+    ("run_end", "a RUN_END without detail", "run_end/good-complete.json", dropping("detail")),
+    ("run_end", "a completed run carrying a detail", "run_end/good-complete.json", setting("detail", to="refused")),
+    ("run_end", "a detail that is not text", "run_end/good-cosmos-refused.json", setting("detail", to=7)),
     # §8.3, U24: the log's replies
     ("log_reply", "record_id 0", "log_reply/good-reply.json", setting("record_id", to=0)),
     ("log_reply", "problems on a success", "log_reply/good-reply.json", setting("problems", to=["none"])),

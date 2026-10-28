@@ -18,17 +18,18 @@ from wrapper.frames import CODEC, COMMANDS, HEADER_SIZE, POINTS, decode_frame, e
 
 
 class FakeCosmos:
-    def __init__(self, link_address, password, *, earlier=None, dial=True, decode=True):
+    def __init__(self, link_address, password, *, earlier=None, dial=True, decode=True, refuse=None):
         """link_address: the (host, port) the run's link listens on. earlier: a frame COSMOS holds from an
         earlier run, with its count, as (frame, received_count). dial: whether HUGINN_INT dials the link at all.
-        decode: whether frames that arrive are decommutated; without it COSMOS stays connected and shows none."""
+        decode: whether frames that arrive are decommutated; without it COSMOS stays connected and shows none.
+        refuse: {command: COSMOS's error message} for commands COSMOS refuses to send."""
         self.password = password
         self.link_address = link_address
         self.sent = []   # every command asked for, as (method, command, parameters), refused ones included
         self.frame, self.count = earlier if earlier else (None, 0)
         self.received_s = time.time() if earlier else None
         self.state, self.rxcnt = "ATTEMPTING", 0
-        self.dial, self.decode = dial, decode
+        self.dial, self.decode, self.refuse = dial, decode, refuse or {}
         self._lock = threading.Lock()
         self._socket = None
         self._stopped = threading.Event()
@@ -93,6 +94,8 @@ class FakeCosmos:
                 self.sent.append((method, command, parameters))
                 if method == "cmd" and COMMANDS[command]["hazardous"]:
                     raise ValueError(f"HazardousError: HUGINN {command} is Hazardous")
+                if command in self.refuse:
+                    raise ValueError(self.refuse[command])
                 if self._socket is not None:
                     self._socket.sendall(encode_command(command, {k.lower(): v for k, v in parameters.items()}))
                 return None

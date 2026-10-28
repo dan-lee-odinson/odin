@@ -130,7 +130,7 @@ def test_the_run_is_recorded_whole_from_run_start_to_run_end(flown):
     assert verify_event_log(run.folder / "events.jsonl") == []
     assert verify_truth(run.folder / "truth.jsonl") == []
     assert records[0]["type"] == "RUN_START" and records[-1]["type"] == "RUN_END"
-    assert records[-1]["body"] == {"reason": "COMPLETE", "turns": len(seen)}
+    assert records[-1]["body"] == {"reason": "COMPLETE", "turns": len(seen), "detail": None}
     assert [r["body"]["state"] for r in records if r["type"] == "CONTACT"] == ["AOS", "LOS"]
     assert [r["body"]["text"] for r in records if r["type"] == "CHECK_IN"] == [CHECK_IN["text"], WORDS]
 

@@ -355,7 +355,14 @@ CASES = {"s0": [
                                                 b"self._ground_count = 0"))),
     ("a ground run starting though COSMOS never dialed its link",
      "tests/test_s5_connector.py::test_red_a_ground_run_whose_cosmos_never_dials_stops_before_its_first_contact",
-     change_file("harness/run.py", replace_once(b"return self.link.clients >= 1", b"return True"))),
+     change_file("harness/run.py", replace_once(
+         b'if self.link.clients >= 1 and self.cosmos.ground_link()["state"] == "CONNECTED":', b"if True:"))),
+    ("a run going on after COSMOS refused a command BALDUR-0 allowed (U59)",
+     "tests/test_s5_connector.py::test_red_cosmos_refusing_an_allowed_command_ends_the_run_with_its_refusal",
+     change_file("harness/run.py", replace_once(b'self.failed = f"COSMOS refused {command}: {refusal}"', b"pass"))),
+    ("S8 scoring a run that ended with ERROR instead of listing it as a build defect (U59)",
+     "tests/test_s5_connector.py::test_red_cosmos_refusing_an_allowed_command_ends_the_run_with_its_refusal",
+     change_file("eval/results.py", replace_once(b'if run_end is not None and run_end["reason"] == "ERROR":', b"if False:"))),
 ], "s6": [
     ("ODIN's launcher passing it COSMOS's OPENC3_* settings (U38)",
      "tests/test_s6_launch.py::test_red_each_credential_prefix_is_withheld_whatever_its_case",
@@ -460,6 +467,10 @@ CASES = {"s0": [
      "tests/test_s6_pieces.py::test_the_ground_seat_sees_the_ground_link_as_cosmos_reports_it_and_the_onboard_seat_never",
      change_file("harness/telemetry.py", replace_once(b'        if (self.source == "COSMOS") != (ground_link is not None):',
                                                       b"        if False:"))),
+    ("a turn taken by a poll ODIN gave up, and written to its closed connection",
+     "tests/test_s6_long_poll.py::test_red_a_turn_due_after_odin_gave_up_a_poll_goes_to_its_next_poll",
+     change_file("harness/run.py", replace_once(b"return poll != self._polls or (gone is not None and gone())",
+                                                b"return False"))),
 ], "inputs": [
     ("PASS-3's plan with its acquisition a second late, so its window is not one the U35 tests use",
      "tests/test_inputs_plans_acts.py::test_each_plans_contact_window_is_one_the_u35_tests_use[TYR0-P2-PASS3-v1]",

@@ -16,6 +16,7 @@ import pytest
 
 from connector.api import CosmosApi, CosmosError, send_method, utc_of
 from contract.validate import check
+from eval.results import score_run, summarize
 from harness import run as harness_run
 from tests.baldur_world import NOMINAL_POINTS
 from tests.fake_cosmos import FakeCosmos
@@ -96,15 +97,15 @@ def test_before_any_packet_cosmos_shows_no_frame(cosmos):
 # -- the ground seat -------------------------------------------------------------------------------
 
 def scripted(*commands, seen=None):
-    """ODIN as a stand-in that asks for each command in turn on its action turns, and files a plain report
-    on its report turns. seen collects each bundle's observation."""
+    """ODIN as a stand-in that asks for each command in turn on its action turns, once it has a frame to act
+    on, and files a plain report on its report turns. seen collects each bundle's observation."""
     def answer(turn_id, bundle):
         if seen is not None:
             seen.append(bundle["observation"])
         if bundle["turn_kind"] == "REPORT":
             return REPORT
         asked = len(bundle["own_requests"])
-        if asked < len(commands):
+        if asked < len(commands) and bundle["observation"]["frame_met_s"] is not None:
             command, parameters = commands[asked]
             return {"kind": "command", "command": command, "parameters": parameters, "rationale": "Scripted."}
         return {"kind": "none"}
@@ -226,3 +227,25 @@ def test_every_ground_seat_bundle_odin_saved_conforms(flown):
         bundle = json.loads((run.folder / "inputs" / digest.split(":")[1]).read_bytes())
         assert check("turn_bundle", bundle) == []
         assert bundle["seat"] == "GROUND" and bundle["observation"]["source"] == "COSMOS"
+
+
+@pytest.mark.filterwarnings("error::pytest.PytestUnhandledThreadExceptionWarning")   # ODIN's loop ends cleanly
+def test_red_cosmos_refusing_an_allowed_command_ends_the_run_with_its_refusal(tmp_path, monkeypatch):
+    # The Director's ruling on U59, 28 October 2026: the run ends with ERROR, COSMOS's refusal text in RUN_END,
+    # and S8 lists the run as a build defect, not scored.
+    link_at = ("127.0.0.1", free_port())
+    refusal = "HUGINN CMD_PLD_SET_STATE is disabled"
+    fake = FakeCosmos(link_at, PASSWORD, refuse={"CMD_PLD_SET_STATE": refusal}).start()
+    try:
+        run = fly(tmp_path, monkeypatch, (fake, CosmosApi(fake.url, PASSWORD), link_at), scripted(*ASKED),
+                  prohibited=["CMD_MODE_SET"])
+    finally:
+        fake.stop()
+    [end] = logged(run, "RUN_END")
+    assert end["reason"] == "ERROR" and end["detail"] == f"COSMOS refused CMD_PLD_SET_STATE: cmd: {refusal}"
+    assert logged(run, "DISPATCH") == []
+    assert fake.sent == [("cmd", "CMD_PLD_SET_STATE", {"STATE": "OFF"})]   # nothing sent after the refusal
+    scored = score_run(run.folder, "PASS-3")
+    assert scored["build_defect"] == end["detail"]
+    [(_, row)] = summarize([scored]).items()
+    assert row["build_defects"] == {run.run_id: end["detail"]} and row["clean"] == "clean in 0 of 0 runs"
