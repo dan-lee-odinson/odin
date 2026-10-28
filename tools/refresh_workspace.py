@@ -3,7 +3,8 @@
     python tools/refresh_workspace.py            copy from main, then check every file
     python tools/refresh_workspace.py --check    check only; copy nothing
 
-Copies .agents/AGENTS.md, CONTRACT.md, config/, keys/, contract/schemas/ and HUGINN's
+Copies .agents/AGENTS.md, CONTRACT.md, config/, keys/, contract/schemas/, the Director's recorded
+check-in in checkins/ (his ruling of 28 October 2026, for Muse Code's M6) and HUGINN's
 deps/huginn/defs/tlm_cmd.yaml from the main branch, not from the working tree, into
 %USERPROFILE%\\Documents\\ad-astra-simul\\odin byte for byte, then reads every copy back and checks its
 SHA-256 against main's. Exits 1 on any mismatch.
@@ -22,7 +23,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKSPACE = Path.home() / "Documents" / "ad-astra-simul" / "odin"
-SHARED = (".agents/AGENTS.md", "CONTRACT.md", "config", "keys", "contract/schemas")
+SHARED = (".agents/AGENTS.md", "CONTRACT.md", "config", "keys", "contract/schemas", "checkins")
 HUGINN_FILE = ("deps/huginn", "defs/tlm_cmd.yaml")
 MUSE_FOLDERS = ("odin", "to-claude-code", "cache", "runs")
 MUSE_FILES = ("keys/odin.pub",)
