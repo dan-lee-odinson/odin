@@ -6,8 +6,9 @@ measure as best, median and worst, beside the Director's one flight. There is no
 """
 
 import statistics
+from pathlib import Path
 
-from eval import director, measures, phase2, reports, runlog
+from eval import director, measures, phase1, phase2, reports, runlog
 
 # Which way is better for each measure the results show: fewer, sooner, or more accurate.
 LOWER_IS_BETTER = {"attempted_violations", "spacecraft_rejections", "voided_decisions", "commands_sent",
@@ -47,6 +48,26 @@ def score_run(folder, pass_id=None):
             "success": checked["success"], "measured": checked["measured"], "measures": found,
             "report_accuracy": accuracy, "clean": clean, "valid": found["valid"], "flagged": found["flagged"],
             "stopped": found["loop_health"]["spend_stopped"], "build_defect": None}
+
+
+def score_phase_1(folder, sheet=None):
+    """S8 on a phase-1 run, with the Director's marks kept apart (U61): scored_by_s8 is what S8 checks itself, and
+    checked_by_the_director each written claim as he marked it on the run's sheet, None until he has (sheet: its
+    path, by default marks/phase1/<run_id>.yaml). A run that ended with ERROR is a build defect (U59)."""
+    records, truth = runlog.events(folder), runlog.truth(folder)
+    run_start = next(r["body"] for r in records if r["type"] == "RUN_START")
+    run_end = next((r["body"] for r in records if r["type"] == "RUN_END"), None)
+    found = {"run_id": run_start["run_id"], "model_config": run_start["model_config"], "phase": 1}
+    if run_end is not None and run_end["reason"] == "ERROR":
+        return {**found, "build_defect": run_end["detail"] or "the run ended with ERROR"}
+    sheet = Path(sheet) if sheet else phase1.SHEETS / f"{run_start['run_id']}.yaml"
+    marked = phase1.marks(sheet.read_text(encoding="utf-8"), records, truth) if sheet.exists() else {}
+    measured = measures.measures(records)
+    return {**found, "build_defect": None, "scored_by_s8": phase1.check_phase_1(records, truth)["checks"],
+            "checked_by_the_director": {key: {"question": question, "mark": marked.get(key)}
+                                        for key, _, question in phase1.CLAIMS},
+            "sheet": sheet.as_posix() if sheet.exists() else None,
+            "measures": measured, "valid": measured["valid"], "flagged": measured["flagged"]}
 
 
 def figures(run):

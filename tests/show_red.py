@@ -367,7 +367,9 @@ CASES = {"s0": [
      change_file("harness/run.py", replace_once(b'self.failed = f"COSMOS refused {command}: {refusal}"', b"pass"))),
     ("S8 scoring a run that ended with ERROR instead of listing it as a build defect (U59)",
      "tests/test_s5_connector.py::test_red_cosmos_refusing_an_allowed_command_ends_the_run_with_its_refusal",
-     change_file("eval/results.py", replace_once(b'if run_end is not None and run_end["reason"] == "ERROR":', b"if False:"))),
+     change_file("eval/results.py", replace_once(
+         b'if run_end is not None and run_end["reason"] == "ERROR":\n        return {"run_id": run_start["run_id"]',
+         b'if False:\n        return {"run_id": run_start["run_id"]'))),
 ], "s6": [
     ("ODIN's launcher passing it COSMOS's OPENC3_* settings (U38)",
      "tests/test_s6_launch.py::test_red_each_credential_prefix_is_withheld_whatever_its_case",
@@ -640,6 +642,27 @@ CASES = {"s0": [
     ("the Director's state-of-charge crossing read at 36 %, not 35 %",
      "tests/test_s8_director.py::test_the_flight_figures_are_the_rulings[PASS-2B]",
      change_file("eval/director.py", replace_once(b'if f["EPS_BATT_SOC"] < 35)', b'if f["EPS_BATT_SOC"] < 36)'))),
+    ("a written claim with no place beside the answer it judges (U61)",
+     "tests/test_s8_phase1.py::test_the_sheet_lays_each_answer_beside_cosmos_with_a_place_for_each_written_claim",
+     change_file("eval/phase1.py", replace_once(b'    ("limit_crossed", 2, ', b'    ("limit_crossed", 3, '))),
+    ("a mark other than true or false read back (U61)",
+     "tests/test_s8_phase1.py::test_red_a_mark_that_is_not_true_or_false_is_refused",
+     change_file("eval/phase1.py", replace_once(
+         b'if claim["mark"] is not None and not isinstance(claim["mark"], bool):', b"if False:"))),
+    ("a sheet changed beyond its marks read back (U61)",
+     "tests/test_s8_phase1.py::test_red_a_sheet_changed_beyond_its_marks_is_refused",
+     change_file("eval/phase1.py", replace_once(b"if blank != yaml.safe_load(sheet_text(sheet(records, truth))):",
+                                                b"if False:"))),
+    ("the Director's marks counted among what S8 scores (U61)",
+     "tests/test_s8_phase1.py::test_a_flown_shakedowns_marks_come_back_as_the_directors_apart_from_what_s8_scores",
+     change_file("eval/results.py", replace_once(
+         b'"scored_by_s8": phase1.check_phase_1(records, truth)["checks"],',
+         b'"scored_by_s8": {**phase1.check_phase_1(records, truth)["checks"], **marked},'))),
+    ("S8 scoring a phase-1 run that ended with ERROR instead of listing it as a build defect (U59, U61)",
+     "tests/test_s8_phase1.py::test_red_a_phase_1_run_that_ended_with_error_is_a_build_defect_not_scored",
+     change_file("eval/results.py", replace_once(
+         b'if run_end is not None and run_end["reason"] == "ERROR":\n        return {**found,',
+         b'if False:\n        return {**found,'))),
 ], "phase3": [
     ("a second hash in the seal",
      "tests/test_phase3_seal.py::test_the_seal_holds_exactly_one_hash",
