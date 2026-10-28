@@ -4,7 +4,8 @@ A plan's procedures_in_force names each procedure by id, version and the SHA-256
 The bundle carries each one unchanged, its full text, with its attachments.
 
 The texts are found by the hash of their bytes in the folders the run names: by default the Director's
-inputs in inputs-pre-existing/, never its comparison-only/, and plans/. So a plan can name only a
+inputs in inputs-pre-existing/, never its comparison-only/, plans/, and odin/study/, where Muse Code's M4
+deposit keeps ODIN's frozen COSMOS reference. So a plan can name only a
 procedure whose exact text is there, and the hash picks the version. A run whose chain names a
 procedure or reference that is not there does not start.
 
@@ -20,7 +21,7 @@ from pathlib import Path
 from log.canonical import sha256_tag
 
 ROOT = Path(__file__).resolve().parent.parent
-FOLDERS = (ROOT / "inputs-pre-existing", ROOT / "plans")
+FOLDERS = (ROOT / "inputs-pre-existing", ROOT / "plans", ROOT / "odin" / "study")
 HIDDEN = "comparison-only"   # used only to score ODIN, never shown to it
 ATTACHED_TO = "PROC-001"
 PLACEHOLDER = "sha256:" + "0" * 64

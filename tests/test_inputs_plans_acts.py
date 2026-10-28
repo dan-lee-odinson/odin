@@ -127,7 +127,8 @@ def test_red_a_window_off_by_one_second_is_not_one_the_u35_tests_use():
 @pytest.mark.parametrize("path", PLANS, ids=lambda p: p.stem)
 def test_every_hash_a_plan_lists_is_a_file_here_or_a_placeholder(path):
     document = plan(path)
-    here = {digest(p.read_bytes()) for folder in (INPUTS, REPO_ROOT / "plans") for p in folder.rglob("*") if p.is_file()}
+    here = {digest(p.read_bytes()) for folder in (INPUTS, REPO_ROOT / "plans", REPO_ROOT / "odin" / "study")
+            for p in folder.rglob("*") if p.is_file()}
     listed = [ref["sha256"] for ref in document["procedures_in_force"] + document["references"]]
     assert [sha for sha in listed if sha != ZEROS and sha not in here] == []
     for ref in document["procedures_in_force"]:

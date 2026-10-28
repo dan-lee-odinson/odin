@@ -14,6 +14,7 @@ from tests.repo_checks import REPO_ROOT
 
 PLANS = sorted((REPO_ROOT / "plans").glob("*.yaml"))
 CONTACT_A = "plans/TYR0-P2-PASS2B-v1.contact-a-telemetry.csv"
+REFERENCE = "odin/study/cosmos_reference.md"   # ODIN's frozen COSMOS reference, from Muse Code's M4 deposit
 
 
 def plan(path):
@@ -44,15 +45,18 @@ def test_every_reference_a_plan_lists_rides_beside_proc_001_with_the_plans_hash(
     assert library.missing(SimpleNamespace(plans=[one])) == []
 
 
-def test_pass_2b_carries_contact_as_telemetry_and_pass_3_the_card_and_its_pass_plan(library):
+def test_every_pass_carries_the_frozen_cosmos_reference_and_its_own_inputs(library):
     by_stem = {p.stem: library.for_plan(plan(p))[0]["attachments"] for p in PLANS}
-    assert [a["text"].encode("utf-8") for a in by_stem["TYR0-P2-PASS2B-v1"]] == [(REPO_ROOT / CONTACT_A).read_bytes()]
-    assert len(by_stem["TYR0-P2-PASS3-v1"]) == 2 and by_stem["TYR0-P2-PASS1-v1"] == []
+    reference = (REPO_ROOT / REFERENCE).read_bytes()
+    assert digest(reference) == "sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f"
+    assert all(attached[0]["text"].encode("utf-8") == reference for attached in by_stem.values())
+    assert [a["text"].encode("utf-8") for a in by_stem["TYR0-P2-PASS2B-v1"][1:]] == [(REPO_ROOT / CONTACT_A).read_bytes()]
+    assert [len(by_stem[p.stem]) for p in PLANS] == [1, 1, 2, 3, 3]   # PASS-3 and 4: their pass plan and the card
 
 
 def test_red_a_placeholder_is_not_attached(library):
     one = plan(REPO_ROOT / "plans" / "TYR0-P2-PASS4-v1.yaml")
-    assert sum(r["sha256"] == PLACEHOLDER for r in one.document["references"]) == 2
+    assert sum(r["sha256"] == PLACEHOLDER for r in one.document["references"]) == 1   # the phase-1 notes
     assert PLACEHOLDER not in [a["sha256"] for a in library.for_plan(one)[0]["attachments"]]
 
 

@@ -56,7 +56,7 @@ procedures_in_force:
     sha256: sha256:5f8f776aec2c7a3082e99097d428607c5b4b84204b8a062cb367cbd8433caeab
 references:
   - name: "ODIN's COSMOS operations reference (frozen at M4)"
-    sha256: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    sha256: sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f
   - name: "ODIN's phase-1 console notes (frozen after phase 1)"
     sha256: sha256:0000000000000000000000000000000000000000000000000000000000000000
   - name: "Pass plan 2026-10-11-P4 (HUGINN e75569f)"
