@@ -44,9 +44,10 @@ def from_the_log(records):
 
 
 def build_bundle(*, run_id, turn_id, turn, met_s, utc, contact_state, seat, gateway, store, procedures,
-                 records, feeds=None):
+                 records, feeds=None, ground_link=None):
     """turn: the harness.triggers.Turn being served. store: the seat's FrameStore. procedures: the
-    run's ProcedureLibrary. records: the event log's records so far."""
+    run's ProcedureLibrary. records: the event log's records so far. ground_link: in the ground seat,
+    HUGINN_INT's {state, received_count} as COSMOS reports them; None in the onboard seat."""
     plan = gateway.chain.plan_at(met_s)
     following = next_plan(gateway.chain, plan, met_s)
     rung, rung_reason = gateway.rung()
@@ -56,7 +57,7 @@ def build_bundle(*, run_id, turn_id, turn, met_s, utc, contact_state, seat, gate
         "run_id": run_id, "turn_id": turn_id, "met_s": met_s, "utc": utc,
         "triggers": turn.triggers, "turn_kind": turn.turn_kind, "report_kind": turn.report_kind,
         "contact_state": contact_state, "seat": seat, "rung": rung, "rung_reason": rung_reason,
-        "observation": store.observation(met_s),
+        "observation": store.observation(met_s, ground_link),
         "history": store.history(procedure_points(in_force), met_s, HISTORY_S),
         "feeds": feeds,
         "gateway_feedback": feedback,

@@ -337,6 +337,25 @@ CASES = {"s0": [
     ("ODIN's COSMOS settings keeping HUGINN's local mode, which copies into HUGINN's read-only plugin folder",
      "tests/test_s4_cosmos.py::test_local_mode_is_the_one_setting_that_differs_from_huginns",
      change_file("connector/cosmos.py", replace_once(b" or name == LOCAL_MODE:", b":"))),
+], "s5": [
+    ("BALDUR-0 queueing a request it refused and dispatching it through COSMOS",
+     "tests/test_s5_connector.py::test_a_command_baldur0_refuses_never_reaches_cosmos",
+     change_file("gateway/gateway.py", lambda data: replace_once(
+         b'                if record["decision"] == "REFUSE":\n                    failed',
+         b'                if False:\n                    failed')(replace_once(
+         b'            if record["decision"] == "ALLOW":\n                self._pending.append(',
+         b'            if True:\n                self._pending.append(')(data)))),
+    ("a hazardous command sent through COSMOS's ordinary send",
+     "tests/test_s5_connector.py::test_each_command_goes_by_the_send_its_hazard_needs",
+     change_file("connector/api.py", replace_once(
+         b'return "cmd_no_hazardous_check" if COMMANDS[command]["hazardous"] else "cmd"', b'return "cmd"'))),
+    ("COSMOS's packet from an earlier run read as this run's frame",
+     "tests/test_s5_connector.py::test_red_cosmos_counts_from_earlier_runs_are_not_this_runs_frames",
+     change_file("harness/run.py", replace_once(b'self._ground_count = self.cosmos.packet()["received_count"]',
+                                                b"self._ground_count = 0"))),
+    ("a ground run starting though COSMOS never dialed its link",
+     "tests/test_s5_connector.py::test_red_a_ground_run_whose_cosmos_never_dials_stops_before_its_first_contact",
+     change_file("harness/run.py", replace_once(b"return self.link.clients >= 1", b"return True"))),
 ], "s6": [
     ("ODIN's launcher passing it COSMOS's OPENC3_* settings (U38)",
      "tests/test_s6_launch.py::test_red_each_credential_prefix_is_withheld_whatever_its_case",

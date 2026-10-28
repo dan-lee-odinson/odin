@@ -31,6 +31,7 @@ import threading
 import time
 from pathlib import Path
 
+from connector.api import CosmosApi
 from contract.validate import check
 from gateway import server as baldur_server
 from gateway.gateway import Gateway
@@ -48,10 +49,15 @@ from log.canonical import canonical_json, sha256_tag
 from log.chain import utc_now
 from log.event_log import EventLog, TruthLog, compress_truth
 from wrapper.clock import RunClock
-from wrapper.link import in_window
+from wrapper.link import Link, in_window
 from wrapper.simulator import Simulator
 
 RUN_COMPLETE = json.dumps({"run_complete": True}).encode("utf-8")
+SEATS = ("ONBOARD", "GROUND")
+# The ground seat (S5): how long COSMOS is given to show a frame the link sent on this tick, and to dial the
+# link before the run's first contact.
+GROUND_WAIT_S = 0.5
+DIAL_S = 30
 RUN_START_CONFIG = ("seed", "model_config", "provider", "model_id", "reasoning_effort", "endpoint", "answer_method",
                     "reference_sha256")
 # Whoever starts a run names only the model. RUN_START's model ID and reasoning level come from the model's
@@ -78,18 +84,23 @@ class Run:
     def __init__(self, *, run_id, scenario, scenario_id, phase, mode, plan_paths, act_path, root, procedures,
                  config, seat="ONBOARD", pacing="CHARGED", rate=1.0, check_ins=(), pass_transcript=None,
                  revoke_at=None, restore=None, docs_folder=docs.CACHE, keys_dir=KEYS_DIR, addresses=None,
-                 utc_clock=utc_now, endpoint=None):
+                 utc_clock=utc_now, endpoint=None, cosmos=None, link_at=None):
         """config: what whoever starts the run names, RUN_START_CONFIG but for the DERIVED settings, which come
         from the model's frozen block (U56) and its adapter (U57); a config carrying any of them is refused.
         endpoint: the base URL a development run's adapter calls instead of its built-in one; refused in a
-        SCORED run (U57). check_ins: recorded check-ins to play, as (met_s, POST /checkin body); a phase-2 or phase-3 run also carries
-        one at each contact's loss of signal minus 90 s (harness/checkins.py). pass_transcript: that
-        check-in's frozen transcript {text, audio_sha256}, or None for the words as text until it exists.
-        revoke_at: the scripted revocation's
-        MET, in the one revoke scenario. restore: (met_s, restore act path). addresses: {harness,
-        baldur0, log} to serve on, each (host, port); config/ports.yaml's by default."""
-        if seat != "ONBOARD":
-            raise NotImplementedError("the ground seat reads COSMOS through the connector, stage S5")
+        SCORED run (U57). seat: ONBOARD, beside the simulator, or GROUND, through COSMOS, in real time
+        (§10.1). check_ins: recorded check-ins to play, as (met_s, POST /checkin body); a phase-2 or phase-3
+        run also carries one at each contact's loss of signal minus 90 s (harness/checkins.py).
+        pass_transcript: that check-in's frozen transcript {text, audio_sha256}, or None for the words as text
+        until it exists. revoke_at: the scripted revocation's MET, in the one revoke scenario. restore:
+        (met_s, restore act path). addresses: {harness, baldur0, log} to serve on, each (host, port);
+        config/ports.yaml's by default. cosmos: the ground seat's COSMOS, a connector.api.CosmosApi by
+        default. link_at: the (host, port) the ground seat's link listens on, config/ports.yaml's by
+        default."""
+        if seat not in SEATS:
+            raise ValueError(f"seat {seat!r} is not one of {SEATS}")
+        if seat == "GROUND" and pacing != "REAL_TIME":
+            raise ValueError("the ground seat runs in real time (CONTRACT.md §10.1)")
         self.run_id, self.scenario, self.scenario_id, self.phase, self.mode = run_id, scenario, scenario_id, phase, mode
         self.plan_paths, self.act_path, self.procedures, self.config = list(plan_paths), act_path, procedures, config
         self.endpoint = endpoint
@@ -103,7 +114,10 @@ class Run:
         self.final = Path(root) / "runs" / ("scored" if mode == "SCORED" else "dev") / run_id
         self.start_met_s = self.end_met_s = None
         self.queue = TriggerQueue()
-        self.store = FrameStore("ONBOARD")
+        self.store = FrameStore("COSMOS" if seat == "GROUND" else "ONBOARD")
+        self.cosmos, self._link_at = cosmos, link_at
+        self.link = None
+        self._ground_count = self._sent_seen = 0
         self.simulator = None
         self.clock = None
         self.turn_id = 0
@@ -123,10 +137,41 @@ class Run:
         return "IN_CONTACT" if in_window(self.met_s(), self._windows) else "OUT_OF_CONTACT"
 
     def _send(self, command, parameters, route):
-        """BALDUR-0's route. The onboard seat's is the wrapper's uplink (§9.3)."""
-        if route != "UPLINK":
-            raise NotImplementedError("the COSMOS route is the connector's, stage S5")
-        self.simulator.uplink(command, parameters)
+        """BALDUR-0's route (§9.3): the ground seat's is the COSMOS connector, which COSMOS sends up the link;
+        the onboard seat's is the wrapper's uplink. BALDUR-0 calls it only for a command it allowed and
+        rechecked, so a command it refuses never reaches COSMOS."""
+        if route == "COSMOS":
+            self.cosmos.send(command, parameters)
+        else:
+            self.simulator.uplink(command, parameters)
+
+    def _ground_frame(self, met):
+        """In the ground seat, the frame COSMOS received since the last tick, as COSMOS decommutated it, or None.
+        When the link sent a frame on this tick, COSMOS is given up to GROUND_WAIT_S to show it. Only packets
+        counted after the run started are its own; COSMOS keeps its counts from earlier runs."""
+        sent = self.link.counts["SENT"] > self._sent_seen
+        self._sent_seen = self.link.counts["SENT"]
+        deadline = time.monotonic() + (GROUND_WAIT_S if sent else 0)
+        while True:
+            packet = self.cosmos.packet()
+            if packet["received_count"] > self._ground_count:
+                self._ground_count = packet["received_count"]
+                self.store.receive(packet["frame"], packet["received_utc"], met)
+                return packet["frame"]
+            if time.monotonic() >= deadline:
+                return None
+            time.sleep(0.02)
+
+    def _start_ground(self):
+        """The ground seat's link, which COSMOS's HUGINN_INT dials. False if COSMOS has not dialed it within
+        DIAL_S, since a pass flown without it would receive nothing."""
+        self.cosmos = self.cosmos or CosmosApi()
+        self._ground_count = self.cosmos.packet()["received_count"]
+        self.link = Link(self._windows, address=self._link_at).start()
+        deadline = time.monotonic() + DIAL_S
+        while self.link.clients < 1 and time.monotonic() < deadline:
+            time.sleep(0.1)
+        return self.link.clients >= 1
 
     # -- start -----------------------------------------------------------------------------------
 
@@ -188,8 +233,11 @@ class Run:
         self._windows = sorted((p.document["contact_window"]["aos_met_s"], p.document["contact_window"]["los_met_s"])
                                for p in plans)
         first_aos = min((aos for aos, los in self._windows if los > self.start_met_s), default=self.start_met_s)
+        if self.seat == "GROUND" and not self._start_ground():
+            self.stop("ERROR")
+            return False
         self.truth = TruthLog.create(self.folder / "truth.jsonl", met_clock=self.met_s, utc_clock=self._utc)
-        self.simulator = Simulator(self.scenario, windows=self._windows, truth=self.truth,
+        self.simulator = Simulator(self.scenario, windows=self._windows, link=self.link, truth=self.truth,
                                    start_at=max(self.start_met_s, first_aos))
         if self.phase in PHASES:
             self.check_ins = sorted(self.check_ins + pass_check_ins(self._windows, self.pass_transcript),
@@ -218,9 +266,12 @@ class Run:
     def _on_tick(self, frame):
         with self._lock:
             met = self.simulator.met_s
-            received = self.simulator.tap.latest() if frame is not None else None
-            if received is not None:
-                self.store.receive(received, self._utc(), met)
+            if self.seat == "GROUND":
+                received = self._ground_frame(met)
+            else:
+                received = self.simulator.tap.latest() if frame is not None else None
+                if received is not None:
+                    self.store.receive(received, self._utc(), met)
             self.gateway.update_clock()
             telemetry = {"frame_met_s": received["CDH_MET"], "points": dict(received)} if received else None
             outcomes = [trigger("OUTCOME", met, request_id=o["request_id"]) for o in self.gateway.observe(telemetry)
@@ -288,7 +339,8 @@ class Run:
             met = self.met_s()
             bundle = build_bundle(run_id=self.run_id, turn_id=self.turn_id, turn=turn, met_s=met, utc=self._utc(),
                                   contact_state=self.contact(), seat=self.seat, gateway=self.gateway,
-                                  store=self.store, procedures=self.procedures, records=read_records(self.events.path))
+                                  store=self.store, procedures=self.procedures, records=read_records(self.events.path),
+                                  ground_link=self.cosmos.ground_link() if self.seat == "GROUND" else None)
             data = bundle_bytes(bundle)
             self.events.append("TRIGGER", {"turn_id": self.turn_id, "turn_kind": turn.turn_kind,
                                            "report_kind": turn.report_kind, "triggers": turn.triggers,
@@ -370,6 +422,8 @@ class Run:
         keeps its inputs in the folder."""
         if self.clock is not None:
             self.clock.stop()
+        if self.link is not None:
+            self.link.stop()
         for server in self._servers:
             server.shutdown()
             server.server_close()
