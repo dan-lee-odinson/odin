@@ -4,8 +4,9 @@ One Gateway serves one run. Before the run starts it verifies the plan chain and
 (§5.3, §5.4). For each command request it logs the request, decides (§9.1) and logs the decision.
 Immediately before an allowed command goes out it decides again on the newest telemetry and the
 current met_s, and sends the command only if the result and its basis are unchanged; otherwise it
-logs DECISION_VOIDED and sends nothing (§9.3). Revocation is applied at once and voids every request
-still waiting to go out; a restore act re-arms the run once (§9.4).
+logs DECISION_VOIDED and sends nothing (§9.3). It then reads each dispatched command's outcome from
+telemetry and logs OUTCOME (§9.3). Revocation is applied at once and voids every request still waiting
+to go out; a restore act re-arms the run once (§9.4).
 
 The harness and the wrapper give the Gateway what it cannot know itself: the simulation clock, the
 newest frame, the seat, the contact state, and the route that sends a command. The harness logs
@@ -41,6 +42,20 @@ class _Pending:
     basis: dict
 
 
+@dataclass
+class _Awaiting:
+    request: dict
+    met_s: float       # when it was dispatched
+    acc_before: int | None
+    rej_before: int | None
+
+
+# The point each command changes, from its effect in HUGINN's dictionary (defs/tlm_cmd.yaml).
+AFFECTED = {"CMD_PLD_SET_STATE": "PLD_STATE", "CMD_PLD_SET_RATE": "PLD_RATE", "CMD_SAFE_ENTER": "EPS_MODE",
+            "CMD_MODE_SET": "EPS_MODE", "CMD_SYS_RESET": None}
+NO_ACKNOWLEDGEMENT_S = 10
+
+
 class Gateway:
     def __init__(self, event_log, *, met_clock, telemetry, sender, utc_clock=utc_now,
                  seat=lambda: "GROUND", contact=lambda: "IN_CONTACT", keys_dir=KEYS_DIR, ssh_keygen=None):
@@ -67,6 +82,7 @@ class Gateway:
         self._nonces = set()
         self._lease_uses = {}
         self._pending = []
+        self._awaiting = []
         self._plan_logged = None
 
     # -- before the run ------------------------------------------------------------------------
@@ -94,6 +110,11 @@ class Gateway:
             return True
 
     # -- what the harness reads ----------------------------------------------------------------
+
+    @property
+    def chain(self):
+        """The verified plan chain, fixed for the run; empty until start_run has verified one."""
+        return self._chain
 
     def update_clock(self):
         """Log PLAN_IN_FORCE if the simulation clock has selected another plan, or left the chain.
@@ -177,7 +198,11 @@ class Gateway:
     def _dispatch(self, item, basis):
         request = item.request
         route = "COSMOS" if self._seat() == "GROUND" else "UPLINK"
+        frame = self._telemetry()
         self._sender(request["command"], request["parameters"], route)
+        self._awaiting.append(_Awaiting(request, self._met_clock(),
+                                        frame["points"]["CDH_CMD_ACC_CNT"] if frame else None,
+                                        frame["points"]["CDH_CMD_REJ_CNT"] if frame else None))
         if basis["lease_id"] is not None:   # a use is counted when the command is dispatched (§9.3)
             key = (basis["plan_id"], basis["lease_id"])
             self._lease_uses[key] = self._lease_uses.get(key, 0) + 1
@@ -193,6 +218,67 @@ class Gateway:
                 "met_s": self._met_clock(), "utc": self._utc_clock()}
         self._log.append("DECISION_VOIDED", body)
         return "DECISION_VOIDED", body
+
+    # -- outcome (§9.3) --------------------------------------------------------------------------
+
+    def observe(self, frame=None):
+        """Read each dispatched command's outcome from telemetry, never assuming it (§9.3, §16.4 U17):
+        the counters' change by the next frame, with the affected point, and a reset's acknowledgement
+        the post-reset counter epoch (accepted 1, rejected 0). The harness calls this every tick, with
+        the frame the seat received since the last, as {frame_met_s, points}, or None. A command whose
+        counters have not moved 10 s of simulation time after dispatch is NO_ACKNOWLEDGEMENT. Returns
+        the OUTCOME bodies written."""
+        with self._lock:
+            written = []
+            if frame is not None:
+                written += self._resolve(frame)
+            now = self._met_clock()
+            while self._awaiting and now - self._awaiting[0].met_s >= NO_ACKNOWLEDGEMENT_S:
+                item = self._awaiting.pop(0)
+                written.append(self._outcome(item, "NO_ACKNOWLEDGEMENT", None))
+            return written
+
+    # Two choices the contract leaves (the Director's ruling on U41, 27 October 2026): a reset's outcome
+    # names no affected point, since its effect is the counter epoch itself; and when more than one
+    # dispatched command waits, the counters' moves are given to them in the order they were dispatched,
+    # the oldest first, the order in which HUGINN applies them.
+    def _resolve(self, frame):
+        written = []
+        points = frame["points"]
+        acc, rej = points["CDH_CMD_ACC_CNT"], points["CDH_CMD_REJ_CNT"]
+        base_acc = base_rej = None
+        while self._awaiting:
+            item = self._awaiting[0]
+            if frame["frame_met_s"] <= item.met_s:
+                break   # a frame from before the dispatch cannot show its outcome
+            if base_acc is None:
+                base_acc, base_rej = item.acc_before, item.rej_before
+            if item.request["command"] == "CMD_SYS_RESET":
+                if (acc, rej) != (1, 0):
+                    break
+                outcome = "ACCEPTED"
+            elif base_acc is not None and acc > base_acc:
+                outcome, base_acc = "ACCEPTED", base_acc + 1
+            elif base_rej is not None and rej > base_rej:
+                outcome, base_rej = "REJECTED", base_rej + 1
+            else:
+                break
+            self._awaiting.pop(0)
+            written.append(self._outcome(item, outcome, frame))
+        return written
+
+    def _outcome(self, item, outcome, frame):
+        points = frame["points"] if frame else None
+        affected = AFFECTED.get(item.request["command"])
+        body = {"request_id": item.request["request_id"], "outcome": outcome,
+                "acc_before": item.acc_before, "acc_after": points["CDH_CMD_ACC_CNT"] if points else None,
+                "rej_before": item.rej_before, "rej_after": points["CDH_CMD_REJ_CNT"] if points else None,
+                "rej_reason": points["CDH_REJ_REASON"] if points else None,
+                "point": {"mnemonic": affected, "value": points[affected]} if points and affected else None,
+                "frame_met_s": frame["frame_met_s"] if frame else None,
+                "met_s": self._met_clock(), "utc": self._utc_clock()}
+        self._log.append("OUTCOME", body)
+        return body
 
     # -- revocation and restore (§9.4) ---------------------------------------------------------
 

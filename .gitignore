@@ -1,8 +1,11 @@
 # COSMOS docs cache, written by Muse Code's fetch script (handoff §5)
 cache/
 
-# Development runs; scored runs in runs/scored/ are committed as evidence
-runs/dev/
+# Runs (the Director's ruling on U46): a run is written to runs/<run_id>/ and moved to runs/scored/
+# or runs/dev/ when it stops. Only runs/scored/ is committed, as evidence, so a run cut off before
+# its move is never committed.
+runs/*
+!runs/scored/
 
 # Python
 __pycache__/

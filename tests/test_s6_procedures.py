@@ -1,0 +1,73 @@
+"""The procedures and attachments a turn bundle carries (CONTRACT.md §6.2, §16.1 U5; the Director's ruling
+on U43, 27 October 2026): every reference a plan lists, resolved by hash, rides beside PROC-001 with the
+plan's hash, placeholders left out, and nothing from comparison-only/ is ever found. Checked against the
+five phase-2 plans and the Director's inputs as placed."""
+
+import hashlib
+from types import SimpleNamespace
+
+import pytest
+
+from gateway.signed import load_yaml
+from harness.procedures import PLACEHOLDER, MissingProcedure, ProcedureLibrary
+from tests.repo_checks import REPO_ROOT
+
+PLANS = sorted((REPO_ROOT / "plans").glob("*.yaml"))
+CONTACT_A = "plans/TYR0-P2-PASS2B-v1.contact-a-telemetry.csv"
+
+
+def plan(path):
+    document, problems = load_yaml(path.read_bytes())
+    assert problems == []
+    return SimpleNamespace(plan_id=document["plan_id"], document=document)
+
+
+def digest(data):
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+@pytest.fixture(scope="module")
+def library():
+    return ProcedureLibrary()
+
+
+@pytest.mark.parametrize("path", PLANS, ids=lambda p: p.stem)
+def test_every_reference_a_plan_lists_rides_beside_proc_001_with_the_plans_hash(library, path):
+    one = plan(path)
+    procedures = library.for_plan(one)
+    listed = [(r["name"], r["sha256"]) for r in one.document["references"] if r["sha256"] != PLACEHOLDER]
+    assert [p["id"] for p in procedures] == ["PROC-001", "PROC-002", "PROC-003"]
+    assert [(a["name"], a["sha256"]) for a in procedures[0]["attachments"]] == listed
+    assert all(digest(a["text"].encode("utf-8")) == a["sha256"] for a in procedures[0]["attachments"])
+    assert [p["attachments"] for p in procedures[1:]] == [[], []]
+    assert all(digest(p["text"].encode("utf-8")) == p["sha256"] for p in procedures)
+    assert library.missing(SimpleNamespace(plans=[one])) == []
+
+
+def test_pass_2b_carries_contact_as_telemetry_and_pass_3_the_card_and_its_pass_plan(library):
+    by_stem = {p.stem: library.for_plan(plan(p))[0]["attachments"] for p in PLANS}
+    assert [a["text"].encode("utf-8") for a in by_stem["TYR0-P2-PASS2B-v1"]] == [(REPO_ROOT / CONTACT_A).read_bytes()]
+    assert len(by_stem["TYR0-P2-PASS3-v1"]) == 2 and by_stem["TYR0-P2-PASS1-v1"] == []
+
+
+def test_red_a_placeholder_is_not_attached(library):
+    one = plan(REPO_ROOT / "plans" / "TYR0-P2-PASS4-v1.yaml")
+    assert sum(r["sha256"] == PLACEHOLDER for r in one.document["references"]) == 2
+    assert PLACEHOLDER not in [a["sha256"] for a in library.for_plan(one)[0]["attachments"]]
+
+
+def test_red_a_file_in_comparison_only_is_never_found(library):
+    record = REPO_ROOT / "inputs-pre-existing" / "comparison-only" / "pass-records" / "2026-10-11-P3" / "report.yaml"
+    one = plan(REPO_ROOT / "plans" / "TYR0-P2-PASS3-v1.yaml")
+    one.document["references"].append({"name": "PASS-3's flown record", "sha256": digest(record.read_bytes())})
+    assert library.missing(SimpleNamespace(plans=[one])) == [
+        f"TYR0-P2-PASS3-v1: reference \"PASS-3's flown record\" {digest(record.read_bytes())}"]
+    with pytest.raises(MissingProcedure):
+        library.for_plan(one)
+
+
+def test_red_references_with_no_proc_001_in_force_to_ride_beside(library):
+    one = plan(REPO_ROOT / "plans" / "TYR0-P2-PASS3-v1.yaml")
+    one.document["procedures_in_force"] = one.document["procedures_in_force"][1:]
+    assert library.missing(SimpleNamespace(plans=[one])) == [
+        "TYR0-P2-PASS3-v1: references to attach but no PROC-001 in force to attach them beside"]
