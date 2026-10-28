@@ -159,7 +159,7 @@ def test_prompt_stable_prefix_first(tmp_path, keypair):
     loop = TurnLoop(
         harness_url=services.url, baldur_url=services.url, log_url=services.url,
         adapter=adapter, repo_root=tmp_path, transport=services.transport,
-        instructions="INSTRUCTIONS-MARKER", frozen_reference="REFERENCE-MARKER",
+        instructions="INSTRUCTIONS-MARKER",
     )
     try:
         loop.run(max_turns=5)
@@ -167,4 +167,6 @@ def test_prompt_stable_prefix_first(tmp_path, keypair):
         services.stop()
     body = [r["body"] for r in services.log_records if r["type"] == "AGENT_INPUT"][0]
     prompt = (tmp_path / "runs" / RUN_ID / "inputs" / body["prompt_sha256"].split(":")[1]).read_text("utf-8")
-    assert prompt.index("INSTRUCTIONS-MARKER") < prompt.index("REFERENCE-MARKER") < prompt.index(RUN_ID)
+    # U43 order: instructions, then plan/procedures, then the changing turn.
+    assert prompt.index("INSTRUCTIONS-MARKER") < prompt.index("TYR0-DEV-PASS1-v1")
+    assert prompt.index("TYR0-DEV-PASS1-v1") < prompt.index("EPS_BATT_V")

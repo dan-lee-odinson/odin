@@ -19,12 +19,18 @@ class SparkAdapter(ChatAdapter):
     env_var = "META_API_KEY"
 
     def complete(self, *, prompt: bytes, bundle: dict, call_index: int = 1,
-                 meter=None, turn_id=None, model_call_sink=None, tool_handler=None) -> dict:
+                 meter=None, turn_id=None, model_call_sink=None, tool_handler=None,
+                 plain_text: bool = False) -> dict:
         turn_id = turn_id if turn_id is not None else bundle.get("turn_id", 1)
-        schema_file = "answer.schema.json" if bundle.get("turn_kind") != "REPORT" else "report_body.schema.json"
-        response_format = {"type": "json_schema", "json_schema": {
-            "name": "odin_answer", "schema": _load_schema(schema_file)}}
-        tools = READONLY_TOOLS if tool_handler else None
+        if plain_text:
+            # Study call (M4 fix 1): plain text — no answer schema, no tools.
+            response_format = None
+            tools = None
+        else:
+            schema_file = "answer.schema.json" if bundle.get("turn_kind") != "REPORT" else "report_body.schema.json"
+            response_format = {"type": "json_schema", "json_schema": {
+                "name": "odin_answer", "schema": _load_schema(schema_file)}}
+            tools = READONLY_TOOLS if tool_handler else None
         messages = [{"role": "user", "content": prompt.decode("utf-8")}]
         sink = model_call_sink if model_call_sink is not None else []
         index, total_latency, last_usage, cut_off = call_index, 0.0, {}, False
@@ -65,5 +71,6 @@ class SparkAdapter(ChatAdapter):
                 "provider": self.provider, "model_id": self.model_id,
                 "reasoning_effort": self.reasoning_effort,
                 "max_output_tokens": self.max_output_tokens,
-                "cut_off": cut_off, "model_calls": sink,
+                "cut_off": cut_off, "finish_reason": choice.get("finish_reason"),
+                "model_calls": sink,
             }

@@ -13,7 +13,7 @@ import urllib.request
 from pathlib import Path
 
 from .canonical import sha256_tag
-from .prompt import build_prompt
+from .prompt import build_prompt  # noqa: F401  (re-exported for callers)
 from .signing import build_signed_request
 from .validate import validate_act_text, validate_report_text
 
@@ -69,6 +69,20 @@ class TurnLoop:
             transport=self.transport)
         return body.decode("utf-8")
 
+    def _attachment_mismatch(self, bundle):
+        """U43: each attachment's SHA-256 must match the plan's references."""
+        references = {r.get("name"): r.get("sha256")
+                      for r in ((bundle.get("plan") or {}).get("references") or [])}
+        for procedure in bundle.get("procedures") or []:
+            for attachment in procedure.get("attachments") or []:
+                computed = sha256_tag(attachment.get("text", "").encode("utf-8"))
+                if computed != attachment.get("sha256"):
+                    return f"attachment {attachment.get('name')!r} hash mismatch"
+                expected = references.get(attachment.get("name"))
+                if expected is not None and expected != computed:
+                    return f"attachment {attachment.get('name')!r} != plan reference"
+        return None
+
     def _service_error(self, turn_id, service, status):
         # U30: a 400/404 ends the turn, no retry, never a crash.
         self.errors.append({"turn_id": turn_id, "service": service, "status": status})
@@ -98,7 +112,7 @@ class TurnLoop:
     def run_turn(self, bundle_bytes: bytes) -> dict:
         bundle = json.loads(bundle_bytes)
         run_id, turn_id = bundle["run_id"], bundle["turn_id"]
-        prompt_bytes = build_prompt(bundle, self.instructions, self.frozen_reference)
+        prompt_bytes = build_prompt(bundle, self.instructions)
         bundle_hash = sha256_tag(bundle_bytes)
         prompt_hash = sha256_tag(prompt_bytes)
         # Save exact bytes, each file named by its hash (§4), then log
@@ -109,6 +123,13 @@ class TurnLoop:
         (inputs_dir / prompt_hash.split(":", 1)[1]).write_bytes(prompt_bytes)
         self._log("AGENT_INPUT", {"run_id": run_id, "turn_id": turn_id,
                                   "bundle_sha256": bundle_hash, "prompt_sha256": prompt_hash})
+        mismatch = self._attachment_mismatch(bundle)
+        if mismatch is not None:
+            # U43: ends the turn, logged, no model call is made.
+            self._log("MALFORMED", {"run_id": run_id, "turn_id": turn_id,
+                                    "reason": "SCHEMA_VIOLATION", "detail": mismatch})
+            return {"turn_id": turn_id, "outcome": "attachment_mismatch",
+                    "detail": mismatch}
         plan = bundle.get("plan") or {}
         plan_id = plan.get("plan_id")
         sink = []
@@ -193,11 +214,18 @@ class TurnLoop:
         return {"turn_id": turn_id, "outcome": "request", "request": request,
                 "decision": decision, "cut_off": bool(result.get("cut_off"))}
 
-    def run(self, max_turns=1000) -> list:
+    def run(self, max_turns=1000, max_waits=10000) -> list:
         results = []
-        for _ in range(max_turns):
-            status, body = _http_json("GET", f"{self.harness_url}/turn/next", timeout=30,
-                                      transport=self.transport)
+        waits = 0
+        while len(results) < max_turns and waits <= max_waits:
+            try:
+                # U39: GET /turn/next may wait up to 120 s; a timeout is not
+                # an error — the loop asks again and never crashes on it.
+                status, body = _http_json("GET", f"{self.harness_url}/turn/next",
+                                          timeout=120, transport=self.transport)
+            except (TimeoutError, ConnectionError, urllib.error.URLError):
+                waits += 1
+                continue
             if status >= 400:
                 results.append(self._service_error(
                     results[-1]["turn_id"] + 1 if results else 1, "harness/turn", status))

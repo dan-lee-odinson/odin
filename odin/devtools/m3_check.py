@@ -75,7 +75,7 @@ def run_check(*, repo_root, env=None, http_post=None, odin_public_key_path=None,
     repo_root = Path(repo_root)
     settings = load_settings(settings_path)
     bundle = make_m3_bundle()
-    prompt = build_prompt(bundle, _instructions(), "")
+    prompt = build_prompt(bundle, _instructions())
     meter = SpendMeter(ledger_path=repo_root / "runs" / "_m3_spend_tmp.jsonl",
                        prices_path=REPO_ROOT / "config" / "prices.yaml")
     plan = []

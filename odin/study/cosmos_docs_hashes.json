@@ -1,0 +1,398 @@
+[
+  {
+    "path": "configuration/_category_.json",
+    "sha256": "sha256:78e0de847f2a55d0d85442a01a6ba769251a77bef3c3ba446f0f7d8685dbbd84"
+  },
+  {
+    "path": "configuration/_command.md",
+    "sha256": "sha256:d86fc7fa958a5432c6b829324f2a4d6f465bcb6b0cc3a79ce398057768f169a4"
+  },
+  {
+    "path": "configuration/_conversions.md",
+    "sha256": "sha256:a2a0bea7d28fef3c932ed551f9fcf39f4ddce118f5a50f23d44f8252ca51e7b9"
+  },
+  {
+    "path": "configuration/_plugins.md",
+    "sha256": "sha256:347141f30905ed812315fe73152836b376bc367f2c0ea331bc411cf033c94125"
+  },
+  {
+    "path": "configuration/_processors.md",
+    "sha256": "sha256:3833d4257051e34315b6d4c759fb152a720052258132bd82dba8f082c1459916"
+  },
+  {
+    "path": "configuration/_table.md",
+    "sha256": "sha256:8a081a7d69f9febb2e4ab6d0d66773f8b29694801b477613e26a88250e5da307"
+  },
+  {
+    "path": "configuration/_target.md",
+    "sha256": "sha256:088e306235cb913740044b12d5bce52e2ae6771f728cc4a2256ca86c658b0794"
+  },
+  {
+    "path": "configuration/_telemetry-screens.md",
+    "sha256": "sha256:5c7edf8da578a6ef3361625d93f41ee0d1379a204b14f65acc5f7b2eaaa1675a"
+  },
+  {
+    "path": "configuration/_telemetry.md",
+    "sha256": "sha256:0acb2c2a99297397cbe2cc3d0f857d05db2fd998d8fd8b56428d431e0f9b1be8"
+  },
+  {
+    "path": "configuration/accessors.md",
+    "sha256": "sha256:1f9b5edd7cacae0b533b6dba7eeb0b8be7ec9c3bc2476cd676d3f09da342e5a1"
+  },
+  {
+    "path": "configuration/command.md",
+    "sha256": "sha256:60a6fef8ec09aa777e953cb23a92997b7960a9dd26921f828e2e5d92761bfc8e"
+  },
+  {
+    "path": "configuration/conversions.md",
+    "sha256": "sha256:c5f60166864da13f25a70f8b4b5483c2965e5c6563c16012f41b6e2384f01642"
+  },
+  {
+    "path": "configuration/format.md",
+    "sha256": "sha256:114cfa0d6e91877619d9b60e3fe2412bf98f0b3f1fbe3fa129e190a13227b267"
+  },
+  {
+    "path": "configuration/interfaces.md",
+    "sha256": "sha256:aa847b08dc0b887cebb0f8f3b3f10960435491e9ceacf0ee6137a262e59d3d76"
+  },
+  {
+    "path": "configuration/limits-response.md",
+    "sha256": "sha256:e483df284c47c51ad783c80579e5dbc32f357cab3905cd884117532b87a9647b"
+  },
+  {
+    "path": "configuration/plugins.md",
+    "sha256": "sha256:4dd6046ce3e029b107838fb989a1f18254eabdbf6732de9c5774cb89b4eea816"
+  },
+  {
+    "path": "configuration/processors.md",
+    "sha256": "sha256:4d03ad54b3bda612c0f3499402e1fa5ad77432cbd4e9c261c5700abc013cb41c"
+  },
+  {
+    "path": "configuration/protocols.md",
+    "sha256": "sha256:a7d40d1045777d630ef2f361c2661490c7212196e6c439635ea61a890da8cb1f"
+  },
+  {
+    "path": "configuration/ssl-tls.md",
+    "sha256": "sha256:1334000291c12f922320d99998b7f17e8509bdcb3358a9abb54cab0199dea7a9"
+  },
+  {
+    "path": "configuration/table.md",
+    "sha256": "sha256:e671a8619d649f7f469559c64d187ac44864df9061d1aee33734f75b9e3b4c93"
+  },
+  {
+    "path": "configuration/target.md",
+    "sha256": "sha256:5b9aea1d33fb516e39caf8ebd32409209a16a2611ca658fede6a2a328282cf04"
+  },
+  {
+    "path": "configuration/telemetry-screens.md",
+    "sha256": "sha256:b2b66a1fc6a566969e8c2bf43e4163829d0396caa054f127419a569192d07bb4"
+  },
+  {
+    "path": "configuration/telemetry.md",
+    "sha256": "sha256:16761dbe4b93675cdb0cfc2ae41b80c0bd48856fe6d8cd7e3b66d118107c97f3"
+  },
+  {
+    "path": "development/_category_.json",
+    "sha256": "sha256:69227f76d188334388a6d52c4d523c6ea8f8703731f4283264b5b7e252d8af23"
+  },
+  {
+    "path": "development/developing.md",
+    "sha256": "sha256:100b66c4184d47bbfa512891e43b37c5d50ba616eed976ecc817da9bf6dafb4f"
+  },
+  {
+    "path": "development/json-api.md",
+    "sha256": "sha256:d73fc3d8d629b7b7d800b75f890faf4b1b303fdeab16fbfc34731a785b4540d3"
+  },
+  {
+    "path": "development/log-structure.md",
+    "sha256": "sha256:950209011fd9fe76441ab21650dd5d61c4f67d664e8bf7333f6e19392e8d9ae2"
+  },
+  {
+    "path": "development/microservices.md",
+    "sha256": "sha256:b67df236fdabbea820218019ca58548158d85f58fe6c695d71cea72822437069"
+  },
+  {
+    "path": "development/roadmap.md",
+    "sha256": "sha256:5c7fd16bbe0f5a59bcfc20d3665b4b2e716e6718272d4dd7394bab71670fc3d6"
+  },
+  {
+    "path": "development/streaming-api.md",
+    "sha256": "sha256:a971febee5209c2f3f1c749b365c6cedeef84df3024ab4885ac4a9be71fae4c7"
+  },
+  {
+    "path": "development/testing.md",
+    "sha256": "sha256:488c0469088b25cdb364d98c566e7452a8a71a47d0b91533c3d7d7c7b904e014"
+  },
+  {
+    "path": "development/web-socket-api.md",
+    "sha256": "sha256:a861802931e929bc62c5fa667cfb21d5f0e8633f274fc21c908b68cb1c104b2b"
+  },
+  {
+    "path": "getting-started/_category_.json",
+    "sha256": "sha256:39e9acd5ec9c92f147b15f1cca5ee196905f888a9abae608f3d675fc24fcc8c7"
+  },
+  {
+    "path": "getting-started/architecture.md",
+    "sha256": "sha256:b4d69e683ffd3891bcd2212df00d3f64fb39924945673d9c13ed2a5ba5dc2765"
+  },
+  {
+    "path": "getting-started/cli.md",
+    "sha256": "sha256:bc4c2e0d2b7a3c996ff655e98415b4de073a730173db83c2b0e0742dee9d1710"
+  },
+  {
+    "path": "getting-started/generators.md",
+    "sha256": "sha256:904e542cdc4881ebc404b578157da2bec9897b8010ff6256b106dc383914d2ae"
+  },
+  {
+    "path": "getting-started/gettingstarted.md",
+    "sha256": "sha256:ce65a7800774e8e54dc29609051ac8a3f6d47bcdc90b94ff180a49494824f492"
+  },
+  {
+    "path": "getting-started/installation.md",
+    "sha256": "sha256:506a6258624a05d885e1d7d8222663101d79a6ec63c48a5442ab8a53168d83cd"
+  },
+  {
+    "path": "getting-started/security.md",
+    "sha256": "sha256:3fe660bdc560f9df1b2ab1142f26ace8f726fa218f39e09b41cd12dc8d8770b3"
+  },
+  {
+    "path": "getting-started/upgrading.md",
+    "sha256": "sha256:16a138d511bdd129a5183049dc5f2310e65f711c550ce6a683bcc23ab22bbb23"
+  },
+  {
+    "path": "getting-started/util.md",
+    "sha256": "sha256:5cc4530f1b92b467a8a183b0a9cd88d325d51a91cf953d09d8bc4926f71eae17"
+  },
+  {
+    "path": "guides/_category_.json",
+    "sha256": "sha256:2f980b6cb0c78780f4b66d6c0ead71674a56a9a11ccf589be1976ee3165edc67"
+  },
+  {
+    "path": "guides/backups.md",
+    "sha256": "sha256:af7ddffbaf931c2580bcd8ff5f9f6638c2e0f85c1f06a5fe01a112f78f21f473"
+  },
+  {
+    "path": "guides/bridges.md",
+    "sha256": "sha256:7970704b74d63243e554fbb4ca24488aea6dc7c5f5f4ae018d12b8ae09bd9bb3"
+  },
+  {
+    "path": "guides/cfs.md",
+    "sha256": "sha256:c5b878a7b47ec72fe4f89f317e37849d0198515b6d38880b77dd3d7261a0b56d"
+  },
+  {
+    "path": "guides/curl.md",
+    "sha256": "sha256:8ef4d619fa83795cb09093c3d99f745504d09f74eac93e5794a77aba4de88cc5"
+  },
+  {
+    "path": "guides/custom-tools.md",
+    "sha256": "sha256:2f39db00628203c7cb20378a7b0e008aa68e6aa8ddd0bd390a8123d188450b37"
+  },
+  {
+    "path": "guides/custom-widgets.md",
+    "sha256": "sha256:a4ee7f90ce46b8e383811c55a92d4995de85d5ecc581fda78c2c7c5953ca0adb"
+  },
+  {
+    "path": "guides/dynamic-packets.md",
+    "sha256": "sha256:fbadc06c55049d3f807bf7a6a67d3b7e94c8b51637593242063f4de8335daee4"
+  },
+  {
+    "path": "guides/exposing-microservices.md",
+    "sha256": "sha256:c9fb3ec2a0ac42089efa40cfed441ef7e3e41f6d92a9b56f0476f79e7184cf4d"
+  },
+  {
+    "path": "guides/historical-data.md",
+    "sha256": "sha256:91a5c3912228176233dcf0200b14f415f7557413d31b52989e5bcd1b540fd02c"
+  },
+  {
+    "path": "guides/istio.md",
+    "sha256": "sha256:c118d745c4122013d8c0fc625f55f4447ffcea80e17488ec45d93c2c442963b3"
+  },
+  {
+    "path": "guides/keycloak-user-migration.md",
+    "sha256": "sha256:64a5d9860f6aa4bfc9bcc3a1cd22a25ded0a7fe9cc93b1828e3b1afb404a6034"
+  },
+  {
+    "path": "guides/little-endian-bitfields.md",
+    "sha256": "sha256:17b0845e084da9868ac25ef16fadca36f496cd21d5c07eb2cd851c7c9d155b5b"
+  },
+  {
+    "path": "guides/local-mode.md",
+    "sha256": "sha256:6f1ccb8102cdacd00f0a6e5895235af086b77493158bec1fd348b72c9a233433"
+  },
+  {
+    "path": "guides/logging.md",
+    "sha256": "sha256:14d3133141254f40f78058f3303397e86f297498d480c38983c638ca6abc5e1d"
+  },
+  {
+    "path": "guides/mcp-server.md",
+    "sha256": "sha256:83d732dd95f1a448b49e8defb9d0a03b25ed2afb00c33eb9267d7a30c127b5ad"
+  },
+  {
+    "path": "guides/monitoring.md",
+    "sha256": "sha256:ad65febdb63cc77f5ca30e8e300f36fcc4b9a434cd6b99734970873fd70658d0"
+  },
+  {
+    "path": "guides/packet-types.md",
+    "sha256": "sha256:4ae4a65a89fe7993ff16d2a59473be3dc0a31cc694654ee32d57be6f5637c93c"
+  },
+  {
+    "path": "guides/performance.md",
+    "sha256": "sha256:e1fd8c0855315500fcf7b8c3916926c3563ea122892e34755baf9cdaf1bea3bb"
+  },
+  {
+    "path": "guides/podman.md",
+    "sha256": "sha256:10086f9282e874aa66b49654ab1dd582af999dea19021ce0f95c2c0379c83905"
+  },
+  {
+    "path": "guides/raspberrypi.md",
+    "sha256": "sha256:b46ad33682f5429010fcb9c75ba6902c32a90de2791e4f83bbce40b6d1ff84f4"
+  },
+  {
+    "path": "guides/reference-architectures.md",
+    "sha256": "sha256:f0d0edde908e68c50f88e678ab2422153c8de5b31662c048829d7862cf811140"
+  },
+  {
+    "path": "guides/roles-permissions.md",
+    "sha256": "sha256:81aa424a87da9c892155d482fd18957fb5fdf7e47b36c87751837a4b662a4bf0"
+  },
+  {
+    "path": "guides/script-writing.md",
+    "sha256": "sha256:754a98eac3772b789c426bb718d2777a8afc30651ef6172fd7b2705e13a13a38"
+  },
+  {
+    "path": "guides/scripting-api.md",
+    "sha256": "sha256:2766edf0846878a64eed6aab08e942a193e3a83e447a7d6395f2c497452650f2"
+  },
+  {
+    "path": "guides/subpackets.md",
+    "sha256": "sha256:79ec1adfe085d7671319707cecd2c2228542d1a1ff5f4aab0de45bb8a617010e"
+  },
+  {
+    "path": "guides/troubleshooting.md",
+    "sha256": "sha256:94d129419a98c295257668fa76f537145f717140804425d73bf426ebf0abb5aa"
+  },
+  {
+    "path": "introduction.md",
+    "sha256": "sha256:2861fc3f79a8527483289e9c47e6d405f7ca57320de7099d39fef7464a5fa108"
+  },
+  {
+    "path": "LICENSE.md",
+    "sha256": "sha256:e1dda0999d2f85502ca6a017aac98da23475965a8fa3b7c2ad0c85fb2ba54c3d"
+  },
+  {
+    "path": "meta/_category_.json",
+    "sha256": "sha256:44469245ecae2de851684490080c8f27de9729d8d72b638468fdc8410a78b498"
+  },
+  {
+    "path": "meta/contributing.md",
+    "sha256": "sha256:dabfc96848d2149349c5b16a7062625f77af68841e6729b30bfd2fd146a99233"
+  },
+  {
+    "path": "meta/licenses.md",
+    "sha256": "sha256:c71ede3792bb18ff93f9259640e6e65b647cf93bbf347c19294cfe14b01efcc8"
+  },
+  {
+    "path": "meta/philosophy.md",
+    "sha256": "sha256:23ad4bb252ea556254742bc20723c93ef819e7bdde93bbebe3a9752b95889cdf"
+  },
+  {
+    "path": "meta/requirements.md",
+    "sha256": "sha256:3a4df9b0fb63d4585e2ca7a251afe70bcd3a6fe7fb1d45459c0e92be9d63e41d"
+  },
+  {
+    "path": "meta/vulnerabilities.md",
+    "sha256": "sha256:6b0141227fef91f8aed948ed926da9eea6ebc57ce92c7784bf4788b2470f1c05"
+  },
+  {
+    "path": "meta/xtce.md",
+    "sha256": "sha256:b3f4e53935c281ca82a8a025ad726977a9a60217043a9daab2ae2c750c9a9e86"
+  },
+  {
+    "path": "privacy.md",
+    "sha256": "sha256:7862daa9431cbc4c1206b04defef0d73cf8e864b2382a030b407f80096a4f995"
+  },
+  {
+    "path": "tools/_category_.json",
+    "sha256": "sha256:ede753e2a7f4a6092efba23c798c8c0c7db339cdab92ea6824a244aaa1ddea7c"
+  },
+  {
+    "path": "tools/admin.md",
+    "sha256": "sha256:6ce54ae33a0d857ec4345a83b1be0ed5ef9dac61461b125bfa769d2540525a12"
+  },
+  {
+    "path": "tools/autonomic.md",
+    "sha256": "sha256:a242695339c79644776ed4889e322c3978a54b9501bf2dc2849051de5b3e2db1"
+  },
+  {
+    "path": "tools/bucket-explorer.md",
+    "sha256": "sha256:7868e388ab59b58b5d389df900908436dfc7ce0cb9ec22f11927778322523a2e"
+  },
+  {
+    "path": "tools/calendar.md",
+    "sha256": "sha256:a07844f0c180b9a5be33a7a1110104ea1b43a2d187a473652e7e1c9bf984144f"
+  },
+  {
+    "path": "tools/cmd-sender.md",
+    "sha256": "sha256:090e2d687cbe60f9522dfd0dc693ef38c2b8bddef66b4c3caab3613d71d0846d"
+  },
+  {
+    "path": "tools/cmd-tlm-server.md",
+    "sha256": "sha256:9d27d709203135c793306f5e20ea7d2521b8f5f0e8aa205a7ed16c0fcfd1273d"
+  },
+  {
+    "path": "tools/command-history.md",
+    "sha256": "sha256:fb084e366bf428ef88823c1fb5622ce6d2e478aca7b1e85e6d11824fbd2f571b"
+  },
+  {
+    "path": "tools/command-queue.md",
+    "sha256": "sha256:924c3f4af2379cd4de2377c7e210786c00bc2322db448b1b99d60fc3895cb3eb"
+  },
+  {
+    "path": "tools/data-extractor.md",
+    "sha256": "sha256:55c81e729197a0462b9045c6fd4861543ec5a67a0ffe90d74b7c6aa177caac70"
+  },
+  {
+    "path": "tools/data-viewer.md",
+    "sha256": "sha256:1fe7f66e4f99528f814f4782454d994f0492f5ecc21d1a0447b888f0e314181b"
+  },
+  {
+    "path": "tools/handbooks.md",
+    "sha256": "sha256:f8f47ff92304292cfbcc44b70c333bd5eff14bb7f4bd591acc3e54844364daad"
+  },
+  {
+    "path": "tools/limits-monitor.md",
+    "sha256": "sha256:2fb44f513b4bc79ea14b2bfeadde5e2a1f52f417642309eb68a42d639871518c"
+  },
+  {
+    "path": "tools/log-explorer.md",
+    "sha256": "sha256:551928d05efca6bdfc399b28be31120b110a733f6d9c454861d16b558aaa1f1d"
+  },
+  {
+    "path": "tools/notebooks.md",
+    "sha256": "sha256:e027dbc2ca4dfbce6c483e5202019247841d849bf6471bee4912ff70414426f2"
+  },
+  {
+    "path": "tools/packet-viewer.md",
+    "sha256": "sha256:a38a5b958100e05c9237e39ce1a9bca3b743f5deee0cd7c1cc31813fd0b82ab7"
+  },
+  {
+    "path": "tools/script-runner.md",
+    "sha256": "sha256:83e2bb922987ef84ac25062b457dffd456f220c67ca32ce75aa6a41bb6318f07"
+  },
+  {
+    "path": "tools/systemhealth.md",
+    "sha256": "sha256:4be895cfcb512bb90325e8acc0ad6490e8b3349186a27acb82a8e3518b0ccee5"
+  },
+  {
+    "path": "tools/table-manager.md",
+    "sha256": "sha256:093f7cf4c427a7c40386529f13bca7dd1662cd5e4ac253a4b9faafb9b786d42a"
+  },
+  {
+    "path": "tools/tlm-grapher.md",
+    "sha256": "sha256:980a96c6b703243a8270f0bd1bbb15c804dba5d9825d7c25c840b51f324c0f23"
+  },
+  {
+    "path": "tools/tlm-viewer.md",
+    "sha256": "sha256:820319c255f254c0d8dff3ed5860304e16ee27b77174b31d8019edc8665db27f"
+  }
+]

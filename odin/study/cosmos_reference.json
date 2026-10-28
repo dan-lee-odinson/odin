@@ -1,0 +1,20 @@
+{
+  "reference": "cosmos_reference.md",
+  "sha256": "sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f",
+  "docs_files": 98,
+  "model": "muse-spark-1.3",
+  "provider": "Meta Model API, Standard mode",
+  "reasoning_effort": "high",
+  "max_output_tokens": 64000,
+  "timeout_s": 1800,
+  "input_tokens": 328958,
+  "cached_input_tokens": 0,
+  "output_tokens": 6334,
+  "reasoning_tokens": 1991,
+  "actual_cost_usd": 0.438117,
+  "finish_reason": "stop",
+  "latency_s": 38.907443399948534,
+  "utc": "2026-10-28T02:52:59.863200+00:00",
+  "instructions_sha256": "sha256:d2d12dc6cbe971cf22874df37ec55e84c70598fb3c7434f64e51f72e15f54c3f",
+  "docs_hashes_sha256": "sha256:661a2a030cf488c39b6b45574420f9c0d43318b891a2b1868720f51253bc7d38"
+}

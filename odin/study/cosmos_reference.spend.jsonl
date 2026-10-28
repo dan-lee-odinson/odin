@@ -1,0 +1,2 @@
+{"bucket": "META_CREDIT", "call_index": 1, "config": "spark", "kind": "RESERVE", "reserved_usd": 0.73987375, "turn_id": 1}
+{"actual_usd": 0.438117, "bucket": "META_CREDIT", "call_index": 1, "config": "spark", "kind": "SETTLE", "reserved_usd": 0.73987375, "turn_id": 1}
