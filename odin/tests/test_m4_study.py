@@ -47,6 +47,7 @@ def test_altered_file_fails_hash_check(tmp_path):
 
 
 def test_repository_contains_no_docs():
+    """Always runs (fresh clone included): no docs inside odin/."""
     recorded_path = REPO_ROOT / "odin" / "study" / "cosmos_docs_hashes.json"
     assert recorded_path.exists(), "recorded hash list must be in the repository"
     recorded = json.loads(recorded_path.read_text(encoding="utf-8"))
@@ -54,8 +55,62 @@ def test_repository_contains_no_docs():
     for entry in recorded:
         assert not (REPO_ROOT / "odin" / entry["path"]).exists()
     assert not (REPO_ROOT / "odin" / "study" / "docs").exists()
+
+
+def test_cache_matches_recorded_list():
+    """Runs only when a cache exists; a fresh clone has none and skips."""
+    import pytest
+
     cache = REPO_ROOT / "cache" / "cosmos-docs-7.2.1"
-    assert fetch_docs.verify_hashes(cache, recorded_path) == []
+    if not cache.exists():
+        pytest.skip("no docs cache in this checkout (fresh clone); fetch first")
+    recorded_path = REPO_ROOT / "odin" / "study" / "cosmos_docs_hashes.json"
+    assert fetch_docs.check_tree(cache, recorded_path) == []
+
+
+def test_cache_check_catches_one_changed_byte(tmp_path):
+    """Red case beside the cache check: one altered byte must be caught."""
+    src = _tree(tmp_path)
+    license_file = _license(tmp_path)
+    cache = tmp_path / "cache"
+    hash_list = tmp_path / "hashes.json"
+    fetch_docs.fetch_tree(src, cache, hash_list, license_file=license_file)
+    assert fetch_docs.check_tree(cache, hash_list) == []
+    target = cache / "guide" / "cmd.md"
+    data = bytearray(target.read_bytes())
+    data[0] ^= 0x01
+    target.write_bytes(bytes(data))
+    assert fetch_docs.check_tree(cache, hash_list)
+
+
+def test_plain_fetch_run_never_writes_hash_list(tmp_path, monkeypatch):
+    clone = tmp_path / "clone"
+    (clone / "docs.openc3.com" / "docs").mkdir(parents=True)
+    (clone / "docs.openc3.com" / "docs" / "index.md").write_text("# Docs\n", encoding="utf-8")
+    (clone / "docs.openc3.com" / "LICENSE.md").write_text("# License\n", encoding="utf-8")
+    cache = tmp_path / "cache"
+    hash_list = tmp_path / "hashes.json"
+    # Recorded list for different content: plain run must check, not rewrite.
+    fetch_docs.fetch_tree(clone / "docs.openc3.com" / "docs", tmp_path / "other",
+                          hash_list, license_file=clone / "docs.openc3.com" / "LICENSE.md")
+    before = hash_list.read_bytes()
+    monkeypatch.setattr(fetch_docs, "CACHE_DIR", cache)
+    monkeypatch.setattr(fetch_docs, "HASH_LIST", hash_list)
+    assert fetch_docs.main(["--source", str(clone)]) == 0
+    assert hash_list.read_bytes() == before
+    # Changed upstream content: a plain run reports the mismatch (exit 1)
+    # and still does not rewrite the recorded list.
+    (clone / "docs.openc3.com" / "docs" / "index.md").write_text("# Changed\n", encoding="utf-8")
+    assert fetch_docs.main(["--source", str(clone)]) == 1
+    assert hash_list.read_bytes() == before
+    (clone / "docs.openc3.com" / "docs" / "index.md").write_text("# Docs\n", encoding="utf-8")
+    # --write-hashes refuses when a list already exists...
+    assert fetch_docs.main(["--source", str(clone), "--write-hashes"]) == 2
+    assert hash_list.read_bytes() == before
+    # ...and writes only when none exists.
+    hash_list.unlink()
+    assert fetch_docs.main(["--source", str(clone), "--write-hashes"]) == 0
+    assert hash_list.exists()
 
 
 def _license(tmp_path, text="# OpenC3 Builder's License\nBased on the Elastic License 2.0.\n"):

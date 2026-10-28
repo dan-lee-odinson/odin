@@ -1,0 +1,9 @@
+{
+  "file": "system_prompt.md",
+  "sha256": "sha256:3a91b23fd4a533c04a8821fa01743c7d6e0062b6956a02eae703864220cf9f8c",
+  "frozen": true,
+  "frozen_at_utc": "2026-10-28T12:45:56.073354+00:00",
+  "template_sha256": "sha256:56f024a5570372d4fd88305da8d6c3e76c918fcf26bda9cb8adb25216537459a",
+  "prompt_template_sha256": "sha256:63286e9bfd310af6ee5b7e34df867f78a3d483e7e4c192d375bf5c552fd5a282",
+  "note": "Frozen under CONTRACT.md ?10.4. A test fails if any of the three files changes, or if rendering the template no longer reproduces the frozen bytes."
+}
