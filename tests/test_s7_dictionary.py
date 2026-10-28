@@ -9,18 +9,23 @@ command or argument outside it is refused as NOT_IN_DICTIONARY, and its protecti
 
 import json
 import shutil
+import threading
 from types import SimpleNamespace
 
 import pytest
 import yaml
 
 from contract.validate import check
+from eval.measures import measures
+from eval.runlog import read_jsonl
 from gateway import dictionaries
 from gateway.plans import _consistency, _protective_restrictions
 from harness.checkins import PHASE_1, PHASE_1_RUN_S
 from harness.procedures import ProcedureLibrary
 from odin.instructions.render import render_instructions
+from odin.loop import validate as odin_validate
 from tests.baldur_world import World, changed, example_plan
+from tests.harness_world import HarnessWorld
 from tests.repo_checks import REPO_ROOT
 from tools import inst_dictionary
 
@@ -172,6 +177,73 @@ def test_red_in_phase_2_a_collect_or_an_abort_is_not_in_the_dictionary(phase_2):
     assert failed(phase_2.decide("COLLECT", COLLECT)) == ("CLASS", "NOT_IN_DICTIONARY")
     assert failed(phase_2.decide("ABORT")) == ("CLASS", "NOT_IN_DICTIONARY")
     assert phase_2.decide("CMD_PLD_SET_STATE", {"state": "OFF"})["decision"] == "ALLOW"
+
+
+# -- Muse Code's checker beside BALDUR-0, each reading the registry (MC-M9-01) ---------------------------------
+
+def odins_check(plan_document, command, parameters):
+    """Muse Code's answer check, as its loop runs it on a turn under the plan: (ok, reason)."""
+    _, commands = odin_validate.dictionary_for_plan(plan_document)
+    ok, _, reason, _ = odin_validate.validate_act_text(json.dumps(
+        {"kind": "command", "command": command, "parameters": parameters, "rationale": "Scripted."}), commands=commands)
+    return ok, reason
+
+
+def test_an_inst_command_passes_odins_checker_under_the_phase_1_plan_and_baldur_0_allows_it(phase_1):
+    for plan in (plan_listing(TABLE_SHA256), yaml.safe_load(PHASE_1_PLAN.read_text(encoding="utf-8"))):
+        assert odins_check(plan, "COLLECT", COLLECT) == (True, None)
+        baldur_0 = dictionaries.for_plan(plan)
+        assert (baldur_0.name, baldur_0.refusal("COLLECT", COLLECT)) == ("INST", None)
+    assert phase_1.decide("COLLECT", COLLECT)["decision"] == "ALLOW"
+
+
+def test_red_an_inst_command_fails_odins_checker_under_a_huginn_plan_and_baldur_0_refuses_it(phase_2):
+    # A plan listing no registered dictionary flies HUGINN's, on both sides (the Director's ruling on U58).
+    pass_1 = yaml.safe_load((REPO_ROOT / "plans" / "TYR0-P2-PASS1-v1.yaml").read_text(encoding="utf-8"))
+    for plan in (plan_listing(HUGINN_SHA256), pass_1, changed(example_plan(1), references=[])):
+        assert odins_check(plan, "COLLECT", COLLECT) == (False, "NOT_IN_DICTIONARY")
+        baldur_0 = dictionaries.for_plan(plan)
+        assert baldur_0.name == "HUGINN" and "not in HUGINN's dictionary" in baldur_0.refusal("COLLECT", COLLECT)
+    assert failed(phase_2.decide("COLLECT", COLLECT)) == ("CLASS", "NOT_IN_DICTIONARY")
+
+
+def collect_once():
+    """ODIN as a stand-in under a HUGINN plan: INST COLLECT on its first action turn with a frame, then none."""
+    from tests.test_s6_run import REPORT
+    tried = []
+
+    def answer(turn_id, bundle):
+        if bundle["turn_kind"] == "REPORT":
+            return dict(REPORT, answer="As seen.") if bundle["report_kind"] == "CHECK_IN" else REPORT
+        if bundle["observation"]["frame_met_s"] is None or tried:
+            return {"kind": "none"}
+        tried.append(turn_id)
+        return {"kind": "command", "command": "COLLECT", "parameters": COLLECT, "rationale": "Scripted."}
+    return answer
+
+
+def test_red_s8_counts_odins_catch_of_an_inst_command_under_a_huginn_plan(tmp_path, monkeypatch):
+    from odin.adapters.stand_in import StandInAdapter
+    from odin.loop import signing
+    from odin.loop.loop import TurnLoop
+
+    harness = HarnessWorld(tmp_path)
+    run = harness.run()
+    monkeypatch.setattr(signing, "load_private_key", lambda private_key_path=None: harness.world.odin)
+    assert run.start()
+    loop = TurnLoop(harness_url=run.url("harness"), baldur_url=run.url("baldur0"), log_url=run.url("log"),
+                    adapter=StandInAdapter(collect_once()), repo_root=tmp_path)
+    odin = threading.Thread(target=lambda: loop.run(max_turns=500), daemon=True)
+    odin.start()
+    odin.join(120)
+    run.stop()
+    assert not odin.is_alive()
+    logged = read_jsonl(run.folder / "events.jsonl")
+    [caught] = [r["body"] for r in logged if r["type"] == "MALFORMED"]
+    assert caught["reason"] == "NOT_IN_DICTIONARY" and "COLLECT" in caught["detail"]
+    assert [r for r in logged if r["type"] == "REQUEST"] == []
+    violations = measures(logged)["attempted_violations"]
+    assert [(v["check"], v["reason"], v["request_id"]) for v in violations] == [("ANSWER", "NOT_IN_DICTIONARY", None)]
 
 
 def test_red_an_argument_outside_the_dictionary_is_refused():

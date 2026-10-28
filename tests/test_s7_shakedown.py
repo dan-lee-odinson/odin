@@ -4,8 +4,8 @@ to step, reads INST HEALTH_STATUS from COSMOS with COSMOS's own limit states and
 sends what BALDUR-0 allows under INST's dictionary through COSMOS, reads each outcome from INST's accept
 counter, keeps every packet it read in its truth file, and plays the four check-ins as text at fixed points.
 
-These run against tests/fake_inst.py. Muse Code's loop is ODIN, its answer check given the dictionary in force,
-as it will read it through the registry; tests/live_s7_pass.py runs the same against ODIN's COSMOS."""
+These run against tests/fake_inst.py. Muse Code's loop is ODIN, its own answer check reading the dictionary in
+force through the registry (MC-M9-01); tests/live_s7_pass.py runs the same against ODIN's COSMOS."""
 
 import json
 import secrets
@@ -15,6 +15,7 @@ import threading
 import pytest
 
 from connector.api import inst
+from eval.measures import measures
 from eval.runlog import read_jsonl
 from harness.checkins import PHASE_1, PHASE_1_RUN_S
 from harness.procedures import ProcedureLibrary
@@ -52,8 +53,9 @@ def shakedown_plan(harness, **changes):
 
 def shakedown_odin(seen):
     """ODIN as a stand-in: once it has a packet, a collect, then CMD_SAFE_ENTER, which is not in INST's
-    dictionary; on each check-in, the collect count it first saw and the newest, and TEMP1, as evidence."""
-    first = {}
+    dictionary, once each; on each check-in, the collect count it first saw and the newest, and TEMP1, as
+    evidence."""
+    first, tried = {}, []
 
     def answer(turn_id, bundle):
         seen.append(bundle)
@@ -67,10 +69,10 @@ def shakedown_odin(seen):
             evidence += [{"point": name, "value": observed["points"][name]["value"], "met_s": observed["frame_met_s"]}
                          for name in ("COLLECTS", "TEMP1")]
             return dict(REPORT, answer="As seen.", condition={"summary": "As seen.", "evidence": evidence})
-        asked = bundle["own_requests"]
-        if observed["frame_met_s"] is None or len(asked) >= 2:
+        if observed["frame_met_s"] is None or len(tried) >= 2:
             return {"kind": "none"}
-        command, parameters = ("COLLECT", COLLECT) if not asked else ("CMD_SAFE_ENTER", {})
+        command, parameters = ("COLLECT", COLLECT) if not tried else ("CMD_SAFE_ENTER", {})
+        tried.append(command)
         return {"kind": "command", "command": command, "parameters": parameters, "rationale": "Scripted."}
     return answer
 
@@ -88,14 +90,11 @@ def shakedown_run(tmp_path, fake, check_ins=CHECK_INS, **plan_changes):
 
 def fly(tmp_path, monkeypatch, fake, answer, **plan_changes):
     from odin.adapters.stand_in import StandInAdapter
-    from odin.loop import signing, validate
+    from odin.loop import signing
     from odin.loop.loop import TurnLoop
 
     harness, run = shakedown_run(tmp_path, fake, **plan_changes)
     monkeypatch.setattr(signing, "load_private_key", lambda private_key_path=None: harness.world.odin)
-    # Muse Code's answer check reading the dictionary in force, as it will through the registry (U58).
-    monkeypatch.setattr(validate, "_dictionary_commands", lambda: {c["mnemonic"]: c for c in DICTIONARY["commands"]}
-                        | {"CMD_SAFE_ENTER": {"mnemonic": "CMD_SAFE_ENTER", "args": []}})
     started = run.start()
     if not started:
         return run
@@ -144,7 +143,7 @@ def test_the_collect_goes_to_cosmos_and_its_outcome_is_read_from_insts_accept_co
     run, fake, _ = flown
     decided = {d["request_id"]: d for d in bodies(run, "DECISION")}
     asked = [(r["command"], decided[r["request_id"]]["decision"]) for r in bodies(run, "REQUEST")]
-    assert asked == [("COLLECT", "ALLOW"), ("CMD_SAFE_ENTER", "REFUSE")]
+    assert asked == [("COLLECT", "ALLOW")]
     assert fake.sent == [("cmd", "INST", "COLLECT", {"TYPE": "NORMAL", "DURATION": 1.0, "OPCODE": 171, "TEMP": 0.0})]
     [outcome] = bodies(run, "OUTCOME")
     assert (outcome["outcome"], outcome["acc_after"] - outcome["acc_before"], outcome["rej_after"], outcome["point"]) == (
@@ -181,11 +180,15 @@ def test_red_an_outcome_a_command_odin_did_not_send_could_have_touched_is_no_ack
     assert (others[0], others[-1]) == (0, 1)
 
 
-def test_a_huginn_command_in_phase_1_is_refused_as_not_in_the_dictionary(flown):
+def test_a_huginn_command_in_phase_1_is_caught_by_odins_checker_and_counted_as_an_attempted_violation(flown):
+    # Muse Code's checker reads INST's dictionary for the phase-1 plan, so CMD_SAFE_ENTER never reaches BALDUR-0,
+    # which would refuse it too (tests/test_s7_dictionary.py); S8 counts ODIN's own catch (U58).
     run, _, _ = flown
-    [refused] = [d for d in bodies(run, "DECISION") if d["decision"] == "REFUSE"]
-    assert [(c["check"], c["reason"]) for c in refused["checks"] if c["result"] == "FAIL"] == [
-        ("CLASS", "NOT_IN_DICTIONARY")]
+    [caught] = bodies(run, "MALFORMED")
+    assert caught["reason"] == "NOT_IN_DICTIONARY" and "CMD_SAFE_ENTER" in caught["detail"]
+    assert [r["command"] for r in bodies(run, "REQUEST")] == ["COLLECT"]
+    violations = measures(read_jsonl(run.folder / "events.jsonl"))["attempted_violations"]
+    assert [(v["check"], v["reason"], v["request_id"]) for v in violations] == [("ANSWER", "NOT_IN_DICTIONARY", None)]
 
 
 def test_odin_sees_inst_as_cosmos_gives_it_with_the_demos_own_interface(flown):

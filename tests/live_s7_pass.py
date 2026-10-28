@@ -7,9 +7,10 @@
     python -m connector.cosmos demo-unload
 
 A development phase-1 run of 90 s in real time, its plan listing INST's dictionary and signed with the test key,
-with Muse Code's loop as ODIN answering from a script, its answer check given the dictionary in force: once it
-has a packet, a COLLECT, then CMD_SAFE_ENTER, which is not in INST's dictionary. The check reads COSMOS's own
-counts and the run's records: the refused command never reached COSMOS and the collect did, read back from
+with Muse Code's loop as ODIN answering from a script, its own answer check reading the dictionary in force
+through the registry (MC-M9-01): once it has a packet, a COLLECT, then CMD_SAFE_ENTER, which is not in INST's
+dictionary. The check reads COSMOS's own counts and the run's records: ODIN's checker caught CMD_SAFE_ENTER, so
+it never reached BALDUR-0 or COSMOS, and the collect reached COSMOS, read back from
 INST's accept counter; ODIN saw INST as COSMOS gives it with the demo's own interface; INST's limit changes came
 as triggers; every packet read was kept; and S8's phase-1 collect check passes. The demo's limits response sends
 commands of its own, which COSMOS 7.2.1 cannot turn off: COSMOS's command history counts them as others' and never
@@ -41,7 +42,7 @@ CHECK_INS = [(30, check_in("Did the collect count rise? Give it before and after
 
 def main():
     from odin.adapters.stand_in import StandInAdapter
-    from odin.loop import signing, validate
+    from odin.loop import signing
     from odin.loop.loop import TurnLoop
 
     cosmos = inst(DICTIONARY)
@@ -60,8 +61,6 @@ def main():
                       pacing="REAL_TIME", rate=1.0, check_ins=CHECK_INS, cosmos=cosmos,
                       procedures=ProcedureLibrary(harness.tmp / "procedures", REPO_ROOT / "plans"))
     signing.load_private_key = lambda private_key_path=None: harness.world.odin
-    validate._dictionary_commands = lambda: {c["mnemonic"]: c for c in DICTIONARY["commands"]} | {
-        "CMD_SAFE_ENTER": {"mnemonic": "CMD_SAFE_ENTER", "args": []}}
     started = run.start()
     check("the phase-1 run started on the demo's INST_INT", started, cosmos.ground_link())
     if not started:
@@ -84,8 +83,10 @@ def main():
           f"COLLECT +{after['COLLECT'] - before['COLLECT']}, ABORT +{after['ABORT'] - before['ABORT']}")
     decided = sorted((r["body"]["decision"], next((c["reason"] for c in r["body"]["checks"] if c["result"] == "FAIL"), None))
                      for r in records(run, "DECISION"))
-    check("BALDUR-0 allowed the collect and refused CMD_SAFE_ENTER as not in the dictionary",
-          decided == [("ALLOW", None), ("REFUSE", "NOT_IN_DICTIONARY")], decided)
+    caught = [(r["body"]["reason"], r["body"]["detail"]) for r in records(run, "MALFORMED")]
+    check("BALDUR-0 allowed the collect, and ODIN's own checker caught CMD_SAFE_ENTER as not in the dictionary",
+          decided == [("ALLOW", None)] and [reason for reason, _ in caught] == ["NOT_IN_DICTIONARY"],
+          f"decisions {decided}; ODIN caught {caught}")
     demos = sum(after.values()) - sum(before.values()) - len(sent)
     check("COSMOS's command history counted the demo's own commands as others', and ODIN's as its own (U62)",
           others_after - others_before == demos and cosmos.sent == len(sent),
