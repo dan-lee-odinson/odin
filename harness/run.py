@@ -52,6 +52,10 @@ from wrapper.simulator import Simulator
 RUN_COMPLETE = json.dumps({"run_complete": True}).encode("utf-8")
 RUN_START_CONFIG = ("seed", "model_config", "provider", "model_id", "reasoning_effort", "answer_method",
                     "reference_sha256")
+# Whoever starts a run names only the model. RUN_START's model ID and reasoning level come from the model's
+# frozen block in config/models.yaml, the block its loop reads, so there is no second copy (the Director's
+# ruling on U56, 28 October 2026). The provider has no single source in the build, so the configuration names it.
+FROM_BLOCK = {"model_id": "model", "reasoning_effort": "reasoning_effort"}
 
 
 def recorded(check_ins):
@@ -71,8 +75,9 @@ class Run:
                  config, seat="ONBOARD", pacing="CHARGED", rate=1.0, check_ins=(), pass_transcript=None,
                  revoke_at=None, restore=None, docs_folder=docs.CACHE, keys_dir=KEYS_DIR, addresses=None,
                  utc_clock=utc_now):
-        """config: the run's frozen configuration as RUN_START records it (RUN_START_CONFIG). check_ins:
-        recorded check-ins to play, as (met_s, POST /checkin body); a phase-2 or phase-3 run also carries
+        """config: what whoever starts the run names, RUN_START_CONFIG but for FROM_BLOCK's model ID and
+        reasoning level, which come from the model's frozen block (U56); a config carrying either is refused.
+        check_ins: recorded check-ins to play, as (met_s, POST /checkin body); a phase-2 or phase-3 run also carries
         one at each contact's loss of signal minus 90 s (harness/checkins.py). pass_transcript: that
         check-in's frozen transcript {text, audio_sha256}, or None for the words as text until it exists.
         revoke_at: the scripted revocation's
@@ -122,8 +127,8 @@ class Run:
     def _run_start(self):
         chain_hashes = [sha256_tag(Path(p).read_bytes()) for p in self.plan_paths]
         return {"run_id": self.run_id, "scenario_id": self.scenario_id, "phase": self.phase, "mode": self.mode,
-                **{name: self.config[name] for name in RUN_START_CONFIG},
-                "config_sha256": sha256_tag(canonical_json(self.config)), **self.frozen,
+                **{name: self.configuration[name] for name in RUN_START_CONFIG},
+                "config_sha256": sha256_tag(canonical_json(self.configuration)), **self.frozen,
                 "plan_chain_sha256": sha256_tag(canonical_json(chain_hashes)) if chain_hashes else None}
 
     def _claimed_start(self):
@@ -140,9 +145,16 @@ class Run:
     def start(self):
         """Start the run. False if it stopped before starting, with RUN_END written. Raises NotFrozen, before
         anything is written, if ODIN's instructions or prompt template differ from their frozen record (U54),
-        or the six schemas or the run's model settings from theirs (U55)."""
+        or the six schemas or the run's model settings from theirs (U55). Raises ValueError, before anything
+        is written, if config carries its own model ID or reasoning level (U56)."""
+        carried = sorted(set(FROM_BLOCK) & set(self.config))
+        if carried:
+            raise ValueError(f"the run's configuration carries its own {' and '.join(carried)}; RUN_START takes "
+                             f"{self.config['model_config']}'s from its frozen block in config/models.yaml (U56)")
         self.frozen = instructions.frozen(self.config["model_config"])
-        freeze.check(self.config["model_config"])
+        block = freeze.check(self.config["model_config"])
+        self.configuration = {**self.config,
+                              **{name: block[key] if block else None for name, key in FROM_BLOCK.items()}}
         for folder in (self.folder, self.final):
             if folder.exists():
                 raise FileExistsError(f"{folder} already exists; a run's folder is never reused")

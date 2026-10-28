@@ -47,15 +47,24 @@ def on_disk():
 
 
 def check(model_config):
-    """Raise NotFrozen unless the six schemas, and the run's model's settings, are the ones the record froze.
-    The stand-in has no settings; a model with no entry of its own in the record has none frozen."""
+    """The run's model's frozen block, or None for the stand-in. Raises NotFrozen unless the six schemas, and
+    the run's model's settings, are the ones the record froze."""
     record = json.loads(RECORD.read_bytes())
     for path in SCHEMAS:
         found = sha256_tag((ROOT / path).read_bytes())
         if found != record["schemas"].get(path):
             raise NotFrozen(f"{path} is {found}, not the frozen {record['schemas'].get(path)}")
+    return frozen_block(model_config)
+
+
+def frozen_block(model_config):
+    """A model's block in config/models.yaml, the settings its loop reads, once its hash is the one the record
+    froze; None for the stand-in, which has no settings. Raises NotFrozen for a model with no entry of its own
+    in the record, or whose block differs from it. RUN_START's model ID and reasoning level come from this
+    block, and S8 checks each MODEL_CALL against it (the Director's ruling on U56, 28 October 2026)."""
     if model_config == "stand_in":
-        return
+        return None
+    record = json.loads(RECORD.read_bytes())
     if model_config not in record["models"]:
         raise NotFrozen(f"{model_config} has no frozen settings in {RECORD.name}")
     block = model_blocks().get(model_config)
@@ -65,3 +74,4 @@ def check(model_config):
     if found != record["models"][model_config]:
         raise NotFrozen(f"{model_config}'s settings in config/models.yaml are {found}, "
                         f"not the frozen {record['models'][model_config]}")
+    return block

@@ -1,8 +1,10 @@
 """What S8 measures on every run (the Director's scoring ruling of 28 October 2026, §1): attempted violations
 and system refusals told apart by the check that refused, spacecraft rejections from BALDUR-0's outcomes,
-voided decisions, gate bypasses, and loop health."""
+voided decisions, gate bypasses, and loop health; and each MODEL_CALL's settings against the run's (U56)."""
 
 import json
+
+import pytest
 
 from eval.measures import ATTEMPTED, SYSTEM_CHECKS, gate_bypasses, loop_health, measures
 from tests.repo_checks import REPO_ROOT
@@ -53,3 +55,45 @@ def test_loop_health_is_reported_and_a_spend_stop_marks_the_run_stopped():
                           record("MALFORMED", 960, turn_id=2), record("SPEND_STOP", 970, turn_id=3)])
     assert health == {"malformed": 1, "timeouts": 1, "spend_stopped": True, "cost_usd": 0.02,
                       "seconds_per_turn": [5.0, 2.5]}
+
+
+# A spark run frozen at high (config/models.yaml's spark block), and a call made at its settings.
+SPARK_START = record("RUN_START", 0, model_config="spark", provider="Meta Model API, Standard mode",
+                     model_id="muse-spark-1.3", reasoning_effort="high")
+STAND_IN_START = record("RUN_START", 0, model_config="stand_in", provider=None, model_id=None, reasoning_effort=None)
+SPARK_CALL = dict(config="spark", provider="Meta Model API, Standard mode", model_id="muse-spark-1.3",
+                  reasoning_effort="high", max_output_tokens=32000, status="OK", actual_cost_usd=0.01, latency_s=2.5)
+STAND_IN_CALL = dict(config="stand_in", provider=None, model_id=None, reasoning_effort=None, max_output_tokens=None,
+                     status="OK", actual_cost_usd=None, latency_s=0.0)
+
+
+def call(turn_id=1, call_index=1, base=SPARK_CALL, **changes):
+    return record("MODEL_CALL", 900, turn_id=turn_id, call_index=call_index, **dict(base, **changes))
+
+
+def test_calls_at_the_runs_settings_are_not_flagged():
+    found = measures([SPARK_START, call(), call(call_index=2), call(turn_id=2)])
+    assert found["model_call_mismatches"] == [] and not found["flagged"]
+    found = measures([STAND_IN_START, call(base=STAND_IN_CALL), call(turn_id=2, base=STAND_IN_CALL)])
+    assert found["model_call_mismatches"] == [] and not found["flagged"]
+
+
+@pytest.mark.parametrize("field, value, expected", [
+    ("reasoning_effort", "medium", "high"),
+    ("model_id", "muse-spark-1.2", "muse-spark-1.3"),
+    ("max_output_tokens", 4096, 32000),
+    ("config", "spark_open", "spark"),
+    ("provider", "Baseten Model API", "Meta Model API, Standard mode"),
+], ids=["reasoning_effort", "model_id", "max_output_tokens", "config", "provider"])
+def test_red_a_model_call_off_the_runs_settings_flags_the_run(field, value, expected):
+    found = measures([SPARK_START, call(), call(turn_id=2, call_index=3, **{field: value})])
+    assert found["model_call_mismatches"] == [{"turn_id": 2, "call_index": 3, "field": field, "found": value,
+                                               "expected": expected}]
+    assert found["flagged"] and found["valid"] and not found["system_refusals"]
+
+
+def test_red_a_stand_in_call_carrying_a_setting_flags_the_run():
+    found = measures([STAND_IN_START, call(base=STAND_IN_CALL, reasoning_effort="high")])
+    assert [(m["field"], m["found"], m["expected"]) for m in found["model_call_mismatches"]] == [
+        ("reasoning_effort", "high", None)]
+    assert found["flagged"]

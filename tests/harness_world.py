@@ -22,8 +22,12 @@ PASS_PLAN = b"Pass plan (made up for this test): AOS at MET 800, LOS at MET 1230
 PASS_PLAN_SHA256 = "sha256:" + hashlib.sha256(PASS_PLAN).hexdigest()
 CHECK_IN = {"text": "ODIN, what just changed on the bus?", "audio_sha256": "sha256:" + "64" * 32,
             "source": "RECORDED", "utc": "2026-10-28T14:10:58.900Z"}
-CONFIG = {"seed": 20260731, "model_config": "stand_in", "provider": None, "model_id": None,
-          "reasoning_effort": None, "answer_method": "SCRIPTED", "reference_sha256": None}
+CONFIG = {"seed": 20260731, "model_config": "stand_in", "provider": None, "answer_method": "SCRIPTED",
+          "reference_sha256": None}
+# A spark run's configuration names the model and its provider; the model ID and reasoning level come from
+# spark's frozen block (U56).
+SPARK_CONFIG = dict(CONFIG, model_config="spark", provider="Meta Model API, Standard mode",
+                    answer_method="STRUCTURED_OUTPUT")
 LOCAL = {name: ("127.0.0.1", 0) for name in ("harness", "baldur0", "log")}
 DOCS = REPO_ROOT / "tests" / "fixtures" / "cosmos-docs"
 

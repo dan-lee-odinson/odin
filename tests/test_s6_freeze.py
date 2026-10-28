@@ -12,7 +12,7 @@ import pytest
 from harness import freeze
 from harness.freeze import SCHEMAS, NotFrozen, check, model_blocks, on_disk, settings_sha256
 from log.canonical import canonical_json, sha256_tag
-from tests.harness_world import CONFIG, HarnessWorld
+from tests.harness_world import SPARK_CONFIG, HarnessWorld
 from tests.repo_checks import REPO_ROOT
 
 RECORD = json.loads((REPO_ROOT / "config" / "frozen.json").read_bytes())
@@ -138,10 +138,7 @@ def test_red_a_run_whose_schema_changed_refuses_to_start_and_writes_nothing(tmp_
 def test_red_a_spark_run_whose_settings_changed_refuses_to_start_and_writes_nothing(tmp_path, copies):
     edit(copies / "config" / "models.yaml", b"  reasoning_effort: high\n", b"  reasoning_effort: medium\n")
     (tmp_path / "world").mkdir()
-    run = HarnessWorld(tmp_path / "world").run(config=dict(CONFIG, model_config="spark",
-                                                           provider="Meta Model API, Standard mode",
-                                                           model_id="muse-spark-1.3", reasoning_effort="high",
-                                                           answer_method="STRUCTURED_OUTPUT"))
+    run = HarnessWorld(tmp_path / "world").run(config=SPARK_CONFIG)
     with pytest.raises(NotFrozen, match="spark's settings"):
         run.start()
     assert not run.folder.exists() and not run.final.exists()

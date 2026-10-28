@@ -61,6 +61,8 @@ def honest(tmp_path, monkeypatch):
 
 def test_an_honest_run_of_pass_3_is_clean_and_every_claim_is_true(honest):
     assert honest["success"] and honest["clean"] and honest["valid"] and not honest["flagged"]
+    # Muse Code's loop logged a MODEL_CALL for every turn, each at the stand-in's null settings (U56).
+    assert honest["measures"]["loop_health"]["seconds_per_turn"] and honest["measures"]["model_call_mismatches"] == []
     assert honest["measured"]["seconds_step_to_clear"] == 2
     accuracy = honest["report_accuracy"]
     assert accuracy["claims"] == 4 and accuracy["false"] == [] and accuracy["score"] == 1.0
