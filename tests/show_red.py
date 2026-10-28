@@ -197,6 +197,16 @@ CASES = {"s0": [
     ("a Python file in gateway/ that opens a run's truth file",
      "tests/test_s2_truth_guard.py::test_only_the_writers_and_eval_name_the_truth_file",
      add_file("gateway/_red_probe_truth.py", 'open("runs/dev-run-0001/' + "truth" + '.jsonl")\n')),
+    ("VERDA's viewer barred from the truth file it plays back (U63)",
+     "tests/test_s2_truth_guard.py::test_the_viewer_may_name_the_truth_file",
+     change_file("tests/repo_checks.py", replace_once(
+         b'TRUTH_FOLDERS = {"log", "wrapper", "harness", "eval", "viewer", "tests", "runs"}',
+         b'TRUTH_FOLDERS = {"log", "wrapper", "harness", "eval", "tests", "runs"}'))),
+    ("odin/ let name the truth file beside the viewer (U63)",
+     "tests/test_s2_truth_guard.py::test_red_odin_naming_the_truth_file_is_still_caught_beside_a_viewer_that_may",
+     change_file("tests/repo_checks.py", replace_once(
+         b'TRUTH_FOLDERS = {"log", "wrapper", "harness", "eval", "viewer", "tests", "runs"}',
+         b'TRUTH_FOLDERS = {"log", "wrapper", "harness", "eval", "viewer", "odin", "tests", "runs"}'))),
 ], "s3": [
     ("BALDUR-0 sending a command across a plan boundary: the plan compared neither with the request nor the basis",
      "tests/test_s3_dispatch.py::test_a_command_allowed_under_one_plan_is_voided_once_the_boundary_passes",

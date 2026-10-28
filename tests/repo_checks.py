@@ -201,11 +201,12 @@ def check_no_forbidden_huginn_paths(root):
 # ---------------------------------------------------------------------------------------
 # Truth kept apart: runs/<run_id>/truth.jsonl holds fault onsets and the simulator's true state,
 # for evaluation only, and ODIN never reads it (CONTRACT.md §12). Only the folders that write it
-# (the log, the wrapper and the harness) and the one that scores with it (eval) may name it in
-# code. runs/ holds data, not code.
+# (the log, the wrapper and the harness), the one that scores with it (eval), and VERDA's viewer,
+# which plays a finished run back beside the Director's flight (the Director's ruling on U63,
+# 28 October 2026), may name it in code. odin/ never may. runs/ holds data, not code.
 
 TRUTH_FILE = re.compile(r"truth\.jsonl")
-TRUTH_FOLDERS = {"log", "wrapper", "harness", "eval", "tests", "runs"}
+TRUTH_FOLDERS = {"log", "wrapper", "harness", "eval", "viewer", "tests", "runs"}
 
 
 def check_truth_kept_apart(root):
