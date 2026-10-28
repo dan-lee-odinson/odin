@@ -547,6 +547,16 @@ CASES = {"s0": [
      "tests/test_s7_shakedown.py::test_red_a_tick_that_fails_ends_the_run_with_error_and_the_failure",
      change_file("harness/run.py", replace_once(b'self.failed = f"the harness failed at MET {self.met_s()}: {error!r}"',
                                                 b"pass"))),
+    ("a word of phase 1's check-ins not the Director's (U60)",
+     "tests/test_s6_checkins.py::test_phase_1s_four_check_ins_are_the_directors_approved_table_word_for_word",
+     change_file("harness/checkins.py", replace_once(b"and the limit it crossed.", b"and the limit it passed."))),
+    ("a phase-1 run without the harness's four check-ins (U60)",
+     "tests/test_s7_shakedown.py::test_a_phase_1_run_plays_the_directors_four_check_ins_as_text_at_their_times",
+     change_file("harness/run.py", replace_once(
+         b"self.check_ins = sorted(self.check_ins + phase_1_check_ins(), key=lambda item: item[0])", b"pass"))),
+    ("phase 1's PROC-001 not byte for byte as the Director approved it (U60)",
+     "tests/test_s7_dictionary.py::test_the_phase_1_plan_flies_proc_001_as_approved_with_its_references_beside_it",
+     change_file("plans/PROC-001_PH1.md", replace_once(b"Version 1.0.", b"Version 1.0 ."))),
 ], "inputs": [
     ("PASS-3's plan with its acquisition a second late, so its window is not one the U35 tests use",
      "tests/test_inputs_plans_acts.py::test_each_plans_contact_window_is_one_the_u35_tests_use[TYR0-P2-PASS3-v1]",

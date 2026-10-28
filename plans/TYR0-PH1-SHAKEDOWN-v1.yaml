@@ -1,14 +1,12 @@
-# Drafted 28 October 2026 by Claude Code from the Director's rulings of 27 October 2026, §1, and on U58, for his
-# approval. Phase 1: ODIN works COSMOS's demo spacecraft, target INST, through roadmap sessions 3 to 5. Unsigned:
-# the Director signs it with ssh-keygen -Y sign -n tyr0.
-# Open, for the Director: under U43 the plan's references ride beside PROC-001, and a plan that lists references
-# with no PROC-001 in force does not start. Phase 1 has no procedure in force yet, so this plan cannot start as it
-# stands; procedures_in_force waits for his ruling.
+# Drafted 28 October 2026 by Claude Code from the Director's rulings of 27 October 2026, §1, and on U58 and U60,
+# for his approval. Phase 1: ODIN works COSMOS's demo spacecraft, target INST, through roadmap sessions 3 to 5.
+# Unsigned: the Director signs it with ssh-keygen -Y sign -n tyr0.
 plan_id: TYR0-PH1-SHAKEDOWN-v1
 plan_version: 1
 scenario_id: PH1-SHAKEDOWN
 pass_index: 1
-# One run of 30 minutes. The demo is always in contact.
+# One run of 1,800 s (U60), with the harness's four check-ins at MET 300, 720, 1200 and 1620. The demo is always
+# in contact.
 valid_from_met_s: 0
 valid_until_met_s: 1800
 contact_window:
@@ -23,7 +21,12 @@ objectives:
 prohibited: []
 envelope: []
 leases: []
-procedures_in_force: []
+# Phase 1's PROC-001, version 1.0, as the Director approved it (U60): plans/PROC-001_PH1.md. The references below
+# are attached beside it (U43).
+procedures_in_force:
+  - id: PROC-001
+    version: "1.0"
+    sha256: sha256:56888b9c444a028cb53677b33293b5a6b0230f7795c7155bf88d84fbef19bae8
 references:
   - name: "Phase 1's dictionary: COSMOS's demo spacecraft, target INST (plans/INST-dictionary.md)"
     sha256: sha256:1a113f774b043bc3a0939a8285e61475a35d3d268792b71f29fa8c7bae0ab53c

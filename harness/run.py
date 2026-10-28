@@ -39,7 +39,7 @@ from gateway.gateway import Gateway
 from gateway.signed import KEYS_DIR, load_yaml
 from harness import docs, freeze, instructions
 from harness.adapter import adapter_settings
-from harness.checkins import PHASES, pass_check_ins
+from harness.checkins import PHASES, pass_check_ins, phase_1_check_ins
 from harness.bundle import build_bundle, bundle_bytes, read_records
 from harness.server import Refused, make_server
 from harness.shakedown import Shakedown
@@ -75,7 +75,8 @@ def recorded(check_ins):
     transcript made once through Muse Code's voice path and frozen with its audio's hash, then delivered
     at its MET in every run (the Director's ruling on U44, 27 October 2026, where CONTRACT.md §13 has each
     recording played through the voice path in every run). The live demo uses the voice path live. Phase
-    1's four check-ins come as text at fixed points (the Director's rulings of 27 October 2026, §1)."""
+    1's four check-ins come as text at fixed points (the Director's rulings of 27 October 2026, §1), from the
+    harness's own table (harness/checkins.py, U60)."""
     for met_s, body in check_ins:
         problems = check("checkin", body) + ([] if body.get("source") in ("RECORDED", "TEXT")
                                              else ["source is neither RECORDED nor TEXT"])
@@ -308,6 +309,8 @@ class Run:
         if self.phase in PHASES:
             self.check_ins = sorted(self.check_ins + pass_check_ins(self._windows, self.pass_transcript),
                                     key=lambda item: item[0])
+        elif self.phase == 1:
+            self.check_ins = sorted(self.check_ins + phase_1_check_ins(), key=lambda item: item[0])
         self.watcher = Watcher(self._windows, mode=self.store.view.mode)
         self.clock = RunClock(self.simulator, until_met_s=self.end_met_s, pacing=self.pacing, rate=self.rate,
                               on_tick=self._on_tick)

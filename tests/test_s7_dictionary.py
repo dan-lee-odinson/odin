@@ -9,6 +9,7 @@ command or argument outside it is refused as NOT_IN_DICTIONARY, and its protecti
 
 import json
 import shutil
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -16,6 +17,8 @@ import yaml
 from contract.validate import check
 from gateway import dictionaries
 from gateway.plans import _consistency, _protective_restrictions
+from harness.checkins import PHASE_1, PHASE_1_RUN_S
+from harness.procedures import ProcedureLibrary
 from odin.instructions.render import render_instructions
 from tests.baldur_world import World, changed, example_plan
 from tests.repo_checks import REPO_ROOT
@@ -198,6 +201,9 @@ def test_red_a_dictionary_whose_file_differs_from_the_registry_is_refused(tmp_pa
 # -- the phase-1 plan and ARM-PH1 ---------------------------------------------------------------------------
 
 PHASE_1_PLAN = REPO_ROOT / "plans" / "TYR0-PH1-SHAKEDOWN-v1.yaml"
+# Phase 1's PROC-001 as the Director approved it (U60), placed byte for byte from his folder ODIN\phase1\.
+PROC_001 = REPO_ROOT / "plans" / "PROC-001_PH1.md"
+PROC_001_SHA256 = "sha256:56888b9c444a028cb53677b33293b5a6b0230f7795c7155bf88d84fbef19bae8"
 
 
 def test_the_phase_1_plan_is_well_formed_and_flies_insts_dictionary():
@@ -209,6 +215,24 @@ def test_the_phase_1_plan_is_well_formed_and_flies_insts_dictionary():
     here = {inst_dictionary.sha256(p.read_bytes()) for p in (REPO_ROOT / "plans").glob("*.md")} | {
         inst_dictionary.sha256((REPO_ROOT / "odin" / "study" / "cosmos_reference.md").read_bytes())}
     assert {r["sha256"] for r in document["references"]} <= here
+
+
+def test_the_phase_1_plan_flies_proc_001_as_approved_with_its_references_beside_it():
+    document = yaml.safe_load(PHASE_1_PLAN.read_text(encoding="utf-8"))
+    assert inst_dictionary.sha256(PROC_001.read_bytes()) == PROC_001_SHA256
+    assert document["procedures_in_force"] == [{"id": "PROC-001", "version": "1.0", "sha256": PROC_001_SHA256}]
+    plan = SimpleNamespace(plan_id=document["plan_id"], document=document)
+    library = ProcedureLibrary()
+    assert library.missing(SimpleNamespace(plans=[plan])) == []
+    [procedure] = library.for_plan(plan)
+    assert procedure["text"] == PROC_001.read_bytes().decode("utf-8")
+    assert [a["sha256"] for a in procedure["attachments"]] == [r["sha256"] for r in document["references"]]
+
+
+def test_the_phase_1_plan_runs_1800_s_and_holds_every_check_in():
+    document = yaml.safe_load(PHASE_1_PLAN.read_text(encoding="utf-8"))
+    assert (document["valid_from_met_s"], document["valid_until_met_s"]) == (0, PHASE_1_RUN_S)
+    assert all(document["valid_from_met_s"] < met < document["valid_until_met_s"] for met, _ in PHASE_1)
 
 
 def test_arm_ph1_lists_the_phase_1_plan_by_its_hash():

@@ -1,5 +1,5 @@
 # Drafted 27 October 2026 from the Director's rulings of that day, section 3. Unsigned: the Director
-# signs it after phase 1 with ssh-keygen -Y sign -n aesir-arm. A hash of all zeros is a placeholder for
+# signs it before phase 1's run with ssh-keygen -Y sign -n aesir-arm. A hash of all zeros is a placeholder for
 # a plan whose final bytes do not exist yet; Claude Code fills it once every hash in that plan is real.
 act_id: ARM-PH1
 kind: ARM
@@ -7,7 +7,6 @@ rung: AI_AUTONOMOUS
 runs:
   - PH1-SHAKEDOWN-SPARK-R1
 plan_chain_hashes:
-  # plans/TYR0-PH1-SHAKEDOWN-v1.yaml as drafted on 28 October 2026; refilled if the Director's ruling on its
-  # procedure in force changes the plan.
-  - sha256:70ab6a42871f7b560e9e16e6600b3b65d187796c7b8789d375865c3c1ea0aca3
+  # plans/TYR0-PH1-SHAKEDOWN-v1.yaml with phase 1's PROC-001 1.0 in force, 28 October 2026 (U60).
+  - sha256:0289352358f2a438b32cdabb60acb4ee05263029cfd69f67ca47439d172a8cf0
 expires_utc: "2026-11-05T02:00:00.000Z"

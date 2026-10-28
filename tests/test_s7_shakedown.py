@@ -16,6 +16,7 @@ import pytest
 
 from connector.api import inst
 from eval.runlog import read_jsonl
+from harness.checkins import PHASE_1, PHASE_1_RUN_S
 from harness.procedures import ProcedureLibrary
 from log.canonical import sha256_tag
 from log.event_log import verify_truth
@@ -74,18 +75,23 @@ def shakedown_odin(seen):
     return answer
 
 
+def shakedown_run(tmp_path, fake, check_ins=CHECK_INS, **plan_changes):
+    harness = HarnessWorld(tmp_path)
+    plans = harness.world.plans([shakedown_plan(harness, **plan_changes)], signer="dev")
+    run = harness.run(plans=plans, phase=1, scenario=None, scenario_id="PH1-SHAKEDOWN", seat="GROUND",
+                      pacing="REAL_TIME", rate=RATE, check_ins=check_ins,
+                      procedures=ProcedureLibrary(tmp_path / "procedures", REPO_ROOT / "plans",
+                                                  REPO_ROOT / "inputs-pre-existing" / "dictionary"),
+                      cosmos=inst(DICTIONARY, url=fake.url, password=PASSWORD))
+    return harness, run
+
+
 def fly(tmp_path, monkeypatch, fake, answer, **plan_changes):
     from odin.adapters.stand_in import StandInAdapter
     from odin.loop import signing, validate
     from odin.loop.loop import TurnLoop
 
-    harness = HarnessWorld(tmp_path)
-    plans = harness.world.plans([shakedown_plan(harness, **plan_changes)], signer="dev")
-    run = harness.run(plans=plans, phase=1, scenario=None, scenario_id="PH1-SHAKEDOWN", seat="GROUND",
-                      pacing="REAL_TIME", rate=RATE, check_ins=CHECK_INS,
-                      procedures=ProcedureLibrary(tmp_path / "procedures", REPO_ROOT / "plans",
-                                                  REPO_ROOT / "inputs-pre-existing" / "dictionary"),
-                      cosmos=inst(DICTIONARY, url=fake.url, password=PASSWORD))
+    harness, run = shakedown_run(tmp_path, fake, **plan_changes)
     monkeypatch.setattr(signing, "load_private_key", lambda private_key_path=None: harness.world.odin)
     # Muse Code's answer check reading the dictionary in force, as it will through the registry (U58).
     monkeypatch.setattr(validate, "_dictionary_commands", lambda: {c["mnemonic"]: c for c in DICTIONARY["commands"]}
@@ -116,6 +122,22 @@ def flown(tmp_path, monkeypatch):
 
 def bodies(run, type_):
     return [r["body"] for r in records(run, type_)]
+
+
+def test_a_phase_1_run_plays_the_directors_four_check_ins_as_text_at_their_times(tmp_path):
+    # U60: the harness's own table, in a run of 1,800 s, beside any a test gives it.
+    fake = FakeInst(PASSWORD, period_s=1 / RATE).start()
+    try:
+        _, run = shakedown_run(tmp_path, fake, check_ins=(), valid_until_met_s=PHASE_1_RUN_S,
+                               contact_window={"aos_met_s": 0, "los_met_s": PHASE_1_RUN_S})
+        assert run.start()
+        try:
+            assert [(met, body["text"], body["source"]) for met, body in run.check_ins] == [
+                (met, words, "TEXT") for met, words in PHASE_1]
+        finally:
+            run.stop()
+    finally:
+        fake.stop()
 
 
 def test_the_collect_goes_to_cosmos_and_its_outcome_is_read_from_insts_accept_counter(flown):
