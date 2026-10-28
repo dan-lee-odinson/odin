@@ -4,6 +4,7 @@ The schemas in contract/schemas/ are the single source for every field
 list; this module loads them at run time and never re-states them.
 A small Draft-7 subset validator resolves the cross-file $refs.
 """
+import hashlib
 import json
 import re
 from functools import lru_cache
@@ -13,7 +14,11 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_DIR = REPO_ROOT / "contract" / "schemas"
-DICT_PATH = REPO_ROOT / "deps" / "huginn" / "defs" / "tlm_cmd.yaml"
+REGISTRY_PATH = REPO_ROOT / "config" / "dictionaries.yaml"
+
+
+class DictionaryError(RuntimeError):
+    """The dictionary in force cannot be chosen or trusted (U58)."""
 
 
 @lru_cache(maxsize=None)
@@ -148,33 +153,114 @@ def validate_against_schema(schema_file: str, instance) -> list:
     return validate_instance(instance, _load_schema(schema_file), schema_file)
 
 
-@lru_cache(maxsize=1)
-def _dictionary_commands() -> dict:
-    doc = yaml.safe_load(DICT_PATH.read_text(encoding="utf-8"))
+def load_dictionary_registry(registry_path=None) -> list:
+    path = Path(registry_path) if registry_path else REGISTRY_PATH
+    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return list(doc.get("dictionaries") or [])
+
+
+def dictionary_in_force_entry(plan, registry_path=None) -> dict:
+    """The registry entry in force (U58): exactly one of the plan's
+    references matches an entry; none matching means the HUGINN entry;
+    two or more matching is an error."""
+    entries = load_dictionary_registry(registry_path)
+    referenced = {r.get("sha256") for r in ((plan or {}).get("references") or [])
+                  if isinstance(r, dict)}
+    matches = [e for e in entries if e.get("reference") in referenced]
+    if len(matches) > 1:
+        names = ", ".join(sorted(e.get("name", "?") for e in matches))
+        raise DictionaryError(f"plan lists two or more registered dictionaries: {names}")
+    if matches:
+        return matches[0]
+    for entry in entries:
+        if entry.get("name") == "HUGINN":
+            return entry
+    raise DictionaryError("registry has no HUGINN entry to fall back to")
+
+
+def load_dictionary_commands(entry, registry_path=None) -> dict:
+    """Read an entry's file, checking its SHA-256 against the entry."""
+    path = Path(registry_path) if registry_path else REGISTRY_PATH
+    root = path.resolve().parents[1]
+    file_path = Path(entry["file"])
+    if not file_path.is_absolute():
+        file_path = root / file_path
+    data = file_path.read_bytes()
+    computed = "sha256:" + hashlib.sha256(data).hexdigest()
+    if computed != entry.get("sha256"):
+        raise DictionaryError(
+            f"dictionary {entry.get('name')!r} file {entry.get('file')!r} "
+            f"hashes to {computed}, registry records {entry.get('sha256')}")
+    doc = yaml.safe_load(data.decode("utf-8"))
     return {cmd["mnemonic"]: cmd for cmd in doc["commands"]}
 
 
-def dictionary_errors(command: str, parameters) -> list:
-    """Check a command against deps/huginn/defs/tlm_cmd.yaml (§7.2)."""
-    commands = _dictionary_commands()
+def dictionary_for_plan(plan, registry_path=None):
+    """(entry, commands) in force for a plan, or DictionaryError."""
+    entry = dictionary_in_force_entry(plan, registry_path)
+    return entry, load_dictionary_commands(entry, registry_path)
+
+
+def _default_commands() -> dict:
+    _entry, commands = dictionary_for_plan({})
+    return commands
+
+
+def dictionary_errors(command: str, parameters, commands=None) -> list:
+    """Check a command against the dictionary in force (§7.2, U58).
+
+    Every error names the command or the argument at fault."""
+    if commands is None:
+        commands = _default_commands()
     if command not in commands:
         return [f"command {command!r} not in dictionary"]
     if not isinstance(parameters, dict):
         return ["parameters must be an object"]
     spec_args = {a["name"]: a for a in commands[command].get("args", [])}
-    errors = []
     if set(parameters) != set(spec_args):
-        errors.append(f"arguments {sorted(parameters)} != dictionary {sorted(spec_args)}")
-        return errors
+        extra = sorted(set(parameters) - set(spec_args))
+        missing = sorted(set(spec_args) - set(parameters))
+        parts = []
+        if extra:
+            parts.append(f"argument {extra[0]!r} not in dictionary for command {command!r}")
+        if missing:
+            parts.append(f"argument {missing[0]!r} missing for command {command!r}")
+        return parts
+    errors = []
     for name, value in parameters.items():
         spec = spec_args[name]
-        if spec["type"] == "enum" and value not in spec["enum_values"]:
-            errors.append(f"{name}={value!r} not in {spec['enum_values']}")
-        if spec["type"] == "float":
+        kind = spec.get("type")
+        if kind == "enum" and value not in spec.get("enum_values", []):
+            errors.append(f"argument {name!r}={value!r} not in {spec.get('enum_values')}")
+        elif kind == "float":
             if not isinstance(value, (int, float)) or isinstance(value, bool):
-                errors.append(f"{name} must be a number")
-            elif not (spec["min"] <= value <= spec["max"]):
-                errors.append(f"{name}={value} outside {spec['min']}..{spec['max']}")
+                errors.append(f"argument {name!r} must be a number")
+            elif "min" in spec and "max" in spec and not (spec["min"] <= value <= spec["max"]):
+                errors.append(f"argument {name!r}={value} outside {spec['min']}..{spec['max']}")
+        elif kind == "uint":
+            if not isinstance(value, int) or isinstance(value, bool):
+                errors.append(f"argument {name!r} must be an integer, never a bool")
+            elif "min" in spec and "max" in spec and not (spec["min"] <= value <= spec["max"]):
+                errors.append(f"argument {name!r}={value} outside {spec['min']}..{spec['max']}")
+    return errors
+
+
+def _dictionary_first_errors(obj, commands) -> list:
+    """Dictionary check, run before the generic schema check (U58). Only
+    shapes the dictionary can judge are judged here; the rest falls
+    through to the schema check."""
+    targets = []
+    if obj.get("kind") == "command":
+        targets.append((obj.get("command"), obj.get("parameters")))
+    elif obj.get("kind") == "escalation" and isinstance(obj.get("proposed"), dict):
+        proposed = obj["proposed"]
+        targets.append((proposed.get("command"), proposed.get("parameters")))
+    errors = []
+    for command, parameters in targets:
+        if not isinstance(command, str):
+            continue
+        if command not in commands or isinstance(parameters, dict):
+            errors += dictionary_errors(command, parameters, commands)
     return errors
 
 
@@ -191,17 +277,22 @@ def parse_one_json_object(raw: str):
     return obj, None, ""
 
 
-def validate_act_text(raw: str):
-    """Validate the model's ACT-turn text. Returns (ok, obj, reason, detail)."""
+def validate_act_text(raw: str, commands=None):
+    """Validate the model's ACT-turn text. Returns (ok, obj, reason, detail).
+
+    The dictionary check runs before the generic schema check (U58):
+    anything outside the dictionary in force is NOT_IN_DICTIONARY, never
+    SCHEMA_VIOLATION. `commands` is that dictionary's commands; when it is
+    not given, the registry's default (the HUGINN entry) is used."""
     obj, reason, detail = parse_one_json_object(raw)
     if reason:
         return False, None, reason, detail
+    if commands is None:
+        commands = _default_commands()
+    dict_errors = _dictionary_first_errors(obj, commands)
+    if dict_errors:
+        return False, None, "NOT_IN_DICTIONARY", "; ".join(dict_errors[:5])
     errors = validate_against_schema("answer.schema.json", obj)
-    if obj.get("kind") == "command":
-        errors += dictionary_errors(obj.get("command"), obj.get("parameters"))
-    if obj.get("kind") == "escalation" and isinstance(obj.get("proposed"), dict):
-        proposed = obj["proposed"]
-        errors += dictionary_errors(proposed.get("command"), proposed.get("parameters"))
     if errors:
         return False, None, "SCHEMA_VIOLATION", "; ".join(errors[:5])
     return True, obj, None, ""

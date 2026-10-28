@@ -17,7 +17,7 @@ from odin.spend.meter import SpendStop
 from .canonical import sha256_tag
 from .prompt import build_prompt  # noqa: F401  (re-exported for callers)
 from .signing import build_signed_request
-from .validate import validate_act_text, validate_report_text
+from .validate import DictionaryError, dictionary_for_plan, validate_act_text, validate_report_text
 
 
 def _urllib_transport(method, url, data=None, timeout=30):
@@ -40,7 +40,7 @@ def _http_json(method, url, payload=None, timeout=30, transport=None):
 class TurnLoop:
     def __init__(self, *, harness_url, baldur_url, log_url, adapter, repo_root,
                  private_key_path=None, instructions="", frozen_reference="", transport=None,
-                 meter=None):
+                 meter=None, registry_path=None):
         self.harness_url = harness_url.rstrip("/")
         self.baldur_url = baldur_url.rstrip("/")
         self.log_url = log_url.rstrip("/")
@@ -51,6 +51,7 @@ class TurnLoop:
         self.frozen_reference = frozen_reference
         self.transport = transport
         self.meter = meter
+        self.registry_path = registry_path
         self.errors = []
 
     # -- logging ---------------------------------------------------------
@@ -134,6 +135,16 @@ class TurnLoop:
                     "detail": mismatch}
         plan = bundle.get("plan") or {}
         plan_id = plan.get("plan_id")
+        try:
+            # U58: the dictionary in force for this turn's plan. Choosing it
+            # or trusting its file failing is an error, not a malformed
+            # answer: send nothing, make no model call.
+            _entry, dict_commands = dictionary_for_plan(plan, self.registry_path)
+        except (DictionaryError, OSError, KeyError, ValueError) as exc:
+            self.errors.append({"turn_id": turn_id, "service": "dictionary",
+                                "detail": str(exc)})
+            return {"turn_id": turn_id, "outcome": "error",
+                    "service": "dictionary", "detail": str(exc)}
         sink = []
         try:
             result = self.adapter.complete(
@@ -172,11 +183,12 @@ class TurnLoop:
             except Exception:
                 tool_calls = []
             ok, answer, reason, detail = convert_tool_calls(
-                tool_calls, turn_kind=bundle["turn_kind"], report_kind=bundle.get("report_kind"))
+                tool_calls, turn_kind=bundle["turn_kind"], report_kind=bundle.get("report_kind"),
+                commands=dict_commands)
         elif bundle["turn_kind"] == "REPORT":
             ok, answer, reason, detail = validate_report_text(raw, bundle.get("report_kind") or "PASS_START")
         else:
-            ok, answer, reason, detail = validate_act_text(raw)
+            ok, answer, reason, detail = validate_act_text(raw, commands=dict_commands)
 
         if not ok:
             self._log("MALFORMED", {"run_id": run_id, "turn_id": turn_id,

@@ -49,17 +49,9 @@ def test_not_one_json_object(raw):
     [
         '{"kind":"command","command":"CMD_PLD_SET_STATE"}',
         '{"kind":"command","command":"CMD_PLD_SET_STATE","parameters":{"state":"ON"},"extra":1}',
-        '{"kind":"command","command":"CMD_NOPE","parameters":{}}',
-        '{"kind":"command","command":"CMD_PLD_SET_STATE","parameters":{"state":"MAYBE"}}',
-        '{"kind":"command","command":"CMD_PLD_SET_STATE","parameters":{"state":"ON","rate":1.0}}',
-        '{"kind":"command","command":"CMD_PLD_SET_RATE","parameters":{"rate":99.0}}',
-        '{"kind":"command","command":"CMD_PLD_SET_RATE","parameters":{"rate":0.01}}',
-        '{"kind":"command","command":"CMD_SAFE_ENTER","parameters":{"x":1}}',
-        '{"kind":"command","command":"CMD_MODE_SET","parameters":{"target":"SAFE"}}',
         '{"kind":"escalation","escalation_kind":"WHATEVER","refs":[],"proposed":null,"urgency":"ROUTINE"}',
         '{"kind":"escalation","escalation_kind":"MALFUNCTION","refs":[],"proposed":null,"urgency":"WHENEVER"}',
         '{"kind":"escalation","escalation_kind":"MALFUNCTION","refs":"oops","proposed":null,"urgency":"ROUTINE"}',
-        '{"kind":"escalation","escalation_kind":"MALFUNCTION","refs":[],"proposed":{"command":"CMD_NOPE","parameters":{}},"urgency":"ROUTINE"}',
         '{"kind":"none","surprise":true}',
         '{"kind":"unknown"}',
         '{"command":"CMD_PLD_SET_STATE","parameters":{"state":"ON"}}',
@@ -68,6 +60,26 @@ def test_not_one_json_object(raw):
 def test_schema_violations(raw):
     ok, _, reason, _ = act(raw)
     assert not ok and reason == "SCHEMA_VIOLATION"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        # U58: outside the dictionary in force is NOT_IN_DICTIONARY, never
+        # SCHEMA_VIOLATION, and the dictionary check runs first.
+        '{"kind":"command","command":"CMD_NOPE","parameters":{}}',
+        '{"kind":"command","command":"CMD_PLD_SET_STATE","parameters":{"state":"MAYBE"}}',
+        '{"kind":"command","command":"CMD_PLD_SET_STATE","parameters":{"state":"ON","rate":1.0}}',
+        '{"kind":"command","command":"CMD_PLD_SET_RATE","parameters":{"rate":99.0}}',
+        '{"kind":"command","command":"CMD_PLD_SET_RATE","parameters":{"rate":0.01}}',
+        '{"kind":"command","command":"CMD_SAFE_ENTER","parameters":{"x":1}}',
+        '{"kind":"command","command":"CMD_MODE_SET","parameters":{"target":"SAFE"}}',
+        '{"kind":"escalation","escalation_kind":"MALFUNCTION","refs":[],"proposed":{"command":"CMD_NOPE","parameters":{}},"urgency":"ROUTINE"}',
+    ],
+)
+def test_not_in_dictionary(raw):
+    ok, _, reason, _ = act(raw)
+    assert not ok and reason == "NOT_IN_DICTIONARY"
 
 
 @pytest.mark.parametrize(

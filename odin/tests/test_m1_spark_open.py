@@ -55,16 +55,18 @@ def test_two_answer_calls_is_malformed():
 
 
 @pytest.mark.parametrize(
-    "bad_args",
+    "bad_args, expected",
     [
-        {"command": "CMD_NOPE", "parameters": {}},
-        {"command": "CMD_PLD_SET_STATE", "parameters": {"state": "MAYBE"}},
-        {"command": "CMD_PLD_SET_STATE"},
-        {"parameters": {"state": "ON"}},
-        {"command": "CMD_PLD_SET_STATE", "parameters": {"state": "ON"}, "request_id": "forged"},
+        # U58: outside the dictionary is NOT_IN_DICTIONARY, through spark_open too.
+        ({"command": "CMD_NOPE", "parameters": {}}, "NOT_IN_DICTIONARY"),
+        ({"command": "CMD_PLD_SET_STATE", "parameters": {"state": "MAYBE"}}, "NOT_IN_DICTIONARY"),
+        ({"command": "CMD_PLD_SET_STATE"}, "SCHEMA_VIOLATION"),
+        ({"parameters": {"state": "ON"}}, "SCHEMA_VIOLATION"),
+        ({"command": "CMD_PLD_SET_STATE", "parameters": {"state": "ON"}, "request_id": "forged"},
+         "SCHEMA_VIOLATION"),
     ],
 )
-def test_wrong_fields_are_malformed(bad_args):
+def test_wrong_fields_are_malformed(bad_args, expected):
     calls = [
         {
             "id": "call_1",
@@ -73,7 +75,7 @@ def test_wrong_fields_are_malformed(bad_args):
         }
     ]
     ok, _, reason, _ = convert_tool_calls(calls, turn_kind="ACT")
-    assert not ok and reason == "SCHEMA_VIOLATION"
+    assert not ok and reason == expected
 
 
 def test_reasoning_content_is_never_the_answer():

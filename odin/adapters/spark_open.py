@@ -48,7 +48,8 @@ def _parse_args(call) -> dict:
     return dict(args)
 
 
-def convert_tool_calls(tool_calls, turn_kind="ACT", report_kind=None, reasoning_content=None):
+def convert_tool_calls(tool_calls, turn_kind="ACT", report_kind=None, reasoning_content=None,
+                       commands=None):
     """(ok, obj, reason, detail). Exactly one answer-tool call required.
 
     reasoning_content is accepted only to prove it is ignored.
@@ -86,11 +87,13 @@ def convert_tool_calls(tool_calls, turn_kind="ACT", report_kind=None, reasoning_
         obj = {"kind": "escalation", **args}
     else:
         obj = {"kind": "none", **args}
-    # Same validator as spark (§11.1): schema + dictionary.
+    # Same validator as spark (§11.1): dictionary first, then schema (U58).
+    ok, validated, reason, detail = validate_act_text(json.dumps(obj), commands=commands)
+    if not ok:
+        return ok, validated, reason, detail
     errors = validate_against_schema("answer.schema.json", obj)
     if errors:
         return False, None, "SCHEMA_VIOLATION", "; ".join(errors[:5])
-    ok, validated, reason, detail = validate_act_text(json.dumps(obj))
     return ok, validated, reason, detail
 
 
