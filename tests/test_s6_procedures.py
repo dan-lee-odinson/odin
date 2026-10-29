@@ -15,6 +15,7 @@ from tests.repo_checks import REPO_ROOT
 PLANS = sorted((REPO_ROOT / "plans").glob("TYR0-P2-*.yaml"))   # phase 2's; phase 1's waits on its procedure (U43)
 CONTACT_A = "plans/TYR0-P2-PASS2B-v1.contact-a-telemetry.csv"
 REFERENCE = "odin/study/cosmos_reference.md"   # ODIN's frozen COSMOS reference, from Muse Code's M4 deposit
+NOTES = "plans/ODIN-PH1-console-notes.md"   # ODIN's phase-1 notes, R4's MET 1620 answer
 
 
 def plan(path):
@@ -50,18 +51,24 @@ def test_every_pass_carries_the_frozen_cosmos_reference_and_its_own_inputs(libra
     reference = (REPO_ROOT / REFERENCE).read_bytes()
     assert digest(reference) == "sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f"
     assert all(attached[0]["text"].encode("utf-8") == reference for attached in by_stem.values())
-    assert [a["text"].encode("utf-8") for a in by_stem["TYR0-P2-PASS2B-v1"][1:2]] == [(REPO_ROOT / CONTACT_A).read_bytes()]
-    # Every pass: the reference, then its own inputs, then the dictionary and BALDUR-0's class table.
-    assert [len(by_stem[p.stem]) for p in PLANS] == [3, 3, 4, 5, 5]
+    # The phase-1 notes, R4's MET 1620 answer, frozen on 29 October 2026, ride second on every pass.
+    notes = (REPO_ROOT / NOTES).read_bytes()
+    assert all(attached[1]["text"].encode("utf-8") == notes for attached in by_stem.values())
+    assert [a["text"].encode("utf-8") for a in by_stem["TYR0-P2-PASS2B-v1"][2:3]] == [(REPO_ROOT / CONTACT_A).read_bytes()]
+    # Every pass: the reference and the notes, then its own inputs, then the dictionary and BALDUR-0's class table.
+    assert [len(by_stem[p.stem]) for p in PLANS] == [4, 4, 5, 6, 6]
     assert all([a["name"] for a in attached[-2:]] == ["HUGINN command and telemetry dictionary v0.5 (HUGINN b4dbe61)",
                                                        "BALDUR-0's command classes, generated from its class configuration"]
                for attached in by_stem.values())
 
 
 def test_red_a_placeholder_is_not_attached(library):
+    # The plans hold none since the phase-1 notes were filled in (29 October 2026), so one is set here.
     one = plan(REPO_ROOT / "plans" / "TYR0-P2-PASS4-v1.yaml")
-    assert sum(r["sha256"] == PLACEHOLDER for r in one.document["references"]) == 1   # the phase-1 notes
+    one.document["references"][1]["sha256"] = PLACEHOLDER
+    assert sum(r["sha256"] == PLACEHOLDER for r in one.document["references"]) == 1
     assert PLACEHOLDER not in [a["sha256"] for a in library.for_plan(one)[0]["attachments"]]
+    assert len(library.for_plan(one)[0]["attachments"]) == len(one.document["references"]) - 1
 
 
 def test_red_a_file_in_comparison_only_is_never_found(library):

@@ -59,7 +59,7 @@ references:
   - name: "ODIN's COSMOS operations reference (frozen at M4)"
     sha256: sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f
   - name: "ODIN's phase-1 console notes (frozen after phase 1)"
-    sha256: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    sha256: sha256:b4be77f01b7aaae41f3bfc78df2980e4892fbc0396b738b058bada234e884ca6
   - name: "HUGINN command and telemetry dictionary v0.5 (HUGINN b4dbe61)"
     sha256: sha256:985105875e6e41c4896cd635efbd15fe037349da228027261cc7ce059c930648
   - name: "BALDUR-0's command classes, generated from its class configuration"

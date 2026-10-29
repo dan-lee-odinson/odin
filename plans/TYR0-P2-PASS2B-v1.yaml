@@ -58,7 +58,7 @@ references:
   - name: "ODIN's COSMOS operations reference (frozen at M4)"
     sha256: sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f
   - name: "ODIN's phase-1 console notes (frozen after phase 1)"
-    sha256: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    sha256: sha256:b4be77f01b7aaae41f3bfc78df2980e4892fbc0396b738b058bada234e884ca6
   - name: "Contact A telemetry, MET 2190 to 2519, regenerated from P2_array_string_loss"
     sha256: sha256:4e82647467329ce7f19d0cdbe8a63c328903d80f04c2b3b433f2946f4f7c89bc
   - name: "HUGINN command and telemetry dictionary v0.5 (HUGINN b4dbe61)"

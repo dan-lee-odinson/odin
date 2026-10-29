@@ -145,6 +145,23 @@ def test_every_procedure_a_plan_names_is_placed(path):
     assert [ref["id"] for ref in plan(path)["procedures_in_force"] if ref["sha256"] == ZEROS] == []
 
 
+NOTES = REPO_ROOT / "plans" / "ODIN-PH1-console-notes.md"
+
+
+def test_the_phase_1_notes_are_r4s_answer_at_the_met_1620_check_in_byte_for_byte():
+    # The Director's ruling of 29 October 2026: R4's console notes, its MET 1620 answer, frozen unedited as the phase-1
+    # notes, attached beside PROC-001 by hash in each phase-2 plan (U43), which now holds no placeholder.
+    from eval import phase1, runlog
+    records = runlog.events(REPO_ROOT / "runs" / "scored" / "PH1-SHAKEDOWN-SPARK-R4")
+    check_in, words, _, report = phase1.answered(records)[3]
+    assert (check_in, words) == (1620, "ODIN, this is Flight. Write your console notes from this session.")
+    assert NOTES.read_bytes() == report["answer"].encode("utf-8")
+    for document in map(plan, PLANS):
+        references = {ref["name"]: ref["sha256"] for ref in document["references"]}
+        assert references["ODIN's phase-1 console notes (frozen after phase 1)"] == digest(NOTES.read_bytes())
+        assert ZEROS not in references.values()
+
+
 def test_contact_a_is_frozen_and_listed_by_pass_2b():
     frozen = FROZEN.read_bytes()
     assert generate() == frozen

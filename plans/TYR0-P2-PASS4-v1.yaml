@@ -58,7 +58,7 @@ references:
   - name: "ODIN's COSMOS operations reference (frozen at M4)"
     sha256: sha256:c3f964cd81bd07a834c37c0e2c8ac503dbac2394e5e70c517dc8c4c8812e234f
   - name: "ODIN's phase-1 console notes (frozen after phase 1)"
-    sha256: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    sha256: sha256:b4be77f01b7aaae41f3bfc78df2980e4892fbc0396b738b058bada234e884ca6
   - name: "Pass plan 2026-10-11-P4 (HUGINN e75569f)"
     sha256: sha256:fd915c96e9dde5428d3d7720f736284f553d60963ac2d2a1ffebd99db6eacbdf
   - name: "HUGINN console card of 11 October 2026, as flown"
