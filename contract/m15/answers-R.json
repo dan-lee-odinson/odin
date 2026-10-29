@@ -1,0 +1,235 @@
+[
+ {
+  "prompt": "spark-02 turn 5, MET 900",
+  "call": 1,
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"kind\": \"command\", \"rationale\": \"PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold, vs plan 1.4A. SOC 66.5% and V 7.67V healthy, MODE NOMINAL so ladder has not acted, SA1/SA2 symmetric 1.7A SUNLIT. PROC-002-S01 annunciation EPS_LOAD_I YELLOW, S02 load alarm branch, S03 load excursion (symmetric strings, load high), S04 shed payload PLD ON->OFF. Lease L-SHED covers OFF with no conditions.\"}",
+  "matched_the_format_sent": true,
+  "escalation_held": "null",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold, vs plan 1.4A. SOC 66.5% and V 7.67V healthy, MODE NOMINAL so ladder has not acted, SA1/SA2 symmetric 1.7A SUNLIT. PROC-002-S01 annunciation EPS_LOAD_I YELLOW, S02 load alarm branch, S03 load excursion (symmetric strings, load high), S04 shed payload PLD ON->OFF. Lease L-SHED covers OFF with no conditions.",
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  },
+  "cost_usd": 0.075533
+ },
+ {
+  "prompt": "spark-02 turn 5, MET 900",
+  "call": 2,
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"kind\": \"command\", \"rationale\": \"EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold at MET 900, envelope breached. PROC-001-S07 selects limit response required, PROC-002-S02 load alarm (S01 point is LOAD_I), PROC-002-S03 load excursion (SA1/SA2 symmetric 1.7A sunlit, load high), PROC-002-S04 shed payload OFF. PLD_STATE ON, EPS_MODE NOMINAL so ladder has not acted. Lease L-SHED covers OFF with no conditions.\"}",
+  "matched_the_format_sent": true,
+  "escalation_held": "null",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold at MET 900, envelope breached. PROC-001-S07 selects limit response required, PROC-002-S02 load alarm (S01 point is LOAD_I), PROC-002-S03 load excursion (SA1/SA2 symmetric 1.7A sunlit, load high), PROC-002-S04 shed payload OFF. PLD_STATE ON, EPS_MODE NOMINAL so ladder has not acted. Lease L-SHED covers OFF with no conditions.",
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  },
+  "cost_usd": 0.072477
+ },
+ {
+  "prompt": "spark-02 turn 5, MET 900",
+  "call": 3,
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"kind\": \"command\", \"rationale\": \"PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold, breach of envelope. PROC-002-S01 annunciation confirmed, S02 load alarm branch (entered on LOAD_I), S03 load excursion (SA1/SA2 symmetric 1.7A SUNLIT, load high), S04 shed payload: PLD_STATE ON so CMD_PLD_SET_STATE OFF applicable. Lease L-SHED covers OFF with no conditions; envelope breach raises C1 to C4 but lease authorizes. Telemetry fresh age 0s.\"}",
+  "matched_the_format_sent": true,
+  "escalation_held": "null",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold, breach of envelope. PROC-002-S01 annunciation confirmed, S02 load alarm branch (entered on LOAD_I), S03 load excursion (SA1/SA2 symmetric 1.7A SUNLIT, load high), S04 shed payload: PLD_STATE ON so CMD_PLD_SET_STATE OFF applicable. Lease L-SHED covers OFF with no conditions; envelope breach raises C1 to C4 but lease authorizes. Telemetry fresh age 0s.",
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  },
+  "cost_usd": 0.016689
+ },
+ {
+  "prompt": "spark-02 turn 10, MET 1200",
+  "call": 1,
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"kind\": \"command\", \"rationale\": \"EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold, envelope LT 1.5 breached. Vs pass plan 1.4A = +0.4A stuck-load signature. SA1/SA2 symmetric 1.7A SUNLIT, SOC 68.17% GREEN, MODE NOMINAL, BATT_I +1.04A. PROC-001-S07 = limit response required, PROC-002-S01 annunciation, S02 load alarm branch, S03 load excursion, S04 shed applicable PLD_STATE ON. Lease L-SHED covers OFF, fresh telemetry age 0s.\"}",
+  "matched_the_format_sent": true,
+  "escalation_held": "null",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold, envelope LT 1.5 breached. Vs pass plan 1.4A = +0.4A stuck-load signature. SA1/SA2 symmetric 1.7A SUNLIT, SOC 68.17% GREEN, MODE NOMINAL, BATT_I +1.04A. PROC-001-S07 = limit response required, PROC-002-S01 annunciation, S02 load alarm branch, S03 load excursion, S04 shed applicable PLD_STATE ON. Lease L-SHED covers OFF, fresh telemetry age 0s.",
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  },
+  "cost_usd": 0.100063
+ },
+ {
+  "prompt": "spark-02 turn 10, MET 1200",
+  "call": 2,
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"kind\": \"command\", \"rationale\": \"PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold vs pass-plan 1.4A, MODE NOMINAL, SOC 68% SUNLIT. Per PROC-002-S02 load alarm branch and S03 load excursion (SA1/SA2 symmetric 1.7A), S04 shed payload with CMD_PLD_SET_STATE OFF under lease L-SHED.\"}",
+  "matched_the_format_sent": true,
+  "escalation_held": "null",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold vs pass-plan 1.4A, MODE NOMINAL, SOC 68% SUNLIT. Per PROC-002-S02 load alarm branch and S03 load excursion (SA1/SA2 symmetric 1.7A), S04 shed payload with CMD_PLD_SET_STATE OFF under lease L-SHED.",
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  },
+  "cost_usd": 0.097475
+ },
+ {
+  "prompt": "spark-02 turn 10, MET 1200",
+  "call": 3,
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"kind\": \"command\", \"rationale\": \"PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold vs pass-plan 1.4A (+0.4A stuck-load signature), while SOC 68.17% GREEN, BATT_V 7.69V GREEN, MODE NOMINAL, SUNLIT, SA1/SA2 symmetric 1.7A. PROC-002-S02 load alarm -> S03 load excursion -> S04 shed payload. PLD ON so shed applicable. Lease L-SHED covers OFF with no conditions, fresh telemetry age 0s.\"}",
+  "matched_the_format_sent": true,
+  "escalation_held": "null",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold vs pass-plan 1.4A (+0.4A stuck-load signature), while SOC 68.17% GREEN, BATT_V 7.69V GREEN, MODE NOMINAL, SUNLIT, SA1/SA2 symmetric 1.7A. PROC-002-S02 load alarm -> S03 load excursion -> S04 shed payload. PLD ON so shed applicable. Lease L-SHED covers OFF with no conditions, fresh telemetry age 0s.",
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  },
+  "cost_usd": 0.01791
+ },
+ {
+  "prompt": "spark-01 turn 4, MET 900",
+  "call": 1,
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"kind\": \"command\", \"rationale\": \"PROC-001-S07 limit response required: EPS_LOAD_I 1.80A YELLOW_HIGH >=1.5A threshold, vs pass-plan 1.40A (+0.40A step at MET 900). PROC-002-S01/S02 load alarm, S03 load excursion (SA1=SA2=1.7A symmetric SUNLIT, generation normal). PLD ON, MODE NOMINAL, SOC 66.5% so ladder has not acted. Execute PROC-002-S04 shed. C1 raised to C4 by envelope breach but L-SHED lease covers OFF with no conditions. Telemetry fresh (age 0s).\"}",
+  "matched_the_format_sent": true,
+  "escalation_held": "null",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "PROC-001-S07 limit response required: EPS_LOAD_I 1.80A YELLOW_HIGH >=1.5A threshold, vs pass-plan 1.40A (+0.40A step at MET 900). PROC-002-S01/S02 load alarm, S03 load excursion (SA1=SA2=1.7A symmetric SUNLIT, generation normal). PLD ON, MODE NOMINAL, SOC 66.5% so ladder has not acted. Execute PROC-002-S04 shed. C1 raised to C4 by envelope breach but L-SHED lease covers OFF with no conditions. Telemetry fresh (age 0s).",
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  },
+  "cost_usd": 0.077185
+ },
+ {
+  "prompt": "spark-01 turn 4, MET 900",
+  "call": 2,
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"kind\": \"command\", \"rationale\": \"PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A vs pass-plan 1.4A, single-frame step at MET 900. PROC-002-S01 annunciation EPS_LOAD_I, S02 load alarm branch, S03 load excursion (SA1/SA2 symmetric 1.7A SUNLIT, load high), S04 shed applicable PLD_STATE ON, EPS_MODE NOMINAL ladder not acted. C1 raised to C4 by breached LOAD_I envelope but L-SHED lease covers OFF with no conditions. Fresh telemetry age 0s, AI_AUTONOMOUS.\"}",
+  "matched_the_format_sent": true,
+  "escalation_held": "null",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A vs pass-plan 1.4A, single-frame step at MET 900. PROC-002-S01 annunciation EPS_LOAD_I, S02 load alarm branch, S03 load excursion (SA1/SA2 symmetric 1.7A SUNLIT, load high), S04 shed applicable PLD_STATE ON, EPS_MODE NOMINAL ladder not acted. C1 raised to C4 by breached LOAD_I envelope but L-SHED lease covers OFF with no conditions. Fresh telemetry age 0s, AI_AUTONOMOUS.",
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  },
+  "cost_usd": 0.017037
+ },
+ {
+  "prompt": "spark-01 turn 4, MET 900",
+  "call": 3,
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"kind\": \"command\", \"rationale\": \"PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A at MET 900. PROC-002-S02 load alarm (S01 point is EPS_LOAD_I), S03 load excursion (SA1 1.7A SA2 1.7A symmetric SUNLIT, load high). Mode NOMINAL so ladder has not acted. S04 shed payload OFF. Lease L-SHED covers OFF with no conditions, fresh telemetry age 0s.\"}",
+  "matched_the_format_sent": true,
+  "escalation_held": "null",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A at MET 900. PROC-002-S02 load alarm (S01 point is EPS_LOAD_I), S03 load excursion (SA1 1.7A SA2 1.7A symmetric SUNLIT, load high). Mode NOMINAL so ladder has not acted. S04 shed payload OFF. Lease L-SHED covers OFF with no conditions, fresh telemetry age 0s.",
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  },
+  "cost_usd": 0.073776
+ },
+ {
+  "prompt": "phase 1 turn 16 (dev-ph1-spark-m10)",
+  "call": 1,
+  "dictionary": "INST",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"COLLECT\", \"parameters\": {\"duration\": 5.0, \"opcode\": 1, \"temp\": 20.0, \"type\": \"NORMAL\"}}, \"escalation\": null, \"kind\": \"command\", \"rationale\": \"S02 Session 3: send INST COLLECT TYPE NORMAL once from baseline COLLECTS=3 CMD_ACPT_CNT=6, confirm rise next turn.\"}",
+  "matched_the_format_sent": true,
+  "escalation_held": "null",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "S02 Session 3: send INST COLLECT TYPE NORMAL once from baseline COLLECTS=3 CMD_ACPT_CNT=6, confirm rise next turn.",
+    "command": "COLLECT",
+    "parameters": {
+     "duration": 5.0,
+     "opcode": 1,
+     "temp": 20.0,
+     "type": "NORMAL"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  },
+  "cost_usd": 0.018312
+ }
+]

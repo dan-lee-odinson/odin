@@ -1,0 +1,148 @@
+[
+ {
+  "case": "an escalation proposing the shed",
+  "answer": {
+   "kind": "escalation",
+   "command_call": null,
+   "rationale": "made up",
+   "escalation": {
+    "escalation_kind": "LEASE_NEEDED",
+    "refs": [
+     "PROC-002-S04"
+    ],
+    "urgency": "URGENT",
+    "proposed": {
+     "command": "CMD_PLD_SET_STATE",
+     "parameters": {
+      "state": "OFF"
+     }
+    }
+   }
+  },
+  "dictionary": "HUGINN",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "escalation",
+    "rationale": "made up",
+    "escalation_kind": "LEASE_NEEDED",
+    "refs": [
+     "PROC-002-S04"
+    ],
+    "urgency": "URGENT",
+    "proposed": {
+     "command": "CMD_PLD_SET_STATE",
+     "parameters": {
+      "state": "OFF"
+     }
+    }
+   },
+   "reason": null,
+   "detail": ""
+  }
+ },
+ {
+  "case": "an escalation proposing nothing",
+  "answer": {
+   "kind": "escalation",
+   "command_call": null,
+   "rationale": "made up",
+   "escalation": {
+    "escalation_kind": "MALFUNCTION",
+    "refs": [
+     "PROC-001-S07"
+    ],
+    "urgency": "ROUTINE",
+    "proposed": null
+   }
+  },
+  "dictionary": "HUGINN",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "escalation",
+    "rationale": "made up",
+    "escalation_kind": "MALFUNCTION",
+    "refs": [
+     "PROC-001-S07"
+    ],
+    "urgency": "ROUTINE",
+    "proposed": null
+   },
+   "reason": null,
+   "detail": ""
+  }
+ },
+ {
+  "case": "a command whose escalation is null",
+  "answer": {
+   "kind": "command",
+   "command_call": {
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "escalation": null,
+   "rationale": "made up"
+  },
+  "dictionary": "HUGINN",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": true,
+   "judged": {
+    "kind": "command",
+    "rationale": "made up",
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "reason": null,
+   "detail": ""
+  }
+ },
+ {
+  "case": "a command whose escalation holds values: refused",
+  "answer": {
+   "kind": "command",
+   "command_call": {
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "rationale": "made up",
+   "escalation": {
+    "escalation_kind": null,
+    "refs": [
+     "PROC-002-S04"
+    ],
+    "urgency": "ROUTINE",
+    "proposed": null
+   }
+  },
+  "dictionary": "HUGINN",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": false,
+   "judged": null,
+   "reason": "SCHEMA_VIOLATION",
+   "detail": "$: matches 0 oneOf branches, expected 1"
+  }
+ },
+ {
+  "case": "an escalation whose escalation is null: refused",
+  "answer": {
+   "kind": "escalation",
+   "command_call": null,
+   "escalation": null,
+   "rationale": "made up"
+  },
+  "dictionary": "HUGINN",
+  "judged_after_put_backs_and_null_drop": {
+   "accepted": false,
+   "judged": null,
+   "reason": "SCHEMA_VIOLATION",
+   "detail": "$: matches 0 oneOf branches, expected 1"
+  }
+ }
+]
