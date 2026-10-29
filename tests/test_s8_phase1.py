@@ -41,9 +41,22 @@ def packet(met_s, **values):
             "body": {"items": {k: {"value": v, "limits_state": states.get(k)} for k, v in items.items()}}}
 
 
+def opened(met_s):
+    """The TRIGGER that opened the report turn for the check-in a second before met_s; the turn's ID is met_s."""
+    return record("TRIGGER", met_s - 1, turn_id=met_s, turn_kind="REPORT", report_kind="CHECK_IN",
+                  triggers=[{"type": "CHECK_IN", "met_s": met_s - 1, "detail": {}}])
+
+
 def answer(met_s, *evidence):
-    return record("REPORT", met_s, report_kind="CHECK_IN", turn_id=1, actions=[], timeline=[], answer="As seen.",
-                  condition={"summary": "", "evidence": [{"point": p, "value": v, "met_s": m} for p, v, m in evidence]})
+    """A check-in's report turn: its TRIGGER, and the report it filed at met_s."""
+    return [opened(met_s), record(
+        "REPORT", met_s, report_kind="CHECK_IN", turn_id=met_s, actions=[], timeline=[], answer="As seen.",
+        condition={"summary": "", "evidence": [{"point": p, "value": v, "met_s": m} for p, v, m in evidence]})]
+
+
+def malformed(met_s):
+    """A check-in's report turn that ended MALFORMED at met_s and filed no report."""
+    return [opened(met_s), record("MALFORMED", met_s, turn_id=met_s, reason="SCHEMA_VIOLATION", detail="")]
 
 
 TRUTH = [packet(10, COLLECTS=2), packet(12, COLLECTS=3, CMD_ACPT_CNT=3), packet(30, COLLECTS=3, TEMP1=85.0),
@@ -56,32 +69,32 @@ COLLECT = [record("REQUEST", 11, request_id="a", command="COLLECT", parameters={
 
 
 def test_red_a_collect_count_it_gives_wrongly_fails_the_collect_check():
-    right = check_phase_1(CHECK_INS + COLLECT + [answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 3, 12))], TRUTH)
-    wrong = check_phase_1(CHECK_INS + COLLECT + [answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 4, 12))], TRUTH)
+    right = check_phase_1(CHECK_INS + COLLECT + answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 3, 12)), TRUTH)
+    wrong = check_phase_1(CHECK_INS + COLLECT + answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 4, 12)), TRUTH)
     assert right["checks"]["collect"]["success"] and not wrong["checks"]["collect"]["success"]
 
 
 def test_red_a_collect_never_accepted_fails_the_collect_check():
-    found = check_phase_1(CHECK_INS + COLLECT[:2] + [answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 2, 12))], TRUTH)
+    found = check_phase_1(CHECK_INS + COLLECT[:2] + answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 2, 12)), TRUTH)
     assert not found["checks"]["collect"]["accepted"] and not found["checks"]["collect"]["success"]
 
 
 def test_red_a_collect_odin_did_not_dispatch_is_not_counted():
     # U62: S8 counts only ODIN's own DISPATCH records, never COSMOS's command counts, which hold the demo's own.
-    records = CHECK_INS + [COLLECT[0], COLLECT[2]] + [answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 3, 12))]
+    records = CHECK_INS + [COLLECT[0], COLLECT[2]] + answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 3, 12))
     collect = check_phase_1(records, TRUTH)["checks"]["collect"]
     assert not collect["accepted"] and not collect["success"]
 
 
 def test_red_a_value_cosmos_did_not_show_at_its_time_fails_the_health_status_check():
-    records = CHECK_INS + [answer(21), answer(32, ("TEMP1", 85.0, 30), ("COLLECTS", 3, 30))]
+    records = CHECK_INS + answer(21) + answer(32, ("TEMP1", 85.0, 30), ("COLLECTS", 3, 30))
     assert check_phase_1(records, TRUTH)["checks"]["health_status"]["success"]
-    records = CHECK_INS + [answer(21), answer(32, ("TEMP1", 85.0, 40), ("COLLECTS", 3, 30))]
+    records = CHECK_INS + answer(21) + answer(32, ("TEMP1", 85.0, 40), ("COLLECTS", 3, 30))
     assert not check_phase_1(records, TRUTH)["checks"]["health_status"]["success"]
 
 
 def test_red_an_item_named_while_in_limits_fails_the_out_of_limits_check():
-    named = lambda met_s: CHECK_INS + [answer(21), answer(32), answer(42, ("TEMP1", 85.0 if met_s == 30 else 10.0, met_s))]
+    named = lambda met_s: CHECK_INS + answer(21) + answer(32) + answer(42, ("TEMP1", 85.0 if met_s == 30 else 10.0, met_s))
     hit = check_phase_1(named(30), TRUTH)["checks"]["out_of_limits"]
     assert hit["success"] and hit["out_of_limits"][0]["limits_state"] == "RED_HIGH"
     assert not check_phase_1(named(40), TRUTH)["checks"]["out_of_limits"]["success"]
@@ -89,8 +102,8 @@ def test_red_an_item_named_while_in_limits_fails_the_out_of_limits_check():
 
 RUN_START = record("RUN_START", 0, run_id="PH1-TEST", model_config="stand_in", phase=1)
 ANSWERED = ([RUN_START] + CHECK_INS + [record("CHECK_IN", 50, text="four")] + COLLECT
-            + [answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 3, 12)), answer(32, ("TEMP1", 85.0, 30)),
-               answer(42, ("TEMP1", 85.0, 30)), answer(51)])
+            + answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 3, 12)) + answer(32, ("TEMP1", 85.0, 30))
+            + answer(42, ("TEMP1", 85.0, 30)) + answer(51))
 
 
 def test_the_sheet_lays_each_answer_beside_cosmos_with_a_place_for_each_written_claim():
@@ -111,6 +124,19 @@ def test_the_sheet_lays_each_answer_beside_cosmos_with_a_place_for_each_written_
         "limits_line": "LIMITS DEFAULT 1 ENABLED -80.0 -70.0 60.0 80.0 -20.0 20.0", "limits_state": "RED_HIGH",
         "crossed": "red high 80.0"}
     assert limits["out_of_limits_at_check_in"] == {} and notes is None
+
+
+def test_red_a_check_in_whose_turn_filed_no_report_is_unanswered_and_takes_no_later_answer():
+    # The second check-in's report turn ended MALFORMED: it stays unanswered, and the third and fourth check-ins keep
+    # their own answers, as PH1-SHAKEDOWN-SPARK-R3's did not (29 October 2026).
+    records = ([RUN_START] + CHECK_INS + [record("CHECK_IN", 50, text="four")] + COLLECT
+               + answer(21, ("COLLECTS", 2, 10), ("COLLECTS", 3, 12)) + malformed(32)
+               + answer(42, ("TEMP1", 85.0, 30)) + answer(51))
+    assert [(check_in, answer_met) for check_in, _, answer_met, _ in phase1.answered(records)] == [
+        (20, 21), (31, None), (41, 42), (50, 51)]
+    checks = check_phase_1(records, TRUTH)["checks"]
+    assert not checks["health_status"]["success"] and checks["out_of_limits"]["success"]
+    assert [e["answer"] and e["answer"]["met_s"] for e in sheet(records, TRUTH)["check_ins"]] == [21, None, 42, 51]
 
 
 def marked(text, *values):

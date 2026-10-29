@@ -91,12 +91,20 @@ def checked(entry, kept):
 
 
 def answered(records):
-    """Each check-in with the CHECK_IN report that answered it, in order:
-    [(check-in MET, its words, the answer's MET or None, the report or None)]."""
-    check_ins = [(r["met_s"], r["body"]["text"]) for r in of_type(records, "CHECK_IN")]
-    reports = [r for r in of_type(records, "REPORT") if r["body"]["report_kind"] == "CHECK_IN"]
-    return [(met_s, text, reports[i]["met_s"] if i < len(reports) else None,
-             reports[i]["body"] if i < len(reports) else None) for i, (met_s, text) in enumerate(check_ins)]
+    """Each check-in with the CHECK_IN report from the turn its CHECK_IN trigger opened, in order:
+    [(check-in MET, its words, the answer's MET or None, the report or None)]. Each check-in gets its own report
+    turn, in the order they arrived, none merged or dropped (harness/triggers.py), so the nth check-in's turn is
+    the nth turn a CHECK_IN trigger opened. A turn that filed no report, one that ended MALFORMED, leaves its
+    check-in unanswered and never takes a later check-in's answer (PH1-SHAKEDOWN-SPARK-R3, 29 October 2026)."""
+    turns = [r["body"]["turn_id"] for r in of_type(records, "TRIGGER")
+             for one in r["body"]["triggers"] if one["type"] == "CHECK_IN"]
+    reports = {r["body"]["turn_id"]: r for r in of_type(records, "REPORT") if r["body"]["report_kind"] == "CHECK_IN"}
+    found = []
+    for i, check_in in enumerate(of_type(records, "CHECK_IN")):
+        report = reports.get(turns[i]) if i < len(turns) else None
+        found.append((check_in["met_s"], check_in["body"]["text"], report["met_s"] if report else None,
+                      report["body"] if report else None))
+    return found
 
 
 def limits_line(name):

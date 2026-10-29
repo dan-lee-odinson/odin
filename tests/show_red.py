@@ -725,6 +725,10 @@ CASES = {"s0": [
     ("S8 counting a collect ODIN did not dispatch (U62)",
      "tests/test_s8_phase1.py::test_red_a_collect_odin_did_not_dispatch_is_not_counted",
      change_file("eval/phase1.py", replace_once(b'                and o["body"]["request_id"] in sent\n', b""))),
+    ("a later check-in's answer paired with one whose turn filed no report (29 October 2026)",
+     "tests/test_s8_phase1.py::test_red_a_check_in_whose_turn_filed_no_report_is_unanswered_and_takes_no_later_answer",
+     change_file("eval/phase1.py", replace_once(b"report = reports.get(turns[i]) if i < len(turns) else None",
+                                                b"report = list(reports.values())[i] if i < len(reports) else None"))),
 ], "phase3": [
     ("a second hash in the seal",
      "tests/test_phase3_seal.py::test_the_seal_holds_exactly_one_hash",
