@@ -6,6 +6,7 @@ Director first; a run whose schemas or model settings differ from the record ref
 
 import json
 import shutil
+import subprocess
 
 import pytest
 
@@ -17,15 +18,17 @@ from tests.repo_checks import REPO_ROOT
 
 RECORD = json.loads((REPO_ROOT / "config" / "frozen.json").read_bytes())
 # The six schemas as they stood at fb90847, as the Director checked on 28 October 2026, with common and observation
-# re-stamped for phase 1's INST beside HUGINN (his ruling on U58, 28 October 2026).
+# re-stamped for phase 1's INST beside HUGINN (his ruling on U58, 28 October 2026), and common again for INST's NaN
+# and infinities in the report format (his ruling of 29 October 2026, after PH1-SHAKEDOWN-SPARK-R3).
 SCHEMA_HASHES = {
     "contract/schemas/answer.schema.json": "sha256:d027563de2e6d2dc6c8e5ef260a183050c10324d3f22d070e3b3f4a300ac2e7e",
     "contract/schemas/report_body.schema.json": "sha256:f77c34533d5c5dc4363ce89bf5515930b2503ae78f6007c4834bb84dd811f6c3",
     "contract/schemas/report.schema.json": "sha256:47f5d96a217ea1c710a086aef7a7d015691041151e198ad17685c0600dbde1ec",
     "contract/schemas/turn_bundle.schema.json": "sha256:5fd78e3c8863f185226662d1b39b2da90b1b059d99a9abb28cb7220d2db5cc62",
     "contract/schemas/observation.schema.json": "sha256:922da49688278ad0db9c3376b0006e21f993513dd355bfac5dc4926373cbfabf",
-    "contract/schemas/common.schema.json": "sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378716eb9dc",
+    "contract/schemas/common.schema.json": "sha256:929284182c6dc7af7fdfb29319d1d21b40dc0e6a83c774553855c46bb492e10d",
 }
+COMMON_BEFORE = "sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378716eb9dc"   # at 313b839
 # Each model's block as the Director ruled it on 27 October 2026 (config/models.yaml at 9aa39d8).
 SPARK = (b'{"date":"2026-10-27","max_output_tokens":32000,"model":"muse-spark-1.3","reasoning_effort":"high",'
          b'"source":"the Director\'s ruling of 27 October 2026, from M3\'s table","timeout_s":120}')
@@ -124,6 +127,17 @@ def test_red_a_setting_written_twice_is_refused(copies):
          b"  model: muse-spark-1.3\n  reasoning_effort: medium\n")
     with pytest.raises(NotFrozen, match="appears twice"):
         check("spark")
+
+
+def test_red_the_record_refuses_common_schema_as_it_stood_before_the_nan_ruling(copies):
+    # The Director's ruling of 29 October 2026 re-stamped common.schema.json; the file as it stood before is refused.
+    before = subprocess.run(["git", "-C", str(REPO_ROOT), "show", "313b839:contract/schemas/common.schema.json"],
+                            capture_output=True, check=True).stdout
+    assert sha256_tag(before) == COMMON_BEFORE != RECORD["schemas"]["contract/schemas/common.schema.json"]
+    (copies / "contract" / "schemas" / "common.schema.json").write_bytes(before)
+    for model_config in (*MODELS, "stand_in"):
+        with pytest.raises(NotFrozen, match="common.schema.json"):
+            check(model_config)
 
 
 def test_red_a_run_whose_schema_changed_refuses_to_start_and_writes_nothing(tmp_path, copies):

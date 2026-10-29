@@ -594,6 +594,34 @@ CASES = {"s0": [
      "tests/test_s7_shakedown.py::test_red_a_phase_1_bundles_history_holds_the_inst_items_proc_001_names",
      change_file("harness/bundle.py", replace_once(b"procedure_points(in_force, store.view.names)",
                                                    b'procedure_points(in_force, __import__("wrapper.frames").frames.POINTS)'))),
+    ("TEMP2's evidence a number only, as before R3, so R3's turn-58 answer refused again (29 October 2026)",
+     "tests/test_s7_dictionary.py::test_red_r3s_turn_58_answer_passes_the_report_format_the_old_one_refused_it",
+     change_file("contract/schemas/common.schema.json", replace_once(
+         b'{"point": {"const": "TEMP2"}}},\n'
+         b'         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/TEMP2/properties/value"}}}},',
+         b'{"point": {"const": "TEMP2"}}},\n'
+         b'         "then": {"properties": {"value": {"type": "number"}}}},'))),
+    ("a HUGINN numeric point given NaN in evidence accepted (29 October 2026)",
+     "tests/test_s7_dictionary.py::test_red_a_huginn_numeric_point_given_nan_or_an_infinity_is_still_refused",
+     change_file("contract/schemas/common.schema.json", replace_once(
+         b'"CDH_CMD_REJ_CNT"]}}},\n         "then": {"properties": {"value": {"type": "number"}}}},\n'
+         b'        {"if": {"required": ["point"]',
+         b'"CDH_CMD_REJ_CNT"]}}},\n         "then": {"properties": {"value": {"anyOf": [{"type": "number"}, '
+         b'{"enum": ["Infinity", "-Infinity", "NaN"]}]}}}},\n        {"if": {"required": ["point"]'))),
+    ("HUGINN's evidence taking integers only, changing phases 2 and 3 (29 October 2026)",
+     "tests/test_s7_dictionary.py::test_red_huginns_evidence_keeps_any_number_and_insts_counters_take_integers",
+     change_file("contract/schemas/common.schema.json", replace_once(
+         b'"CDH_CMD_REJ_CNT"]}}},\n         "then": {"properties": {"value": {"type": "number"}}}},\n'
+         b'        {"if": {"required": ["point"]',
+         b'"CDH_CMD_REJ_CNT"]}}},\n         "then": {"properties": {"value": {"type": "integer"}}}},\n'
+         b'        {"if": {"required": ["point"]'))),
+    ("a plan's condition taking value_fits_point's NaN, against U8 (29 October 2026)",
+     "tests/test_s7_dictionary.py::test_red_a_plans_condition_keeps_u8s_number_for_a_numeric_point",
+     change_file("contract/schemas/common.schema.json", replace_once(
+         b'{"point": {"$ref": "#/definitions/numeric_point"}}},\n'
+         b'         "then": {"properties": {"value": {"type": "number"}}}},',
+         b'{"point": {"$ref": "#/definitions/numeric_point"}}},\n'
+         b'         "then": {"$ref": "#/definitions/value_fits_point"}},'))),
 ], "inputs": [
     ("PASS-3's plan with its acquisition a second late, so its window is not one the U35 tests use",
      "tests/test_inputs_plans_acts.py::test_each_plans_contact_window_is_one_the_u35_tests_use[TYR0-P2-PASS3-v1]",
@@ -734,6 +762,10 @@ CASES = {"s0": [
      "tests/test_s8_phase1.py::test_red_a_check_in_whose_turn_filed_no_report_is_unanswered_and_takes_no_later_answer",
      change_file("eval/phase1.py", replace_once(b"report = reports.get(turns[i]) if i < len(turns) else None",
                                                 b"report = list(reports.values())[i] if i < len(reports) else None"))),
+    ("ODIN's NaN not matching COSMOS's NaN (29 October 2026)",
+     "tests/test_s8_phase1.py::test_red_odins_nan_and_infinities_match_cosmoss_own",
+     change_file("eval/phase1.py", replace_once(b"    return given == shown\n",
+                                                b'    return given == shown and given not in ("NaN", "Infinity", "-Infinity")\n'))),
     ("R3's MET 1200 answer paired with its 720 check-in, whose turn filed no report (29 October 2026)",
      "tests/test_s8_phase1.py::test_red_r3s_met_1200_answer_does_not_land_on_its_720_check_in",
      change_file("eval/phase1.py", replace_once(b"report = reports.get(turns[i]) if i < len(turns) else None",
@@ -756,6 +788,11 @@ CASES = {"s0": [
     ("a RUN_START without instructions_sha256 accepted (U54)",
      "tests/test_s1_schemas.py::test_red_bad_example_is_rejected[run_start - a RUN_START without instructions_sha256]",
      change_file("contract/schemas/run_start.schema.json", replace_once(b'    "instructions_sha256",\n', b""))),
+    ("the freeze record keeping common.schema.json's hash from before the NaN ruling (29 October 2026)",
+     "tests/test_s6_freeze.py::test_red_the_record_refuses_common_schema_as_it_stood_before_the_nan_ruling",
+     change_file("config/frozen.json", replace_once(
+         b"sha256:929284182c6dc7af7fdfb29319d1d21b40dc0e6a83c774553855c46bb492e10d",
+         b"sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378716eb9dc"))),
     ("one changed byte in a frozen schema (U55)",
      "tests/test_s6_freeze.py::test_each_frozen_schema_is_the_recorded_one[common]",
      change_file("contract/schemas/common.schema.json", replace_once(b'"title": "Shared definitions"',

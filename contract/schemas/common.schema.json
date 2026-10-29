@@ -74,10 +74,24 @@
       "enum": ["EPS_MODE", "ADM_ECLIPSE", "PLD_STATE", "CDH_REJ_REASON", "COLLECT_TYPE", "GROUND1STATUS", "GROUND2STATUS"]
     },
     "value_fits_point": {
-      "description": "Applied to an object with point and value: the value is a number for a numeric point, and one of the point's states for a state point. Each point's values are defined once, in observation.schema.json.",
+      "description": "Applied to an object with point and value: the value is a number for a HUGINN numeric point; one the observation can carry for an INST numeric point, a number or, for a float, Infinity, -Infinity or NaN as COSMOS gives them; and one of the point's states for a state point. INST's and the states' values are defined once, in observation.schema.json (the Director's ruling of 29 October 2026, after PH1-SHAKEDOWN-SPARK-R3).",
       "allOf": [
-        {"if": {"required": ["point"], "properties": {"point": {"$ref": "#/definitions/numeric_point"}}},
+        {"if": {"required": ["point"], "properties": {"point": {"enum": ["EPS_BATT_V", "EPS_BATT_I", "EPS_BATT_SOC", "EPS_SA1_I", "EPS_SA2_I", "EPS_BUS_V", "EPS_LOAD_I", "PLD_RATE", "CDH_MET", "CDH_FRAME_CNT", "CDH_CMD_ACC_CNT", "CDH_CMD_REJ_CNT"]}}},
          "then": {"properties": {"value": {"type": "number"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "CMD_ACPT_CNT"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/CMD_ACPT_CNT/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "COLLECTS"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/COLLECTS/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "TEMP1"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/TEMP1/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "TEMP2"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/TEMP2/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "TEMP3"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/TEMP3/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "TEMP4"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/TEMP4/properties/value"}}}},
+        {"if": {"required": ["point"], "properties": {"point": {"const": "DURATION"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/DURATION/properties/value"}}}},
         {"if": {"required": ["point"], "properties": {"point": {"const": "EPS_MODE"}}},
          "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/EPS_MODE/properties/value"}}}},
         {"if": {"required": ["point"], "properties": {"point": {"const": "ADM_ECLIPSE"}}},
@@ -97,8 +111,22 @@
     "value_fits_mnemonic": {
       "description": "The same rule as value_fits_point, for an object that names its point as mnemonic.",
       "allOf": [
-        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"$ref": "#/definitions/numeric_point"}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"enum": ["EPS_BATT_V", "EPS_BATT_I", "EPS_BATT_SOC", "EPS_SA1_I", "EPS_SA2_I", "EPS_BUS_V", "EPS_LOAD_I", "PLD_RATE", "CDH_MET", "CDH_FRAME_CNT", "CDH_CMD_ACC_CNT", "CDH_CMD_REJ_CNT"]}}},
          "then": {"properties": {"value": {"type": "number"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "CMD_ACPT_CNT"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/CMD_ACPT_CNT/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "COLLECTS"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/COLLECTS/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "TEMP1"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/TEMP1/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "TEMP2"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/TEMP2/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "TEMP3"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/TEMP3/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "TEMP4"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/TEMP4/properties/value"}}}},
+        {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "DURATION"}}},
+         "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/inst_points/properties/DURATION/properties/value"}}}},
         {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "EPS_MODE"}}},
          "then": {"properties": {"value": {"$ref": "observation.schema.json#/definitions/points/properties/EPS_MODE/properties/value"}}}},
         {"if": {"required": ["mnemonic"], "properties": {"mnemonic": {"const": "ADM_ECLIPSE"}}},
@@ -129,9 +157,10 @@
         "value": {"description": "For a numeric point, a number in the dictionary's units; for a state point, one of its states."}
       },
       "allOf": [
-        {"$ref": "#/definitions/value_fits_point"},
+        {"if": {"required": ["point"], "properties": {"point": {"$ref": "#/definitions/numeric_point"}}},
+         "then": {"properties": {"value": {"type": "number"}}}},
         {"if": {"required": ["point"], "properties": {"point": {"$ref": "#/definitions/state_point"}}},
-         "then": {"properties": {"op": {"enum": ["eq", "ne"]}}}}
+         "then": {"allOf": [{"$ref": "#/definitions/value_fits_point"}], "properties": {"op": {"enum": ["eq", "ne"]}}}}
       ]
     },
     "point_table": {

@@ -9,6 +9,7 @@ command or argument outside it is refused as NOT_IN_DICTIONARY, and its protecti
 
 import json
 import shutil
+import subprocess
 import threading
 from types import SimpleNamespace
 
@@ -22,6 +23,7 @@ from gateway import dictionaries
 from gateway.plans import _consistency, _protective_restrictions
 from harness.checkins import PHASE_1, PHASE_1_RUN_S
 from harness.procedures import ProcedureLibrary
+from log.canonical import sha256_tag
 from odin.instructions.render import render_instructions
 from odin.loop import validate as odin_validate
 from tests.baldur_world import World, changed, example_plan
@@ -337,3 +339,75 @@ def test_arm_ph1_r4_is_arm_ph1_r3_with_only_its_id_and_run_changed():
     assert len(third) == len(fourth)
     assert [(a, b) for a, b in zip(third, fourth) if a != b] == [
         (b"act_id: ARM-PH1-R3", b"act_id: ARM-PH1-R4"), (b"  - PH1-SHAKEDOWN-SPARK-R3", b"  - PH1-SHAKEDOWN-SPARK-R4")]
+
+
+# -- INST's NaN and infinities in the report format (the Director's ruling of 29 October 2026, after R3) ------------
+
+R3 = REPO_ROOT / "runs" / "scored" / "PH1-SHAKEDOWN-SPARK-R3"
+COMMON_BEFORE = "sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378716eb9dc"   # at 313b839
+
+
+def r3_turn_58(point=None, value=None):
+    """R3's MET 720 check-in answer as spark gave it, whose sixth evidence entry is TEMP2's NaN at MET 735, or with
+    that entry given another point or value."""
+    raw = next(r["body"]["raw"] for r in read_jsonl(R3 / "events.jsonl")
+               if r["type"] == "CANDIDATE" and r["body"]["turn_id"] == 58)
+    if point is None:
+        return raw
+    answer = json.loads(raw)
+    answer["condition"]["evidence"][5] = {"met_s": 735, "point": point, "value": value}
+    return json.dumps(answer)
+
+
+def report(raw):
+    """The loop's own verdict on a CHECK_IN report's text: (ok, reason, detail)."""
+    ok, _, reason, detail = odin_validate.validate_report_text(raw, "CHECK_IN")
+    return ok, reason, detail
+
+
+def condition_fits(point, op, value):
+    return odin_validate.validate_instance({"point": point, "op": op, "value": value},
+                                           {"$ref": "common.schema.json#/definitions/condition"}, "common.schema.json") == []
+
+
+def test_red_r3s_turn_58_answer_passes_the_report_format_the_old_one_refused_it(tmp_path, monkeypatch):
+    # COSMOS showed TEMP2 as NaN at MET 733 to 735, ODIN gave it as COSMOS did, and the format refused it.
+    assert report(r3_turn_58()) == (True, None, "") and check("report_body", json.loads(r3_turn_58())) == []
+    assert report(r3_turn_58("TEMP2", "Infinity"))[0] and report(r3_turn_58("DURATION", "-Infinity"))[0]
+    assert not report(r3_turn_58("TEMP2", "nan"))[0]   # COSMOS's spelling only
+    before = tmp_path / "schemas"
+    shutil.copytree(REPO_ROOT / "contract" / "schemas", before)
+    old = subprocess.run(["git", "-C", str(REPO_ROOT), "show", "313b839:contract/schemas/common.schema.json"],
+                         capture_output=True, check=True).stdout
+    assert sha256_tag(old) == COMMON_BEFORE
+    (before / "common.schema.json").write_bytes(old)
+    assert check("report_body", json.loads(r3_turn_58()), schema_dir=before) != []
+    monkeypatch.setattr(odin_validate, "SCHEMA_DIR", before)
+    odin_validate._load_schema.cache_clear()
+    try:
+        assert report(r3_turn_58()) == (False, "SCHEMA_VIOLATION", "$.condition.evidence[5].value: expected type number")
+    finally:
+        odin_validate._load_schema.cache_clear()
+
+
+def test_red_a_huginn_numeric_point_given_nan_or_an_infinity_is_still_refused():
+    # HUGINN's points stay numbers only (the Director's ruling of 29 October 2026).
+    for point, value in (("EPS_BATT_V", "NaN"), ("EPS_BATT_SOC", "Infinity"), ("CDH_MET", "-Infinity")):
+        ok, reason, detail = report(r3_turn_58(point, value))
+        assert (ok, reason) == (False, "SCHEMA_VIOLATION") and "evidence[5].value" in detail
+        assert check("report_body", json.loads(r3_turn_58(point, value))) != []
+
+
+def test_red_huginns_evidence_keeps_any_number_and_insts_counters_take_integers():
+    # The Director's answer of 29 October 2026, INST only: HUGINN's numeric points keep their rule, any number, so
+    # phases 2 and 3 are unchanged; INST's take the values the observation carries, its two counters integers.
+    assert report(r3_turn_58("CDH_MET", 735.5))[0] and report(r3_turn_58("EPS_BATT_V", 27))[0]
+    assert report(r3_turn_58("COLLECTS", 11))[0] and not report(r3_turn_58("COLLECTS", 11.0))[0]
+
+
+def test_red_a_plans_condition_keeps_u8s_number_for_a_numeric_point():
+    # CONTRACT.md §16.2 U8: for a numeric point a condition's value is a number. Conditions stay as they were (the
+    # Director's answer of 29 October 2026): no NaN or infinity, and HUGINN's counters any number.
+    assert not condition_fits("TEMP2", "lt", "NaN") and not condition_fits("TEMP1", "gt", "Infinity")
+    assert condition_fits("TEMP1", "gt", 60.0) and condition_fits("CDH_MET", "lt", 7200.5)
+    assert condition_fits("COLLECT_TYPE", "eq", "NORMAL") and not condition_fits("COLLECT_TYPE", "lt", "NORMAL")

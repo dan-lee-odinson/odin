@@ -221,6 +221,17 @@ def test_red_r3s_met_1200_answer_does_not_land_on_its_720_check_in():
     assert set(marks(kept, records, truth).values()) == {None}
 
 
+def test_red_odins_nan_and_infinities_match_cosmoss_own():
+    # The Director's ruling of 29 October 2026: ODIN's "NaN" matches COSMOS's NaN, and each infinity only its own.
+    for value in ("NaN", "Infinity", "-Infinity"):
+        assert phase1.matches("TEMP2", value, value)
+    assert not phase1.matches("TEMP2", "Infinity", "-Infinity") and not phase1.matches("TEMP2", "NaN", "Infinity")
+    assert not phase1.matches("TEMP2", -60.0, "NaN") and not phase1.matches("TEMP2", "NaN", 27.792)
+    kept = phase1.packets(runlog.truth(R3))   # COSMOS showed TEMP2 as NaN at MET 733 to 735
+    assert phase1.checked({"point": "TEMP2", "value": "NaN", "met_s": 735}, kept)["match"]
+    assert not phase1.checked({"point": "TEMP2", "value": "Infinity", "met_s": 735}, kept)["match"]
+
+
 def test_red_a_mark_that_is_not_true_or_false_is_refused():
     text = sheet_text(sheet(ANSWERED, TRUTH))
     assert marks(marked(text, "true"), ANSWERED, TRUTH)["units"] is True
