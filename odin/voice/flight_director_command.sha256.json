@@ -1,0 +1,8 @@
+{
+  "file": "flight_director_command.json",
+  "sha256": "sha256:c1bc9feb269e394e6314dd0c0078c9f1b6f6f1b002bcd2ccb632bd8cdbcd043b",
+  "frozen": true,
+  "frozen_at_utc": "2026-10-29T20:03:19.011Z",
+  "derived_from": "sha256:0e3b195787717a3ea6c5908aaa479a026709bc263d6306af16b99a62e4898053",
+  "note": "Only conversion changed: the workspace root in the ffmpeg command was replaced with \".\", because the original held an absolute path through a private user folder, which no deposit may hold."
+}

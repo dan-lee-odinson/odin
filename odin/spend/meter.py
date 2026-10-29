@@ -22,11 +22,13 @@ DEFAULT_PRICES = REPO_ROOT / "config" / "prices.yaml"
 # The stops (§11.3) and which credit each configuration draws on (§11.2,
 # spend_stop.schema.json). Glimmer's Modal GPU fallback is the modal case.
 STOPS = {"META": 125.0, "BASETEN": 90.0, "MODAL": 12.0}
-CONFIG_STOP = {"spark": "META", "spark_open": "BASETEN", "glimmer_local": "MODAL"}
+CONFIG_STOP = {"spark": "META", "spark_open": "BASETEN", "glimmer_local": "MODAL",
+               "voice_transcribe": "META"}
 CONFIG_BUCKET = {
     "spark": "META_CREDIT",
     "spark_open": "BASETEN_CREDIT",
     "glimmer_local": "MODAL_CREDIT",
+    "voice_transcribe": "META_CREDIT",
     "stand_in": None,
 }
 BUCKETS = ["META_CREDIT", "BASETEN_CREDIT", "MODAL_CREDIT", "OUT_OF_POCKET"]
@@ -53,8 +55,11 @@ class Reservation:
         self.actual_usd = None
 
     def settle(self, *, input_tokens=None, cached_input_tokens=0, output_tokens=None,
-               actual_usd=None) -> float:
-        """Replace the reservation with the actual cost; submit SPEND (U21)."""
+               actual_usd=None, duration_source=None) -> float:
+        """Replace the reservation with the actual cost; submit SPEND (U21).
+
+        `duration_source` (M6) names where a duration-based price took
+        its duration from; the spend record carries it when given."""
         if self.actual_usd is not None:
             raise RuntimeError("reservation already settled")
         if actual_usd is None:
@@ -62,7 +67,7 @@ class Reservation:
                 self.config, input_tokens or 0, cached_input_tokens or 0, output_tokens or 0
             )
         self.actual_usd = actual_usd
-        self._meter._settle(self, actual_usd)
+        self._meter._settle(self, actual_usd, duration_source=duration_source)
         return actual_usd
 
 
@@ -155,18 +160,24 @@ class SpendMeter:
         return Reservation(self, config=config, bucket=bucket, reserved_usd=reserved_usd,
                            turn_id=turn_id, call_index=call_index)
 
-    def _settle(self, reservation: Reservation, actual_usd: float) -> None:
+    def _settle(self, reservation: Reservation, actual_usd: float,
+                duration_source=None) -> None:
         bucket = reservation.bucket
         if bucket is not None:
-            self._append({
+            event = {
                 "kind": "SETTLE", "config": reservation.config, "bucket": bucket,
                 "reserved_usd": reservation.reserved_usd, "actual_usd": actual_usd,
                 "turn_id": reservation.turn_id, "call_index": reservation.call_index,
-            })
+            }
+            if duration_source is not None:
+                event["duration_source"] = duration_source
+            self._append(event)
             self._outstanding[bucket] -= reservation.reserved_usd
             self._spent[bucket] += actual_usd
         if self._submit is not None:
             body = {"turn_id": reservation.turn_id, "call_index": reservation.call_index}
             for bucket_name, key in SPEND_KEYS.items():
                 body[key] = self._spent[bucket_name]
+            if duration_source is not None:
+                body["duration_source"] = duration_source
             self._submit("SPEND", body)

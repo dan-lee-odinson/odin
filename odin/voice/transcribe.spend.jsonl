@@ -1,0 +1,2 @@
+{"bucket": "META_CREDIT", "call_index": 1, "config": "voice_transcribe", "kind": "RESERVE", "reserved_usd": 0.00039999999999999996, "turn_id": 1}
+{"actual_usd": 0.00039999999999999996, "bucket": "META_CREDIT", "call_index": 1, "config": "voice_transcribe", "duration_source": "META_REPORT", "kind": "SETTLE", "reserved_usd": 0.00039999999999999996, "turn_id": 1}
