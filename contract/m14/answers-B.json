@@ -1,0 +1,52 @@
+[
+ {
+  "prompt": "P3 dev run, turn 4",
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\":{\"command\":\"CMD_PLD_SET_STATE\",\"parameters\":{\"state\":\"OFF\"}},\"escalation_kind\":null,\"kind\":\"command\",\"proposed\":null,\"rationale\":\"PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A at MET 900. PROC-002-S01 annunciation confirmed, S02 load alarm branch, S03 load excursion with SA1=SA2=1.7A symmetric SUNLIT. PROC-002-S04 shed applicable PLD_STATE ON. C1 raised to C4 by envelope breach covered by L-SHED lease for OFF, fresh telemetry age 0.\",\"refs\":null,\"urgency\":\"ROUTINE\"}",
+  "matched_the_format_sent": true,
+  "judged_after_put_back_and_null_drop": {
+   "frozen_schema": [
+    "$: matches 0 oneOf branches, expected 1"
+   ],
+   "dictionary": "passes",
+   "loop": "SCHEMA_VIOLATION: $: matches 0 oneOf branches, expected 1"
+  }
+ },
+ {
+  "prompt": "phase 1, turn 16",
+  "dictionary": "INST",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"COLLECT\", \"parameters\": {\"duration\": 5.0, \"opcode\": 1, \"temp\": 10.0, \"type\": \"NORMAL\"}}, \"escalation_kind\": null, \"kind\": \"command\", \"proposed\": null, \"rationale\": \"S02: baseline COLLECTS=3 CMD_ACPT_CNT=6 at met 214, sending NORMAL collect to confirm increment.\", \"refs\": null, \"urgency\": null}",
+  "matched_the_format_sent": true,
+  "judged_after_put_back_and_null_drop": {
+   "frozen_schema": "passes",
+   "dictionary": "passes",
+   "loop": "accepted"
+  }
+ },
+ {
+  "prompt": "P3 dev run, turn 4",
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation_kind\": null, \"kind\": \"command\", \"proposed\": null, \"rationale\": \"EPS_LOAD_I 1.8A YELLOW_HIGH breaches envelope lt 1.5A and plan 1.4A. PROC-001-S07 limit response required. PROC-002-S02 load alarm, S03 load excursion with SA1/SA2 symmetric 1.7A SUNLIT, S04 shed payload. MODE NOMINAL so ladder has not acted. L-SHED covers OFF with fresh telemetry at AI_AUTONOMOUS.\", \"refs\": null, \"urgency\": null}",
+  "matched_the_format_sent": true,
+  "judged_after_put_back_and_null_drop": {
+   "frozen_schema": "passes",
+   "dictionary": "passes",
+   "loop": "accepted"
+  }
+ },
+ {
+  "prompt": "P3 dev run, turn 4",
+  "dictionary": "HUGINN",
+  "finish_reason": "stop",
+  "content_verbatim": "{\"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation_kind\": null, \"kind\": \"command\", \"proposed\": null, \"rationale\": \"PROC-001-S07 limit response required: EPS_LOAD_I 1.8A YELLOW_HIGH >=1.5A threshold vs pass-plan 1.4A (+0.4A stuck-load signature). Both SA strings 1.7A symmetric SUNLIT, MODE NOMINAL, SOC 66.5% - PROC-002-S02 load alarm, S03 load excursion. S04 sheds payload (PLD_STATE ON). Envelope breach raises C1 to C4 but L-SHED lease for OFF with no conditions covers it.\", \"refs\": null, \"urgency\": null}",
+  "matched_the_format_sent": true,
+  "judged_after_put_back_and_null_drop": {
+   "frozen_schema": "passes",
+   "dictionary": "passes",
+   "loop": "accepted"
+  }
+ }
+]

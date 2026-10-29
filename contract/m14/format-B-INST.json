@@ -1,0 +1,242 @@
+{
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "kind",
+  "command_call",
+  "escalation_kind",
+  "refs",
+  "urgency",
+  "rationale",
+  "proposed"
+ ],
+ "properties": {
+  "kind": {
+   "type": "string",
+   "enum": [
+    "command",
+    "escalation",
+    "none"
+   ]
+  },
+  "command_call": {
+   "anyOf": [
+    {
+     "anyOf": [
+      {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "command",
+        "parameters"
+       ],
+       "properties": {
+        "command": {
+         "type": "string",
+         "enum": [
+          "COLLECT"
+         ]
+        },
+        "parameters": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "type",
+          "duration",
+          "opcode",
+          "temp"
+         ],
+         "properties": {
+          "type": {
+           "type": "string",
+           "enum": [
+            "NORMAL"
+           ]
+          },
+          "duration": {
+           "type": "number",
+           "minimum": 0.0,
+           "maximum": 10.0
+          },
+          "opcode": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 255
+          },
+          "temp": {
+           "type": "number",
+           "minimum": 0.0,
+           "maximum": 25.0
+          }
+         }
+        }
+       }
+      },
+      {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "command",
+        "parameters"
+       ],
+       "properties": {
+        "command": {
+         "type": "string",
+         "enum": [
+          "ABORT"
+         ]
+        },
+        "parameters": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [],
+         "properties": {}
+        }
+       }
+      }
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "escalation_kind": {
+   "anyOf": [
+    {
+     "type": "string",
+     "enum": [
+      "OFF_COURSE",
+      "MALFUNCTION",
+      "DECISION_NEEDED",
+      "LEASE_NEEDED",
+      "AUTHORITY_NEEDED",
+      "CONFLICT"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "refs": {
+   "anyOf": [
+    {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "urgency": {
+   "anyOf": [
+    {
+     "type": "string",
+     "enum": [
+      "ROUTINE",
+      "URGENT"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "rationale": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "proposed": {
+   "anyOf": [
+    {
+     "anyOf": [
+      {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "command",
+        "parameters"
+       ],
+       "properties": {
+        "command": {
+         "type": "string",
+         "enum": [
+          "COLLECT"
+         ]
+        },
+        "parameters": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "type",
+          "duration",
+          "opcode",
+          "temp"
+         ],
+         "properties": {
+          "type": {
+           "type": "string",
+           "enum": [
+            "NORMAL"
+           ]
+          },
+          "duration": {
+           "type": "number",
+           "minimum": 0.0,
+           "maximum": 10.0
+          },
+          "opcode": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 255
+          },
+          "temp": {
+           "type": "number",
+           "minimum": 0.0,
+           "maximum": 25.0
+          }
+         }
+        }
+       }
+      },
+      {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "command",
+        "parameters"
+       ],
+       "properties": {
+        "command": {
+         "type": "string",
+         "enum": [
+          "ABORT"
+         ]
+        },
+        "parameters": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [],
+         "properties": {}
+        }
+       }
+      }
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  }
+ }
+}
