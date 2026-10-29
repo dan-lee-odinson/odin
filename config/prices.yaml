@@ -27,3 +27,12 @@ voice_transcribe:
   stop: META
   source: https://dev.meta.ai/docs/speech-to-text
   date: 2026-10-29
+
+# Muse Glimmer on Modal, the onboard seat's fallback (the Director's ruling of 29 October 2026): charged per
+# GPU-second of each call's wall time, against the Modal stop. Its model settings wait for M5 (config/models.yaml).
+glimmer_modal:
+  per_gpu_second: 0.001097
+  gpu: H100 SXM5
+  stop: MODAL
+  source: https://modal.com/pricing
+  date: 2026-10-29
