@@ -12,6 +12,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 from odin.spend.meter import SpendStop
@@ -20,6 +21,19 @@ from .canonical import sha256_tag
 from .prompt import build_prompt  # noqa: F401  (re-exported for callers)
 from .signing import build_signed_request
 from .validate import DictionaryError, dictionary_for_plan, validate_act_text, validate_report_text
+
+
+def format_utc(moment) -> str:
+    """Contract utc form (§4): ISO 8601 UTC with milliseconds."""
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    moment = moment.astimezone(timezone.utc)
+    return moment.strftime("%Y-%m-%dT%H:%M:%S.") + f"{moment.microsecond // 1000:03d}Z"
+
+
+def utc_now() -> str:
+    """Wall-clock now, in the contract's utc form (M12)."""
+    return format_utc(datetime.now(timezone.utc))
 
 
 def _urllib_transport(method, url, data=None, timeout=30):
@@ -42,7 +56,7 @@ def _http_json(method, url, payload=None, timeout=30, transport=None):
 class TurnLoop:
     def __init__(self, *, harness_url, baldur_url, log_url, adapter, repo_root,
                  private_key_path=None, instructions="", frozen_reference="", transport=None,
-                 meter=None, registry_path=None):
+                 meter=None, registry_path=None, clock=None):
         self.harness_url = harness_url.rstrip("/")
         self.baldur_url = baldur_url.rstrip("/")
         self.log_url = log_url.rstrip("/")
@@ -54,7 +68,16 @@ class TurnLoop:
         self.transport = transport
         self.meter = meter
         self.registry_path = registry_path
+        self.clock = clock
         self.errors = []
+
+    def _request_utc(self) -> str:
+        """Wall-clock stamped just before signing (M12). The clock, when
+        given, may return a datetime or a contract-form string."""
+        if self.clock is not None:
+            moment = self.clock()
+            return moment if isinstance(moment, str) else format_utc(moment)
+        return utc_now()
 
     # -- logging ---------------------------------------------------------
     def _log(self, record_type, body):
@@ -238,10 +261,12 @@ class TurnLoop:
                 return self._service_error(turn_id, "baldur/escalation", status)
             return {"turn_id": turn_id, "outcome": "escalation", "escalation": escalation}
         # kind == command: fill loop-owned fields, sign, send one request.
+        # M12: utc is wall-clock taken just before signing, never the
+        # bundle's utc; the signature covers it, as before.
         request = build_signed_request(
             command=answer["command"], parameters=answer["parameters"],
             rationale=answer.get("rationale"), run_id=run_id, turn_id=turn_id,
-            plan_id=plan_id, met_s=bundle["met_s"], utc=bundle["utc"],
+            plan_id=plan_id, met_s=bundle["met_s"], utc=self._request_utc(),
             agent_input_hash=bundle_hash, private_key_path=self.private_key_path)
         status, body = _http_json("POST", f"{self.baldur_url}/request", request,
                                   transport=self.transport)

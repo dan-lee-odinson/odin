@@ -96,7 +96,9 @@ def drop_nulls(answer):
         proposed = dict(result["proposed"])
         if isinstance(proposed.get("parameters"), dict):
             proposed["parameters"] = {k: v for k, v in proposed["parameters"].items() if v is not None}
-        result["proposed"] = proposed
+        # M12: a proposed that holds only nulls becomes null, so the
+        # frozen schema accepts an escalation that proposes nothing.
+        result["proposed"] = None if _holds_only_nulls(proposed) else proposed
     belonging = _FORMS.get(result.get("kind"))
     if belonging is None:
         return result
