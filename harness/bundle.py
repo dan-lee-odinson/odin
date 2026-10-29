@@ -10,16 +10,17 @@ import re
 from pathlib import Path
 
 from log.canonical import canonical_json
-from wrapper.frames import POINTS
 
 HISTORY_S = 300
 SUMMARY = ("valid_from_met_s", "valid_until_met_s", "prohibited", "envelope", "leases")
 
 
-def procedure_points(procedures):
-    """The points whose mnemonics appear in the procedures' text, matched whole (§16.1 U3)."""
+def procedure_points(procedures, names):
+    """The points of the dictionary in force, names in its order, whose mnemonics appear in the procedures' text,
+    matched whole (§16.1 U3): HUGINN's 16 under HUGINN's plans, and INST's items in phase 1, by the same rule (the
+    Director's ruling of 29 October 2026)."""
     text = "\n".join(p["text"] for p in procedures or ())
-    return [name for name in POINTS if re.search(rf"\b{name}\b", text)]
+    return [name for name in names if re.search(rf"\b{name}\b", text)]
 
 
 def next_plan(chain, plan, met_s):
@@ -58,7 +59,7 @@ def build_bundle(*, run_id, turn_id, turn, met_s, utc, contact_state, seat, gate
         "triggers": turn.triggers, "turn_kind": turn.turn_kind, "report_kind": turn.report_kind,
         "contact_state": contact_state, "seat": seat, "rung": rung, "rung_reason": rung_reason,
         "observation": store.observation(met_s, ground_link),
-        "history": store.history(procedure_points(in_force), met_s, HISTORY_S),
+        "history": store.history(procedure_points(in_force, store.view.names), met_s, HISTORY_S),
         "feeds": feeds,
         "gateway_feedback": feedback,
         "own_requests": own_requests,

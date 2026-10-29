@@ -11,6 +11,7 @@ import json
 import secrets
 import shutil
 import threading
+import time
 
 import pytest
 
@@ -254,6 +255,29 @@ def test_red_a_phase_1_run_without_the_demo_loaded_does_not_start(tmp_path, monk
 def test_red_phase_1_is_flown_from_the_ground_seat_only(tmp_path):
     with pytest.raises(ValueError, match="phase 1 flies the ground seat"):
         HarnessWorld(tmp_path).run(phase=1, seat="ONBOARD")
+
+
+def test_red_a_phase_1_bundles_history_holds_the_inst_items_proc_001_names(tmp_path):
+    # The Director's ruling of 29 October 2026, after the dev run's bundles carried a history of met_s alone: the
+    # same rule as HUGINN's plans, the procedure's text matched against the dictionary in force.
+    proc_001 = {"id": "PROC-001", "version": "1.0",
+                "sha256": sha256_tag((REPO_ROOT / "plans" / "PROC-001_PH1.md").read_bytes())}
+    fake = FakeInst(PASSWORD, period_s=1 / RATE).start()
+    try:
+        _, run = shakedown_run(tmp_path, fake, check_ins=(), procedures_in_force=[proc_001])
+        assert run.start()
+        try:
+            deadline = time.monotonic() + 10
+            while not run.store.frames() and time.monotonic() < deadline:
+                time.sleep(0.05)
+            bundle = json.loads(run.next_turn())
+        finally:
+            run.stop()
+    finally:
+        fake.stop()
+    assert bundle["procedures"][0]["sha256"] == proc_001["sha256"]
+    assert bundle["history"]["columns"] == ["met_s", "CMD_ACPT_CNT", "COLLECTS"]
+    assert bundle["history"]["rows"] and all(len(row) == 3 for row in bundle["history"]["rows"])
 
 
 def test_the_phase_1_table_rides_beside_proc_001_in_the_bundle(flown):

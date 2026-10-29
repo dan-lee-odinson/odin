@@ -590,6 +590,10 @@ CASES = {"s0": [
     ("COSMOS's command history read with ODIN's own sends counted as others' (U62)",
      "tests/test_s7_shakedown.py::test_commands_by_others_is_cosmos_command_history_less_odins_own_sends",
      change_file("connector/api.py", replace_once(b"            self.sent += 1\n", b""))),
+    ("phase 1's history with only met_s, its points matched against HUGINN's (29 October 2026)",
+     "tests/test_s7_shakedown.py::test_red_a_phase_1_bundles_history_holds_the_inst_items_proc_001_names",
+     change_file("harness/bundle.py", replace_once(b"procedure_points(in_force, store.view.names)",
+                                                   b'procedure_points(in_force, __import__("wrapper.frames").frames.POINTS)'))),
 ], "inputs": [
     ("PASS-3's plan with its acquisition a second late, so its window is not one the U35 tests use",
      "tests/test_inputs_plans_acts.py::test_each_plans_contact_window_is_one_the_u35_tests_use[TYR0-P2-PASS3-v1]",

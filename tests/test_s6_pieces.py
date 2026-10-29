@@ -3,12 +3,13 @@ received as the observation and history read them (§6.4, §16.1 U3), the bundle
 event log and the plan chain (§6.2, §16.1 U6), and the docs lookup (§16.5)."""
 
 import pytest
+import yaml
 
 from contract.validate import check
 from gateway.plans import Chain, Plan
 from harness.bundle import from_the_log, next_plan, procedure_points
 from harness.docs import CACHE, lookup
-from harness.telemetry import FrameStore, ground_staleness
+from harness.telemetry import HUGINN, FrameStore, InstView, ground_staleness
 from harness.watch import Watcher
 from tests.baldur_world import NOMINAL_POINTS
 from tests.harness_world import DOCS
@@ -109,8 +110,16 @@ def test_history_is_the_last_window_one_row_per_frame_in_dictionary_order():
 
 def test_the_history_holds_the_points_its_procedures_name_whole():
     text = [{"text": "Read EPS_LOAD_I and EPS_BATT_SOC; then PLD_STATE. Not EPS_BATT_SOCX."}]
-    assert procedure_points(text) == ["EPS_BATT_SOC", "EPS_LOAD_I", "PLD_STATE"]
-    assert procedure_points(None) == []
+    assert procedure_points(text, HUGINN.names) == ["EPS_BATT_SOC", "EPS_LOAD_I", "PLD_STATE"]
+    assert procedure_points(None, HUGINN.names) == []
+
+
+def test_the_history_holds_the_items_of_the_dictionary_in_force_its_procedures_name():
+    # The Director's ruling of 29 October 2026: phase 1 by the same rule as HUGINN's, against INST's items.
+    proc_001 = [{"text": (REPO_ROOT / "plans" / "PROC-001_PH1.md").read_bytes().decode("utf-8")}]
+    inst = InstView(yaml.safe_load((REPO_ROOT / "config" / "dictionaries" / "INST.yaml").read_text(encoding="utf-8")))
+    assert procedure_points(proc_001, inst.names) == ["CMD_ACPT_CNT", "COLLECTS"]
+    assert procedure_points(proc_001, HUGINN.names) == []
 
 
 # -- the bundle's parts from the log and the chain ---------------------------------------------------------
