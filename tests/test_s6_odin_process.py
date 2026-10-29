@@ -8,6 +8,7 @@ import json
 import os
 import secrets
 import shutil
+import subprocess
 import sys
 
 import pytest
@@ -70,6 +71,35 @@ def test_odins_exit_ends_the_run(tmp_path, code, reason):
         assert end["body"]["detail"] == f"ODIN exited {code} ({launch.EXITS[code]}): stand-in for ODIN"
     else:
         assert end["body"]["detail"] is None
+
+
+SPEAKS = "import sys; print('to standard output'); print('to standard error', file=sys.stderr); "
+
+
+@pytest.mark.parametrize("code", [0, 4, 5])
+def test_red_odins_standard_output_and_error_are_kept_whatever_its_exit(tmp_path, code):
+    # The Director's ruling of 29 October 2026: kept for every run, beside the run folder.
+    run = HarnessWorld(tmp_path).run()
+    kept = tmp_path / "odin-output" / run.run_id
+    assert fly(run, command=[sys.executable, "-c", SPEAKS + f"raise SystemExit({code})"], timeout_s=30,
+               output_dir=kept) == code
+    assert (kept / "stdout.txt").read_bytes().decode().splitlines() == ["to standard output"]
+    assert (kept / "stderr.txt").read_bytes().decode().splitlines() == ["to standard error"]
+
+
+def test_red_odins_output_is_kept_when_its_time_is_up(tmp_path):
+    run = HarnessWorld(tmp_path).run()
+    kept = tmp_path / "odin-output" / run.run_id
+    fly(run, command=[sys.executable, "-c", SPEAKS + "sys.stdout.flush(); import time; time.sleep(30)"], timeout_s=2,
+        output_dir=kept)
+    assert (kept / "stdout.txt").read_bytes().decode().splitlines() == ["to standard output"]
+    assert (kept / "stderr.txt").read_bytes().decode().splitlines() == ["to standard error"]
+
+
+def test_red_git_ignores_odins_output_beside_the_run_folders():
+    ignored = subprocess.run(["git", "-C", str(REPO_ROOT), "check-ignore", "-q",
+                              "runs/odin-output/PH1-SHAKEDOWN-SPARK-R2/stderr.txt"])
+    assert ignored.returncode == 0
 
 
 def test_red_odin_still_running_when_its_time_is_up_ends_the_run_as_error(tmp_path):

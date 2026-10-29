@@ -11,7 +11,9 @@ under the repository's runs/<run_id>/inputs/, so a run it flies serves on those 
 the repository's root. The harness waits for it to exit and ends the run by its exit code (the Director's
 word of 28 October 2026): 0 comes only once ODIN was told run_complete, when RUN_END is already COMPLETE; 4,
 after a spend stop, ends the run as SPEND_STOP; any other exit ends it as ERROR, with the exit and ODIN's
-last line of output as RUN_END's detail.
+last line of output as RUN_END's detail. ODIN's standard output and error are kept apart, and can be kept for
+every run whatever its exit (the Director's ruling of 29 October 2026): tools/scored_run.py keeps them beside
+the run folder in runs/odin-output/, which git ignores, since a traceback carries private paths.
 """
 
 import os
@@ -52,27 +54,40 @@ def odin_command(model_config):
     return [sys.executable, *ODIN_START, model_config]
 
 
-def fly(run, *, environ=None, command=None, timeout_s=None):
+def keep_output(folder, output, errors):
+    """ODIN's standard output and error, as stdout.txt and stderr.txt in folder, byte for byte."""
+    if folder is None:
+        return
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "stdout.txt").write_bytes(output or b"")
+    (folder / "stderr.txt").write_bytes(errors or b"")
+
+
+def fly(run, *, environ=None, command=None, timeout_s=None, output_dir=None):
     """Start the run, launch ODIN as its own process with the run's model, wait for it to exit, and stop
     the run by ODIN's exit code. Returns the exit code, or None if the run did not start, when no ODIN is
     launched. timeout_s: how long ODIN may run; one still running then is stopped, and the run ends as
-    ERROR. command: in place of Muse Code's, for tests."""
+    ERROR. command: in place of Muse Code's, for tests. output_dir: where to keep ODIN's standard output and
+    error, whatever its exit."""
     if not run.start():
         return None
     process = launch_odin(command or odin_command(run.config["model_config"]), environ=environ, cwd=ROOT,
-                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
-        output, _ = process.communicate(timeout=timeout_s)
+        output, errors = process.communicate(timeout=timeout_s)
     except subprocess.TimeoutExpired:
         process.kill()
-        process.communicate()
+        output, errors = process.communicate()
+        keep_output(output_dir, output, errors)
         run.stop("ERROR", detail=f"ODIN did not exit within {timeout_s} s")
         return process.returncode
+    keep_output(output_dir, output, errors)
     code = process.returncode
     if code == 0:
         run.stop("COMPLETE")
     else:
-        lines = output.decode("utf-8", "replace").strip().splitlines()
+        lines = (output.strip() or errors).decode("utf-8", "replace").strip().splitlines()
         meaning = EXITS.get(code, "an exit Muse Code's command does not give")
         run.stop(ENDS.get(code, "ERROR"), detail=f"ODIN exited {code} ({meaning}): {lines[-1] if lines else ''}")
     return code

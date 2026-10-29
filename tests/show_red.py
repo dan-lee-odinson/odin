@@ -505,6 +505,13 @@ CASES = {"s0": [
      "tests/test_s6_outcome.py::test_a_reset_dispatched_before_any_frame_is_acknowledged_by_the_epoch",
      change_file("gateway/gateway.py", replace_once(b'if item.request["command"] == "CMD_SYS_RESET":',
                                                     b'if item.request["command"] == "CMD_SYS_RESET" and base_acc is not None:'))),
+    ("ODIN's standard output and error dropped when it exits (29 October 2026)",
+     "tests/test_s6_odin_process.py::test_red_odins_standard_output_and_error_are_kept_whatever_its_exit",
+     change_file("harness/launch.py", replace_once(b"    keep_output(output_dir, output, errors)\n    code = ",
+                                                   b"    code = "))),
+    ("ODIN's output kept where git would commit it (29 October 2026)",
+     "tests/test_s6_odin_process.py::test_red_git_ignores_odins_output_beside_the_run_folders",
+     change_file(".gitignore", replace_once(b"!runs/scored/\n", b"!runs/scored/\n!runs/odin-output/\n"))),
 ], "s7": [
     ("BALDUR-0 not checking the request against the dictionary in force (U58)",
      "tests/test_s7_dictionary.py::test_red_in_phase_2_a_collect_or_an_abort_is_not_in_the_dictionary",
