@@ -868,6 +868,9 @@ CASES = {"s0": [
     ("spark at xhigh, a level M3 never measured for it",
      "tests/test_config_models.py::test_each_level_is_one_m3_measured_for_that_model[spark]",
      change_file("config/models.yaml", replace_once(b"  reasoning_effort: high\n", b"  reasoning_effort: xhigh\n"))),
+    ("Muse Voice Transcribe priced at a figure Meta's page does not give (29 October 2026)",
+     "tests/test_config_models.py::test_voice_transcribe_is_priced_per_audio_hour_against_the_meta_stop_and_is_no_model",
+     change_file("config/prices.yaml", replace_once(b"  per_audio_hour: 0.18\n", b"  per_audio_hour: 0.018\n"))),
 ], "deposits": [
     ("one byte changed in the committed deposit deposits/MC-M1-01.zip",
      "tests/test_deposits.py::test_each_committed_deposit_is_odin_at_its_commit",

@@ -17,3 +17,13 @@ spark_open:
   output_per_mtok: 4.25
   source: https://www.baseten.co/library/muse-spark-open/ (Model API pricing, per 1M tokens)
   date: 2026-10-26
+
+# Muse Voice Transcribe, for Muse Code's M6 (the Director's ruling of 29 October 2026, "Per audio hour, Meta stop").
+# Billed per hour of audio processed, rounded down to whole seconds, with no minimum (Meta's page). Not a model
+# ODIN flies: nothing for it in config/models.yaml.
+voice_transcribe:
+  model: muse-voice-transcribe-1.0
+  per_audio_hour: 0.18
+  stop: META
+  source: https://dev.meta.ai/docs/speech-to-text
+  date: 2026-10-29

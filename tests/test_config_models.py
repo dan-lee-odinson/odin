@@ -43,3 +43,12 @@ def test_red_spark_at_xhigh_was_never_measured():
 def test_prices_carry_only_the_figures_the_meter_reads_with_their_source(name):
     # No provider or model label: the adapter names the provider and models.yaml the model (U57).
     assert sorted(PRICES[name]) == ["cached_input_per_mtok", "date", "input_per_mtok", "output_per_mtok", "source"]
+
+
+def test_voice_transcribe_is_priced_per_audio_hour_against_the_meta_stop_and_is_no_model():
+    # The Director's ruling of 29 October 2026 for Muse Code's M6, "Per audio hour, Meta stop (Recommended)": Meta's
+    # page gives $0.18 per hour of audio processed, rounded down to whole seconds, with no minimum.
+    assert PRICES["voice_transcribe"] == {"model": "muse-voice-transcribe-1.0", "per_audio_hour": 0.18, "stop": "META",
+                                          "source": "https://dev.meta.ai/docs/speech-to-text",
+                                          "date": datetime.date(2026, 10, 29)}
+    assert "voice_transcribe" not in MODELS
