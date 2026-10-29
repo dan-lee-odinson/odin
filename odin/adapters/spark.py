@@ -7,7 +7,7 @@ no tool sends a command.
 """
 import json
 
-from odin.loop.validate import _load_schema
+from odin.loop.validate import resolved_schema
 from .openai_compat import ChatAdapter, READONLY_TOOLS
 
 
@@ -28,8 +28,10 @@ class SparkAdapter(ChatAdapter):
             tools = None
         else:
             schema_file = "answer.schema.json" if bundle.get("turn_kind") != "REPORT" else "report_body.schema.json"
+            # M10: Meta cannot follow cross-file $refs, so send the same
+            # schema with every $ref resolved inline, derived at call time.
             response_format = {"type": "json_schema", "json_schema": {
-                "name": "odin_answer", "schema": _load_schema(schema_file)}}
+                "name": "odin_answer", "schema": resolved_schema(schema_file)}}
             tools = READONLY_TOOLS if tool_handler else None
         messages = [{"role": "user", "content": prompt.decode("utf-8")}]
         sink = model_call_sink if model_call_sink is not None else []

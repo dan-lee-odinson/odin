@@ -153,6 +153,35 @@ def validate_against_schema(schema_file: str, instance) -> list:
     return validate_instance(instance, _load_schema(schema_file), schema_file)
 
 
+def _inline_refs(node, current_file: str, seen: tuple = ()):
+    """A copy of `node` with every $ref replaced by its resolved target,
+    recursively. Sibling keys beside a $ref are kept, over the target."""
+    if isinstance(node, dict):
+        if "$ref" in node:
+            ref = node["$ref"]
+            if (current_file, ref) in seen:
+                raise ValueError(f"circular $ref {ref!r} in {current_file}")
+            target, target_file = _resolve_ref(ref, current_file)
+            resolved = _inline_refs(target, target_file, seen + ((current_file, ref),))
+            siblings = {k: _inline_refs(v, current_file, seen)
+                        for k, v in node.items() if k != "$ref"}
+            if siblings:
+                merged = dict(resolved) if isinstance(resolved, dict) else {}
+                merged.update(siblings)
+                return merged
+            return resolved
+        return {k: _inline_refs(v, current_file, seen) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_inline_refs(v, current_file, seen) for v in node]
+    return node
+
+
+def resolved_schema(schema_file: str) -> dict:
+    """The named schema with every $ref resolved inline, derived from the
+    frozen schema files at call time (M10). The files are never changed."""
+    return _inline_refs(_load_schema(schema_file), schema_file)
+
+
 def load_dictionary_registry(registry_path=None) -> list:
     path = Path(registry_path) if registry_path else REGISTRY_PATH
     doc = yaml.safe_load(path.read_text(encoding="utf-8"))

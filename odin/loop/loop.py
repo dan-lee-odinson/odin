@@ -8,7 +8,9 @@ sign and send at most one request ("one answer, one request").
 (Director's ruling); AGENT_INPUT (§16.5) also records the prompt hash.
 """
 import json
+import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -62,15 +64,31 @@ class TurnLoop:
         return status
 
     def _tool_handler(self, name, args):
-        if name == "docs_lookup":
-            _, body = _http_json("GET", f"{self.harness_url}/docs/lookup?q={args.get('q', '')}",
+        """A read-only tool call (M10). Every argument is encoded with
+        urllib.parse; points reach the harness comma-separated with no
+        spaces (U19), whether the model gives a string or a list. A harness
+        refusal body already goes back as the tool's result; any other
+        error does the same, is written to stderr, and never ends the turn."""
+        try:
+            if name == "docs_lookup":
+                query = urllib.parse.urlencode({"q": args.get("q", "")})
+                _, body = _http_json("GET", f"{self.harness_url}/docs/lookup?{query}",
+                                     transport=self.transport)
+                return body.decode("utf-8")
+            raw_points = args.get("points", "")
+            if isinstance(raw_points, (list, tuple)):
+                names = [str(p).strip() for p in raw_points]
+            else:
+                names = [p.strip() for p in str(raw_points).split(",")]
+            points = ",".join(n for n in names if n)
+            query = urllib.parse.urlencode(
+                {"points": points, "window_s": args.get("window_s", 300)})
+            _, body = _http_json("GET", f"{self.harness_url}/history?{query}",
                                  transport=self.transport)
             return body.decode("utf-8")
-        _, body = _http_json(
-            "GET",
-            f"{self.harness_url}/history?points={args.get('points', '')}&window_s={args.get('window_s', 300)}",
-            transport=self.transport)
-        return body.decode("utf-8")
+        except Exception as exc:
+            print(f"tool {name} failed: {exc}", file=sys.stderr)
+            return f"tool {name} error: {exc}"
 
     def _attachment_mismatch(self, bundle):
         """U43: each attachment's SHA-256 must match the plan's references."""
