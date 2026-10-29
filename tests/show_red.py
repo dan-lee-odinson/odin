@@ -780,8 +780,8 @@ CASES = {"s0": [
      change_file("eval/phase1.py", replace_once(b"report = reports.get(turns[i]) if i < len(turns) else None",
                                                 b"report = list(reports.values())[i] if i < len(reports) else None"))),
 ], "phase3": [
-    ("a second hash in the seal",
-     "tests/test_phase3_seal.py::test_the_seal_holds_exactly_one_hash",
+    ("a third hash in the seal",
+     "tests/test_phase3_seal.py::test_the_seal_holds_the_seal_in_force_and_the_first_beside_it",
      change_file("phase3/SEAL.md", replace_once(b"Nothing changes once the runs start.\n",
                                                 b"Nothing changes once the runs start.\nsha256:" + b"ab" * 32 + b"\n"))),
     ("a scenario's label in the seal",
