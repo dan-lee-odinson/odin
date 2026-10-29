@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; font-src 'self' file:; img-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VERDA</title>
+<link rel="stylesheet" href="verda.css">
+<script src="timelines/index.js"></script>
+<script src="verda.js" defer></script>
+</head>
+<body>
+<header id="top" class="frame">
+  <div class="brand">
+    <span class="name">VERDA</span>
+    <span class="what">Watch-only playback</span>
+  </div>
+  <label class="pick">Run
+    <select id="run-select" aria-label="Run to play"></select>
+  </label>
+  <div id="title" class="title"></div>
+  <div id="badges" class="badges"></div>
+</header>
+<div id="banner" class="banner" hidden></div>
+<nav id="transport" class="frame" aria-label="Playback">
+  <button id="btn-start" title="Back to the start (Home)">&#x23EE;</button>
+  <button id="btn-prev" title="Previous event (Left arrow)">&#x25C0;</button>
+  <button id="btn-play" class="play" title="Play or pause (Space)">Play</button>
+  <button id="btn-next" title="Next event (Right arrow)">&#x25B6;</button>
+  <button id="btn-end" title="To the end (End)">&#x23ED;</button>
+  <label>Speed
+    <select id="speed" aria-label="Playback speed"></select>
+  </label>
+  <input id="scrub" type="range" min="0" max="1" step="1" value="0" aria-label="Mission elapsed time">
+  <div class="met-box"><span class="met-lab">Mission elapsed time</span><span id="met" class="met">MET -</span></div>
+  <span class="zoom">
+    <button id="btn-zoom-in" title="Zoom in around the playhead (+)">+</button>
+    <button id="btn-zoom-out" title="Zoom out (-)">&minus;</button>
+    <button id="btn-zoom-all" title="Show the whole run (0)">Whole run</button>
+  </span>
+  <label class="check"><input id="chk-truth" type="checkbox" checked> Simulator truth</label>
+  <label class="check"><input id="chk-future" type="checkbox"> Show what comes next</label>
+</nav>
+<main>
+  <section id="lanes" class="frame" aria-label="Timeline"></section>
+  <aside id="side">
+    <section class="panel frame now-panel">
+      <h2><span id="now-title">At the playhead</span></h2>
+      <div id="now"></div>
+    </section>
+    <section class="panel frame feed-panel">
+      <h2><span>Event log so far</span>
+        <label class="check small"><input id="chk-internal" type="checkbox"> ODIN's internal records</label>
+      </h2>
+      <ol id="feed"></ol>
+    </section>
+    <section class="panel frame inspector-panel">
+      <h2><span id="inspector-title">Record</span></h2>
+      <pre id="inspector">Hover over anything on the timeline to see what it is. Click it to show its record here.</pre>
+    </section>
+  </aside>
+</main>
+<footer id="foot" class="frame">
+  <div id="legend" class="legend"></div>
+  <details id="coverage"><summary id="coverage-summary">Record types</summary><table id="coverage-table"></table></details>
+  <div id="warnings" class="warnings" hidden></div>
+</footer>
+<div id="tooltip" class="tooltip" hidden></div>
+</body>
+</html>

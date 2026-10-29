@@ -1,0 +1,918 @@
+#!/usr/bin/env python3
+"""VERDA's converter: run folders in, timeline files out.
+
+    python convert/verda_convert.py RUN_FOLDER [RUN_FOLDER ...]
+    python convert/verda_convert.py --all FOLDER_OF_RUNS
+        options: --out DIR (default page/timelines)  --dictionary PATH  --no-truth
+
+For each run folder it reads events.jsonl and events.head, the saved turn
+bundles in inputs/, and truth.jsonl and truth.head when present. It checks the
+log's hash chain (CONTRACT.md v0.6, sections 4 and 12) and each saved bundle's
+hash, and writes <out>/<run_id>.js, the timeline file the page loads. It then
+rewrites <out>/index.js, the list of timeline files the page offers. It writes
+nothing else and never writes into a run folder.
+
+The timeline file is data only: one JSON object, the "verda-timeline" format,
+assigned to window.VERDA_TIMELINES[<id>]. The format is described in README.md.
+It names its sources, so a pass the Director flew can sit in the same file as a
+run ODIN flew.
+
+Telemetry comes from two places, kept apart and labeled:
+  - "odin": what ODIN's turn bundles held. Each bundle's observation (all points
+    of the newest frame, with the limit states it carried) and its history rows
+    (every received frame of the points its procedures name).
+  - "truth": the simulator's true state, one record per tick, from truth.jsonl.
+    ODIN never reads it. Shown only as "simulator truth, never seen by ODIN".
+"""
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+
+import huginn_dictionary  # noqa: E402
+import record_types  # noqa: E402
+
+FORMAT = "verda-timeline"
+FORMAT_VERSION = 1
+
+ODIN = "odin"
+TRUTH = "truth"
+TRUTH_LABEL = "Simulator truth, never seen by ODIN"
+
+DEFAULT_OUT = HERE.parent / "page" / "timelines"
+DICTIONARY_CANDIDATES = (
+    HERE.parent / "inputs" / "dictionaries" / "HUGINN" / "tlm_cmd.yaml",
+    HERE.parent.parent / "deps" / "huginn" / "defs" / "tlm_cmd.yaml",
+)
+
+# The simulator's true state, mapped to the dictionary's points. Checked against
+# every observation in the practice runs by tests/test_convert.py.
+TRUTH_POINTS = {
+    "EPS_BATT_V": ("eps", "battery_v"),
+    "EPS_BATT_I": ("eps", "battery_i"),
+    "EPS_BATT_SOC": ("eps", "soc_pct"),
+    "EPS_SA1_I": ("eps", "string_i", 0),
+    "EPS_SA2_I": ("eps", "string_i", 1),
+    "EPS_BUS_V": ("eps", "bus_v"),
+    "EPS_LOAD_I": ("eps", "load_i"),
+    "EPS_MODE": ("eps", "mode"),
+    "ADM_ECLIPSE": ("eps", "illuminated", {True: "SUNLIT", False: "ECLIPSE"}),
+    "PLD_STATE": ("eps", "payload_on", {True: "ON", False: "OFF"}),
+    "PLD_RATE": ("eps", "pld_rate_hz"),
+    "CDH_FRAME_CNT": ("cdh", "frame_count"),
+    "CDH_CMD_ACC_CNT": ("cdh", "acc_count"),
+    "CDH_CMD_REJ_CNT": ("cdh", "rej_count"),
+    "CDH_REJ_REASON": ("cdh", "rej_reason"),
+}
+
+# The telemetry lanes V1 shows: (lane id, label, points, kind).
+TELEMETRY_LANES = (
+    ("tlm:EPS_BATT_V", "Battery voltage", ("EPS_BATT_V",), "chart"),
+    ("tlm:EPS_BATT_SOC", "Battery state of charge", ("EPS_BATT_SOC",), "chart"),
+    ("tlm:EPS_LOAD_I", "Load current", ("EPS_LOAD_I",), "chart"),
+    ("tlm:EPS_SA", "Solar-array strings 1 and 2", ("EPS_SA1_I", "EPS_SA2_I"), "chart"),
+    ("tlm:PLD_RATE", "Payload rate", ("PLD_RATE",), "chart"),
+    ("state:PLD_STATE", "Payload state", ("PLD_STATE",), "state"),
+    ("state:EPS_MODE", "Spacecraft mode", ("EPS_MODE",), "state"),
+)
+
+STATE_SEVERITY = {
+    "EPS_MODE": {"NOMINAL": "good", "LOW_POWER": "warn", "SAFE": "bad"},
+    "PLD_STATE": {"ON": "info", "OFF": "muted"},
+    "ADM_ECLIPSE": {"SUNLIT": "info", "ECLIPSE": "muted"},
+}
+
+_SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+class RunFolderError(Exception):
+    pass
+
+
+def canonical_json(value):
+    """CONTRACT.md section 4's canonical JSON, as bytes."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False, allow_nan=False).encode("utf-8")
+
+
+def sha256_tag(data):
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def read_chain(path, head_path):
+    """Reads a hash-chained JSON Lines file and checks its chain and head.
+
+    Returns (records, check). Each line must be its record's canonical JSON, its
+    prev_hash the hash of the line before (null on the first), and its record_id
+    its line number. The head file holds the hash of the last line.
+    """
+    data = Path(path).read_bytes()
+    lines = data.split(b"\n")
+    if lines and lines[-1] == b"":
+        lines.pop()
+    records, problems = [], []
+    prev = None
+    for number, line in enumerate(lines, start=1):
+        try:
+            record = json.loads(line.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            problems.append("line %d is not JSON (%s)" % (number, exc))
+            prev = sha256_tag(line)
+            continue
+        if not isinstance(record, dict):
+            problems.append("line %d is not a record" % number)
+        else:
+            if canonical_json(record) != line:
+                problems.append("line %d is not its record's canonical JSON" % number)
+            if record.get("prev_hash") != prev:
+                problems.append("line %d's prev_hash is not the hash of line %d" % (number, number - 1))
+            if record.get("record_id") != number:
+                problems.append("line %d has record_id %r" % (number, record.get("record_id")))
+            records.append(record)
+        prev = sha256_tag(line)
+    head_path = Path(head_path)
+    if not head_path.exists():
+        head = "MISSING"
+    elif head_path.read_text(encoding="utf-8").strip() == (prev or ""):
+        head = "MATCHES"
+    else:
+        head = "DIFFERS"
+        problems.append("%s does not hold the hash of the last line" % head_path.name)
+    check = {
+        "file": Path(path).name,
+        "records": len(records),
+        "chain": "VERIFIED" if not problems else "BROKEN",
+        "head": head,
+        "problems": problems[:20],
+    }
+    return records, check
+
+
+def load_bundle(run_dir, tag):
+    """Reads a saved turn bundle by its hash and checks the bytes match it."""
+    if not isinstance(tag, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", tag):
+        return None, "bad bundle hash %r" % (tag,)
+    path = Path(run_dir) / "inputs" / tag[len("sha256:"):]
+    if not path.exists():
+        return None, "saved input %s is missing" % path.name
+    data = path.read_bytes()
+    if sha256_tag(data) != tag:
+        return None, "saved input %s does not match its hash" % path.name
+    try:
+        return json.loads(data.decode("utf-8")), None
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return None, "saved input %s is not JSON (%s)" % (path.name, exc)
+
+
+def _truth_value(body, mapping):
+    section = body.get(mapping[0])
+    if not isinstance(section, dict):
+        return None
+    value = section.get(mapping[1])
+    if len(mapping) > 2:
+        extra = mapping[2]
+        if isinstance(extra, int):
+            value = value[extra] if isinstance(value, list) and len(value) > extra else None
+        elif isinstance(extra, dict):
+            value = extra.get(value)
+    return value
+
+
+def _fmt_params(parameters):
+    if not parameters:
+        return ""
+    return " ".join("%s=%s" % (k, parameters[k]) for k in sorted(parameters))
+
+
+def _first_failure(decision_body):
+    for check in decision_body.get("checks") or []:
+        if check.get("result") == "FAIL":
+            return {"check": check.get("check"), "reason": check.get("reason"), "detail": check.get("detail")}
+    return None
+
+
+def _trigger_text(trigger):
+    kind = trigger.get("type")
+    detail = trigger.get("detail") or {}
+    if kind == "LIMIT_CHANGE":
+        return "%s %s %s->%s" % (kind, detail.get("point"), detail.get("from"), detail.get("to"))
+    if kind in ("MODE_CHANGE", "STALENESS_CHANGE"):
+        return "%s %s->%s" % (kind, detail.get("from"), detail.get("to"))
+    if kind == "DECISION":
+        return "DECISION %s" % detail.get("decision")
+    if kind == "PLAN_START":
+        return "PLAN_START %s" % detail.get("plan_id")
+    if kind == "FEED_REPORT":
+        return "FEED_REPORT %s" % detail.get("feed")
+    return str(kind)
+
+
+class _Builder:
+    def __init__(self, run_dir, points, include_truth):
+        self.run_dir = Path(run_dir)
+        self.points = points
+        self.include_truth = include_truth
+        self.events, self.spans, self.warnings = [], [], []
+        self.turns, self.requests, self.series = {}, {}, {}
+        self.records = {}
+        self.truth_records = {}
+        self.integrity = []
+        self.header = {}
+        self.placed = set()
+        self.plan_windows = {}
+        self.frames = set()  # MET of every frame some bundle held
+        self.observations = []  # (turn MET, observation, turn_id)
+
+    # -- helpers ---------------------------------------------------------
+    def event(self, lane, met_s, label, severity, shape, refs, **extra):
+        item = {"id": "e%d" % (len(self.events) + 1), "lane": lane, "met_s": met_s,
+                "label": label, "severity": severity, "shape": shape, "refs": refs}
+        item.update(extra)
+        self.events.append(item)
+        self.placed.update(r for r in refs if r.startswith("log:"))
+        return item
+
+    def span(self, lane, start, end, label, severity, refs, **extra):
+        item = {"lane": lane, "start": start, "end": end, "label": label,
+                "severity": severity, "refs": refs}
+        item.update(extra)
+        self.spans.append(item)
+        self.placed.update(r for r in refs if r.startswith("log:"))
+        return item
+
+    def series_for(self, source, point):
+        key = "%s:%s" % (source, point)
+        if key not in self.series:
+            info = self.points.get(point)
+            kind = "state" if info and info.get("type") == "enum" else "numeric"
+            self.series[key] = {
+                "id": key, "source": source, "point": point,
+                "units": info.get("units") if info else None,
+                "kind": kind,
+                "states": info.get("enum_values") if info else None,
+                "limits": huginn_dictionary.chart_limits(info),
+                "state_severity": STATE_SEVERITY.get(point),
+                "samples": {},
+            }
+        return self.series[key]
+
+    def add_sample(self, source, point, met_s, value, state, provenance):
+        series = self.series_for(source, point)
+        known = series["samples"].get(met_s)
+        if known is not None and known[1] != value:
+            self.warnings.append("%s at MET %s: two values for one frame (%r, %r)"
+                                 % (series["id"], met_s, known[1], value))
+        if known is not None and known[3] == "obs" and provenance != "obs":
+            return  # keep the limit state the observation itself carried
+        series["samples"][met_s] = [met_s, value, state, provenance]
+
+    # -- the event log ---------------------------------------------------
+    def read_log(self):
+        path = self.run_dir / "events.jsonl"
+        if not path.exists():
+            raise RunFolderError("%s has no events.jsonl" % self.run_dir)
+        records, check = read_chain(path, self.run_dir / "events.head")
+        self.integrity.append(dict(check, label="Event log"))
+        for record in records:
+            self.records[record["record_id"]] = record
+        return records
+
+    def read_truth(self):
+        path = self.run_dir / "truth.jsonl"
+        if not self.include_truth or not path.exists():
+            return []
+        records, check = read_chain(path, self.run_dir / "truth.head")
+        self.integrity.append(dict(check, label="Simulator truth file"))
+        return records
+
+    def walk_log(self, records):
+        contact_open = None
+        rung_open = None
+        for record in records:
+            rid = record["record_id"]
+            ref = "log:%d" % rid
+            kind = record.get("type")
+            body = record.get("body") or {}
+            met = record.get("met_s")
+            turn_id = body.get("turn_id") if isinstance(body, dict) else None
+
+            if kind == "RUN_START":
+                self.header.update({k: body.get(k) for k in (
+                    "run_id", "scenario_id", "phase", "mode", "model_config", "provider",
+                    "model_id", "endpoint", "reasoning_effort", "answer_method", "seed")})
+                self.event("authority", met, "Run start", "info", "circle", [ref])
+            elif kind == "PLAN_CHAIN_VERIFIED":
+                ok = body.get("result") == "PASS"
+                self.header["plan_chain"] = body.get("result")
+                self.header["plans"] = [p.get("plan_id") for p in body.get("plans") or []]
+                self.event("authority", met, "Plan chain %s" % body.get("result"),
+                           "good" if ok else "bad", "square", [ref])
+            elif kind == "ARMING_VERIFIED":
+                ok = body.get("result") == "PASS"
+                self.header["arming_act_id"] = body.get("act_id")
+                self.event("authority", met, "Arming %s %s" % (body.get("result"), body.get("act_id")),
+                           "good" if ok else "bad", "square", [ref])
+                rung_open = (met, body.get("rung") if ok else "HUMAN_ONLY",
+                             None if ok else "NOT_ARMED", [ref])
+            elif kind == "PLAN_IN_FORCE":
+                self.span("authority", body.get("valid_from_met_s"), body.get("valid_until_met_s"),
+                          body.get("plan_id"), "plan", [ref], row=1)
+            elif kind == "CONTACT":
+                if body.get("state") == "AOS":
+                    contact_open = (met, ref)
+                elif body.get("state") == "LOS":
+                    start, start_ref = contact_open if contact_open else (None, None)
+                    refs = [r for r in (start_ref, ref) if r]
+                    self.span("contact", start, met, "In contact", "good", refs, row=0)
+                    contact_open = None
+            elif kind == "REVOKE":
+                self.event("authority", met, "Authority revoked", "bad", "flag", [ref])
+                if rung_open:
+                    self._close_rung(rung_open, met)
+                rung_open = (met, "HUMAN_ONLY", "REVOKED", [ref])
+            elif kind == "RESTORE":
+                accepted = body.get("result") == "ACCEPTED"
+                label = "Restore %s" % body.get("result")
+                if not accepted:
+                    label += " (%s)" % body.get("reason")
+                self.event("authority", met, label, "good" if accepted else "bad", "flag", [ref])
+                if accepted:
+                    if rung_open:
+                        self._close_rung(rung_open, met)
+                    rung_open = (met, "AI_AUTONOMOUS", None, [ref])
+            elif kind == "CHECK_IN":
+                self.event("director", met, "Check-in", "director", "circle", [ref],
+                           text=body.get("text"), source_kind=body.get("source"))
+            elif kind == "RUN_END":
+                self.header["run_end"] = {"reason": body.get("reason"), "turns": body.get("turns"),
+                                          "detail": body.get("detail"), "met_s": met}
+                self.event("authority", met, "Run end %s" % body.get("reason"),
+                           "good" if body.get("reason") == "COMPLETE" else "bad", "circle", [ref])
+            elif kind in ("REQUEST", "DECISION", "DECISION_VOIDED", "DISPATCH", "OUTCOME"):
+                self._request_record(kind, body, met, ref)
+
+            if turn_id is not None and kind in (
+                    "TRIGGER", "AGENT_INPUT", "MODEL_CALL", "CANDIDATE", "ANSWER", "MALFORMED",
+                    "REPORT", "REQUEST", "ESCALATION", "SPEND", "SPEND_STOP", "TOOL_USE"):
+                self._turn_record(kind, body, met, ref, turn_id)
+            elif kind not in record_types.SHOWN and kind not in record_types.NOT_SHOWN:
+                self.warnings.append("record %d has a type the contract does not list: %r" % (rid, kind))
+                self.event("authority", met, "Unlisted record %s" % kind, "warn", "x", [ref])
+
+        end = self.met_end_hint(records)
+        if contact_open:
+            self.span("contact", contact_open[0], end, "In contact", "good", [contact_open[1]], row=0)
+        if rung_open:
+            self._close_rung(rung_open, end)
+
+    def met_end_hint(self, records):
+        mets = [r.get("met_s") for r in records if isinstance(r.get("met_s"), (int, float))]
+        return max(mets) if mets else None
+
+    def _close_rung(self, rung_open, end):
+        start, rung, reason, refs = rung_open
+        label = rung if not reason else "%s (%s)" % (rung, reason)
+        self.span("authority", start, end, label,
+                  "good" if rung == "AI_AUTONOMOUS" else "bad", refs, row=2)
+
+    def _turn(self, turn_id):
+        if turn_id not in self.turns:
+            self.turns[turn_id] = {"turn_id": turn_id, "refs": [], "met_s": None,
+                                   "answer": None, "tools": 0, "model_calls": 0,
+                                   "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+        return self.turns[turn_id]
+
+    def _turn_record(self, kind, body, met, ref, turn_id):
+        turn = self._turn(turn_id)
+        turn["refs"].append(ref)
+        self.placed.add(ref)
+        if kind == "TRIGGER":
+            turn.update({"met_s": met, "turn_kind": body.get("turn_kind"),
+                         "report_kind": body.get("report_kind"),
+                         "triggers": body.get("triggers") or [],
+                         "bundle_sha256": body.get("bundle_sha256")})
+            bundle, problem = load_bundle(self.run_dir, body.get("bundle_sha256"))
+            if problem:
+                self.warnings.append("turn %s: %s" % (turn_id, problem))
+                turn["bundle_problem"] = problem
+            else:
+                self._bundle(turn, bundle)
+        elif kind == "ANSWER":
+            answer = body.get("answer") or {}
+            if "kind" in answer:
+                turn["answer"] = {"kind": answer.get("kind"), "command": answer.get("command"),
+                                  "parameters": answer.get("parameters"),
+                                  "escalation_kind": answer.get("escalation_kind"),
+                                  "urgency": answer.get("urgency"),
+                                  "rationale": answer.get("rationale")}
+            else:
+                turn["answer"] = {"kind": "report"}
+        elif kind == "MALFORMED":
+            turn["answer"] = {"kind": "malformed", "reason": body.get("reason"), "detail": body.get("detail")}
+        elif kind == "MODEL_CALL":
+            turn["model_calls"] += 1
+            for key, field in (("input_tokens", "input_tokens"), ("output_tokens", "output_tokens")):
+                if isinstance(body.get(field), int):
+                    turn[key] += body[field]
+            if isinstance(body.get("actual_cost_usd"), (int, float)):
+                turn["cost_usd"] += body["actual_cost_usd"]
+        elif kind == "TOOL_USE":
+            turn["tools"] += 1
+        elif kind == "SPEND":
+            self.header["spend"] = {k: body.get(k) for k in (
+                "meta_credit_usd", "baseten_credit_usd", "modal_credit_usd", "out_of_pocket_usd")}
+        elif kind == "SPEND_STOP":
+            self.event("turns", met, "Spending stop %s" % body.get("stop"), "bad", "x", [ref], turn_id=turn_id)
+        elif kind == "REPORT":
+            label = "Report %s" % body.get("report_kind")
+            self.event("reports", met, label, "report", "square", [ref], turn_id=turn_id,
+                       report_kind=body.get("report_kind"))
+        elif kind == "ESCALATION":
+            urgent = body.get("urgency") == "URGENT"
+            self.event("reports", met, "Escalation %s %s" % (body.get("escalation_kind"), body.get("urgency")),
+                       "bad" if urgent else "warn", "triangle", [ref], turn_id=turn_id)
+
+    def _bundle(self, turn, bundle):
+        observation = bundle.get("observation") or {}
+        plan = bundle.get("plan") or {}
+        turn["bundle"] = {
+            "seat": bundle.get("seat"), "contact_state": bundle.get("contact_state"),
+            "rung": bundle.get("rung"), "rung_reason": bundle.get("rung_reason"),
+            "plan_id": plan.get("plan_id"), "uses_left": bundle.get("uses_left"),
+            "check_in_text": bundle.get("check_in_text"),
+            "gateway_feedback": bundle.get("gateway_feedback"),
+            "own_requests": len(bundle.get("own_requests") or []),
+            "history_columns": (bundle.get("history") or {}).get("columns"),
+            "history_rows": len((bundle.get("history") or {}).get("rows") or []),
+            "observation": observation,
+        }
+        self.header.setdefault("seat", bundle.get("seat"))
+        window = plan.get("contact_window")
+        if isinstance(window, dict):
+            self.plan_windows[plan.get("plan_id")] = window
+        frame = observation.get("frame_met_s")
+        points = observation.get("points")
+        if frame is not None and isinstance(points, dict):
+            self.frames.add(frame)
+            for name, point in points.items():
+                if isinstance(point, dict):
+                    self.add_sample(ODIN, name, frame, point.get("value"), point.get("limit_state"), "obs")
+        self.observations.append((turn["met_s"], observation, turn["turn_id"]))
+        history = bundle.get("history") or {}
+        columns = history.get("columns") or []
+        for row in history.get("rows") or []:
+            if not row or len(row) != len(columns):
+                continue
+            frame_met = row[0]
+            self.frames.add(frame_met)
+            for name, value in zip(columns[1:], row[1:]):
+                state = huginn_dictionary.limit_state(self.points.get(name), value)
+                self.add_sample(ODIN, name, frame_met, value, state, "hist")
+
+    def _request(self, request_id):
+        if request_id not in self.requests:
+            self.requests[request_id] = {"request_id": request_id, "refs": [], "turn_id": None,
+                                         "command": None, "parameters": None, "rationale": None,
+                                         "met_s": None, "decision": None, "decision_met_s": None,
+                                         "refusal": None, "base_class": None, "class": None,
+                                         "lease_id": None, "voided": None, "voided_met_s": None,
+                                         "dispatch_met_s": None, "route": None, "outcome": None,
+                                         "outcome_met_s": None, "outcome_point": None,
+                                         "rej_reason": None}
+        return self.requests[request_id]
+
+    def _request_record(self, kind, body, met, ref):
+        request = self._request(body.get("request_id"))
+        request["refs"].append(ref)
+        self.placed.add(ref)
+        if kind == "REQUEST":
+            request.update({"turn_id": body.get("turn_id"), "command": body.get("command"),
+                            "parameters": body.get("parameters"), "rationale": body.get("rationale"),
+                            "met_s": met, "plan_id": body.get("plan_id")})
+        elif kind == "DECISION":
+            request.update({"decision": body.get("decision"), "decision_met_s": met,
+                            "refusal": _first_failure(body), "base_class": body.get("base_class"),
+                            "class": body.get("class"), "lease_id": body.get("lease_id")})
+        elif kind == "DECISION_VOIDED":
+            request.update({"voided": {"check": body.get("check"), "reason": body.get("reason"),
+                                       "detail": body.get("detail")}, "voided_met_s": met})
+        elif kind == "DISPATCH":
+            request.update({"dispatch_met_s": met, "route": body.get("route")})
+            if request["command"] is None:
+                request.update({"command": body.get("command"), "parameters": body.get("parameters")})
+        elif kind == "OUTCOME":
+            request.update({"outcome": body.get("outcome"), "outcome_met_s": met,
+                            "outcome_point": body.get("point"), "rej_reason": body.get("rej_reason")})
+
+    # -- the truth file --------------------------------------------------
+    def walk_truth(self, records):
+        intervals = {}  # name -> [start, last]
+        closed = []
+        last_met = None
+        for record in records:
+            kind = record.get("type")
+            met = record.get("met_s")
+            body = record.get("body") or {}
+            if kind == "TRUE_STATE":
+                for point, mapping in TRUTH_POINTS.items():
+                    value = _truth_value(body, mapping)
+                    if value is not None:
+                        state = huginn_dictionary.limit_state(self.points.get(point), value)
+                        self.add_sample(TRUTH, point, met, value, state, "truth")
+                flags = set("fault: %s" % f for f in body.get("faults_active") or [])
+                if body.get("frame_generated") is False:
+                    flags.add("no frame generated")
+                if (body.get("cdh") or {}).get("hk_halted"):
+                    flags.add("housekeeping halted")
+                if body.get("downlink") is not None:
+                    flags.add("downlink: %s" % json.dumps(body.get("downlink"), sort_keys=True))
+                for name in list(intervals):
+                    if name not in flags:
+                        closed.append((name, intervals.pop(name)))
+                for name in flags:
+                    if name in intervals:
+                        intervals[name][1] = met
+                    else:
+                        intervals[name] = [met, met]
+                last_met = met
+            else:
+                self.truth_records[record["record_id"]] = record
+                ref = "truth:%d" % record["record_id"]
+                if kind == "FAULT_ONSET":
+                    label = "Fault onset: %s" % body.get("fault")
+                elif kind == "SCRIPTED_COMMAND_DROPPED":
+                    label = "Scripted command dropped: %s" % body.get("command")
+                else:
+                    label = "Truth record %s" % kind
+                    if kind not in record_types.TRUTH_SHOWN:
+                        self.warnings.append("truth record %s has an unrecognized type %r"
+                                             % (record["record_id"], kind))
+                self.event("truth", met, label, "truth", "diamond", [ref])
+        for name, (start, last) in list(intervals.items()):
+            closed.append((name, [start, last]))
+        rows = {}
+        for name, (start, last) in sorted(closed, key=lambda item: item[1][0]):
+            row = rows.setdefault(name.split(":")[0], len(rows))
+            severity = "bad" if name.startswith("fault") or name.startswith("no frame") else "warn"
+            self.span("truth", start, last + 1, name, severity, [], row=1 + min(row, 2))
+        return last_met
+
+    # -- derived telemetry age -------------------------------------------
+    def frame_age(self, start, coverage_end, limits):
+        """The age of the newest frame in ODIN's bundles, at each second.
+
+        Derived by VERDA from the frames the bundles held (observations and
+        history rows). Covers the run up to the last turn, the last moment a
+        bundle tells us which frames had arrived.
+        """
+        frames = sorted(self.frames)
+        series = {"id": "odin:FRAME_AGE", "source": ODIN, "point": "FRAME_AGE", "units": "s",
+                  "kind": "numeric", "states": None, "state_severity": None,
+                  "limits": {"rl": None, "yl": None, "yh": limits["yellow_s"], "rh": limits["red_s"]},
+                  "derived": True, "samples": {}}
+        if not frames or start is None or coverage_end is None:
+            self.series[series["id"]] = series
+            return
+        index = 0
+        newest = None
+        for t in range(int(start), int(coverage_end) + 1):
+            while index < len(frames) and frames[index] <= t:
+                newest = frames[index]
+                index += 1
+            if newest is None:
+                continue
+            age = t - newest
+            if age >= limits["red_s"]:
+                state = "RED"
+            elif age >= limits["yellow_s"]:
+                state = "YELLOW"
+            else:
+                state = "GREEN"
+            series["samples"][t] = [t, age, state, "derived"]
+        self.series[series["id"]] = series
+
+    def observation_marks(self):
+        """Recorded age, staleness state and ground link at each turn."""
+        age = {"id": "odin:AGE_S", "source": ODIN, "point": "AGE_S", "units": "s", "kind": "numeric",
+               "states": None, "state_severity": None, "limits": None, "samples": {}}
+        for met, observation, turn_id in self.observations:
+            if observation.get("age_s") is not None:
+                age["samples"][met] = [met, observation.get("age_s"),
+                                       observation.get("staleness_state"), "obs"]
+            state = observation.get("staleness_state")
+            link = observation.get("ground_link")
+            if state is not None:
+                self.event("staleness", met, "Ground staleness %s" % state,
+                           {"GREEN": "good", "YELLOW": "warn", "RED": "bad"}.get(state, "info"),
+                           "circle", ["turn:%d" % turn_id], turn_id=turn_id)
+            if link is not None:
+                self.event("staleness", met, "Ground link %s, %s packets" % (link.get("state"), link.get("received_count")),
+                           "good" if link.get("state") == "CONNECTED" else "bad", "square",
+                           ["turn:%d" % turn_id], turn_id=turn_id, row=1)
+        self.series[age["id"]] = age
+
+    # -- turn and request events -----------------------------------------
+    def turn_events(self):
+        for turn_id in sorted(self.turns):
+            turn = self.turns[turn_id]
+            triggers = ", ".join(_trigger_text(t) for t in turn.get("triggers") or [])
+            answer = turn.get("answer") or {}
+            kind = answer.get("kind")
+            if kind == "command":
+                said = "command %s %s" % (answer.get("command"), _fmt_params(answer.get("parameters")))
+                severity = "odin"
+            elif kind == "escalation":
+                said = "escalation %s" % answer.get("escalation_kind")
+                severity = "warn"
+            elif kind == "malformed":
+                said = "MALFORMED %s" % answer.get("reason")
+                severity = "bad"
+            elif kind == "report":
+                said = "report"
+                severity = "report"
+            elif kind == "none":
+                said = "no action"
+                severity = "quiet"
+            else:
+                said = "no answer recorded"
+                severity = "warn"
+            turn["summary"] = "Turn %d (%s): %s -> %s" % (
+                turn_id, turn.get("turn_kind") or "?", triggers or "no trigger recorded", said.strip())
+            if turn.get("met_s") is None:
+                turn["met_s"] = self._first_met(turn["refs"])
+            self.event("turns", turn["met_s"], "T%d %s" % (turn_id, said.strip()), severity,
+                       "x" if kind == "malformed" else "diamond", ["turn:%d" % turn_id], turn_id=turn_id)
+
+    def _first_met(self, refs):
+        for ref in refs:
+            record = self.records.get(int(ref.split(":")[1]))
+            if record is not None:
+                return record.get("met_s")
+        return None
+
+    def request_rows(self):
+        out = []
+        for request in self.requests.values():
+            if request["met_s"] is None:
+                request["met_s"] = self._first_met(request["refs"])
+            parts = ["%s %s" % (request["command"], _fmt_params(request["parameters"]))]
+            if request["decision"] == "ALLOW":
+                parts.append("ALLOW")
+            elif request["decision"] == "REFUSE":
+                failure = request["refusal"] or {}
+                parts.append("REFUSE %s %s" % (failure.get("check"), failure.get("reason")))
+            if request["voided"]:
+                parts.append("VOIDED %s %s" % (request["voided"]["check"], request["voided"]["reason"]))
+            if request["dispatch_met_s"] is not None:
+                parts.append("sent")
+            if request["outcome"]:
+                parts.append(request["outcome"])
+            request["summary"] = " -> ".join(p.strip() for p in parts)
+            if request["outcome"] == "ACCEPTED":
+                request["status"] = "good"
+            elif request["decision"] == "REFUSE" or request["outcome"] == "REJECTED" or request["voided"]:
+                request["status"] = "bad"
+            elif request["outcome"] == "NO_ACKNOWLEDGEMENT":
+                request["status"] = "warn"
+            else:
+                request["status"] = "info"
+            out.append(request)
+        out.sort(key=lambda r: (r["met_s"] if r["met_s"] is not None else 0))
+        return out
+
+
+def build_timeline(run_dir, dictionary_path, include_truth=True):
+    """Builds the timeline object for one run folder."""
+    run_dir = Path(run_dir)
+    points = huginn_dictionary.read_points(dictionary_path)
+    builder = _Builder(run_dir, points, include_truth)
+
+    records = builder.read_log()
+    builder.walk_log(records)
+    truth_records = builder.read_truth()
+    truth_end = builder.walk_truth(truth_records) if truth_records else None
+
+    run_id = builder.header.get("run_id") or run_dir.name
+    if not _SAFE_ID.match(str(run_id)):
+        raise RunFolderError("run_id %r cannot name a file" % (run_id,))
+
+    mets = [r.get("met_s") for r in records if isinstance(r.get("met_s"), (int, float))]
+    ends = [s.get("end") for s in builder.spans if isinstance(s.get("end"), (int, float))]
+    start = min(mets) if mets else 0
+    end = max(mets + ends + ([truth_end] if truth_end is not None else [])) if mets else 0
+
+    for plan_id, window in builder.plan_windows.items():
+        builder.span("contact", window.get("aos_met_s"), window.get("los_met_s"),
+                     "Plan %s contact window" % plan_id, "planned", [], row=1)
+
+    turn_mets = [t["met_s"] for t in builder.turns.values() if t.get("met_s") is not None]
+    builder.frame_age(start, max(turn_mets) if turn_mets else None,
+                      huginn_dictionary.staleness_limits(points))
+    builder.observation_marks()
+    builder.turn_events()
+    requests = builder.request_rows()
+
+    seat = builder.header.get("seat")
+    staleness_short = "Line: newest-frame age, derived"
+    if seat == "ONBOARD":
+        staleness_short = "Onboard seat: none recorded"
+        staleness_note = ("Onboard seat: the ground staleness monitor and the ground link are the "
+                          "ground seat's, so the bundles carry none (null by contract). The line is "
+                          "the age of the newest frame in ODIN's bundles, derived by VERDA.")
+    else:
+        staleness_note = ("The line is the age of the newest frame in ODIN's bundles, derived by VERDA. "
+                          "Marks are the staleness state and ground link the bundles recorded.")
+
+    lanes = [
+        {"id": "contact", "label": "Contact", "kind": "track", "height": 34, "rows": 2},
+        {"id": "authority", "label": "Plan and authority", "kind": "track", "height": 54, "rows": 3},
+        {"id": "director", "label": "The Director", "kind": "track", "height": 32, "rows": 1},
+        {"id": "turns", "label": "ODIN's turns", "kind": "track", "height": 40, "rows": 1},
+        {"id": "reports", "label": "Reports and escalations", "kind": "track", "height": 34, "rows": 1},
+        {"id": "commands", "label": "Requests, BALDUR-0, spacecraft", "kind": "requests", "height": 40},
+    ]
+    for lane_id, label, lane_points, kind in TELEMETRY_LANES:
+        series_ids = []
+        for point in lane_points:
+            for source in (ODIN, TRUTH):
+                key = "%s:%s" % (source, point)
+                if key in builder.series:
+                    series_ids.append(key)
+        lanes.append({"id": lane_id, "label": label, "kind": kind, "height": 58 if kind == "chart" else 38,
+                      "series": series_ids, "points": list(lane_points)})
+    lanes.append({"id": "staleness", "label": "Telemetry age and ground link", "kind": "chart",
+                  "height": 68, "series": ["odin:FRAME_AGE"], "marks": "odin:AGE_S",
+                  "points": ["FRAME_AGE"], "note": staleness_note, "note_short": staleness_short,
+                  "rows": 2})
+    if truth_records:
+        lanes.append({"id": "truth", "label": "Simulator truth", "kind": "track", "height": 56,
+                      "rows": 4, "source": TRUTH, "note": TRUTH_LABEL})
+
+    for record in records:
+        ref = "log:%d" % record["record_id"]
+        if ref not in builder.placed:
+            builder.warnings.append("record %d (%s) is drawn nowhere" % (record["record_id"], record.get("type")))
+
+    counts = {}
+    for record in records:
+        counts[record.get("type")] = counts.get(record.get("type"), 0) + 1
+    coverage = []
+    for record_type in list(record_types.SHOWN) + list(record_types.NOT_SHOWN):
+        coverage.append({"type": record_type, "count": counts.get(record_type, 0),
+                         "shown_as": record_types.how_shown(record_type)})
+
+    bundles_checked = sum(1 for t in builder.turns.values() if t.get("bundle_sha256"))
+    bundle_problems = [t["bundle_problem"] for t in builder.turns.values() if t.get("bundle_problem")]
+    builder.integrity.append({"label": "Saved turn bundles", "file": "inputs/", "records": bundles_checked,
+                              "chain": "VERIFIED" if not bundle_problems else "BROKEN",
+                              "head": None, "problems": bundle_problems[:20]})
+
+    series = {}
+    for key in sorted(builder.series):
+        item = dict(builder.series[key])
+        item["samples"] = [item["samples"][m] for m in sorted(item["samples"])]
+        series[key] = item
+
+    header = dict(builder.header)
+    title = "%s" % run_id
+    sources = {ODIN: {"label": "ODIN's run %s" % run_id, "kind": "odin_run", "folder": run_dir.name}}
+    if truth_records:
+        sources[TRUTH] = {"label": TRUTH_LABEL, "kind": "simulator_truth", "folder": run_dir.name}
+
+    return {
+        "format": FORMAT,
+        "format_version": FORMAT_VERSION,
+        "id": run_id,
+        "title": title,
+        "met_range": [start, end],
+        "sources": sources,
+        "header": header,
+        "integrity": builder.integrity,
+        "lanes": lanes,
+        "spans": builder.spans,
+        "events": builder.events,
+        "requests": requests,
+        "series": series,
+        "turns": {str(k): builder.turns[k] for k in sorted(builder.turns)},
+        "records": {str(k): builder.records[k] for k in sorted(builder.records)},
+        "truth_records": {str(k): builder.truth_records[k] for k in sorted(builder.truth_records)},
+        "record_types": coverage,
+        "warnings": builder.warnings,
+    }
+
+
+# -- output ------------------------------------------------------------------
+
+HEADER_PREFIX = "// VERDA timeline "
+
+
+def timeline_script(timeline):
+    """The text of a timeline file: a summary comment, then one assignment."""
+    summary = {"id": timeline["id"], "title": timeline["title"], "met_range": timeline["met_range"],
+               "format": FORMAT, "format_version": FORMAT_VERSION}
+    data = json.dumps(timeline, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False)
+    return (HEADER_PREFIX + json.dumps(summary, sort_keys=True, ensure_ascii=True) + "\n"
+            + "window.VERDA_TIMELINES = window.VERDA_TIMELINES || {};\n"
+            + "window.VERDA_TIMELINES[%s] = %s;\n" % (json.dumps(timeline["id"]), data))
+
+
+def read_timeline_script(path):
+    """Reads a timeline file back into its JSON object (for tests and the index)."""
+    text = Path(path).read_text(encoding="utf-8")
+    first, _, rest = text.partition("\n")
+    if not first.startswith(HEADER_PREFIX):
+        raise ValueError("%s is not a VERDA timeline file" % path)
+    marker = "] = "
+    body = rest[rest.index(marker) + len(marker):].rstrip()
+    if not body.endswith(";"):
+        raise ValueError("%s does not end with ';'" % path)
+    return json.loads(first[len(HEADER_PREFIX):]), json.loads(body[:-1])
+
+
+def _write_output(out_dir, name, text):
+    """The converter's only way to write: one named file inside the output folder."""
+    if "/" in name or "\\" in name or name in ("", ".", ".."):
+        raise ValueError("refusing to write %r" % name)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    target = out_dir / name
+    temporary = out_dir / (name + ".tmp")
+    with open(temporary, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+    os.replace(temporary, target)
+    return target
+
+
+def write_index(out_dir):
+    entries = []
+    for path in sorted(Path(out_dir).glob("*.js")):
+        if path.name == "index.js":
+            continue
+        first = path.read_text(encoding="utf-8").partition("\n")[0]
+        if first.startswith(HEADER_PREFIX):
+            summary = json.loads(first[len(HEADER_PREFIX):])
+            summary["file"] = path.name
+            entries.append(summary)
+    text = ("// VERDA's list of timeline files, written by verda_convert.py.\n"
+            "window.VERDA_INDEX = %s;\n" % json.dumps(entries, sort_keys=True, indent=1, ensure_ascii=True))
+    return _write_output(out_dir, "index.js", text)
+
+
+def convert(run_dir, out_dir=DEFAULT_OUT, dictionary_path=None, include_truth=True):
+    dictionary_path = dictionary_path or find_dictionary()
+    timeline = build_timeline(run_dir, dictionary_path, include_truth)
+    path = _write_output(out_dir, timeline["id"] + ".js", timeline_script(timeline))
+    write_index(out_dir)
+    return path, timeline
+
+
+def find_dictionary():
+    for candidate in DICTIONARY_CANDIDATES:
+        if candidate.exists():
+            return candidate
+    raise SystemExit("HUGINN's dictionary (tlm_cmd.yaml) was not found; pass --dictionary")
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Turn ODIN run folders into VERDA timeline files.")
+    parser.add_argument("runs", nargs="*", help="run folders, each holding events.jsonl")
+    parser.add_argument("--all", metavar="FOLDER", help="convert every run folder inside FOLDER")
+    parser.add_argument("--out", default=str(DEFAULT_OUT), help="where to write timeline files")
+    parser.add_argument("--dictionary", help="HUGINN's tlm_cmd.yaml")
+    parser.add_argument("--no-truth", action="store_true", help="leave the simulator truth out")
+    args = parser.parse_args(argv)
+    runs = [Path(r) for r in args.runs]
+    if args.all:
+        runs += sorted(p for p in Path(args.all).iterdir() if (p / "events.jsonl").exists())
+    if not runs:
+        parser.error("name at least one run folder, or --all FOLDER")
+    status = 0
+    for run in runs:
+        try:
+            path, timeline = convert(run, args.out, args.dictionary, not args.no_truth)
+        except (RunFolderError, huginn_dictionary.DictionaryError, OSError) as exc:
+            print("FAILED %s: %s" % (run, exc), file=sys.stderr)
+            status = 1
+            continue
+        broken = [c["label"] for c in timeline["integrity"] if c["chain"] != "VERIFIED"]
+        print("%s -> %s (%d records, %d turns, %d requests%s%s)" % (
+            run.name, path, len(timeline["records"]), len(timeline["turns"]), len(timeline["requests"]),
+            ", CHECK FAILED: " + ", ".join(broken) if broken else "",
+            ", %d warnings" % len(timeline["warnings"]) if timeline["warnings"] else ""))
+        for warning in timeline["warnings"]:
+            print("  warning: " + warning)
+        if broken:
+            status = 1
+    return status
+
+
+if __name__ == "__main__":
+    sys.exit(main())
