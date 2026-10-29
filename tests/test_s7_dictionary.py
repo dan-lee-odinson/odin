@@ -319,3 +319,12 @@ def test_arm_ph1_r2_is_arm_ph1_with_only_its_id_and_run_changed():
     assert len(first) == len(second)
     assert [(a, b) for a, b in zip(first, second) if a != b] == [
         (b"act_id: ARM-PH1", b"act_id: ARM-PH1-R2"), (b"  - PH1-SHAKEDOWN-SPARK-R1", b"  - PH1-SHAKEDOWN-SPARK-R2")]
+
+
+def test_arm_ph1_r3_is_arm_ph1_r2_with_only_its_id_and_run_changed():
+    # The Director's ruling of 29 October 2026: phase 1's third run, after R2's build defect, on the same signed plan.
+    second = (REPO_ROOT / "acts" / "ARM-PH1-R2.yaml").read_bytes().split(b"\n")
+    third = (REPO_ROOT / "acts" / "ARM-PH1-R3.yaml").read_bytes().split(b"\n")
+    assert len(second) == len(third)
+    assert [(a, b) for a, b in zip(second, third) if a != b] == [
+        (b"act_id: ARM-PH1-R2", b"act_id: ARM-PH1-R3"), (b"  - PH1-SHAKEDOWN-SPARK-R2", b"  - PH1-SHAKEDOWN-SPARK-R3")]
