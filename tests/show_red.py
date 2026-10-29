@@ -497,6 +497,11 @@ CASES = {"s0": [
      "tests/test_s6_long_poll.py::test_red_a_turn_due_after_odin_gave_up_a_poll_goes_to_its_next_poll",
      change_file("harness/run.py", replace_once(b"return poll != self._polls or (gone is not None and gone())",
                                                 b"return False"))),
+    ("RUN_END written inside the trigger queue, while the last tick holds the run and waits for it (29 October 2026)",
+     "tests/test_s6_long_poll.py::test_red_the_last_poll_and_the_last_tick_end_the_run_together",
+     change_file("harness/run.py", replace_once(
+         b"self.clock.finished or self.failed is not None:\n                    break",
+         b"self.clock.finished or self.failed is not None:\n                    return self._complete()"))),
     ("ODIN launched with a command other than Muse Code's start command (M8)",
      "tests/test_s6_odin_process.py::test_a_stand_in_run_flies_odin_as_its_own_process",
      change_file("harness/launch.py", replace_once(b'ODIN_START = ("-m", "odin.run_odin")',

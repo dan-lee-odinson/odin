@@ -442,10 +442,15 @@ class Run:
                 if turn is not None:
                     break
                 if self.clock is None or self.clock.finished or self.failed is not None:
-                    return self._complete()
+                    break
                 if self.pacing == "CHARGED":
                     self.clock.resume()   # nothing is due: quiet time runs as fast as the simulator steps
                 self.queue.changed.wait(timeout=0.2)
+        if turn is None:
+            # RUN_END is written once the queue is let go. The clock reads as finished as soon as its last step
+            # is taken, while that tick still holds the run and waits for the queue: writing RUN_END inside the
+            # queue left each waiting on the other for ever (P3's spark_open dev run, 29 October 2026).
+            return self._complete()
         with self._lock:
             met = self.met_s()
             bundle = build_bundle(run_id=self.run_id, turn_id=self.turn_id + 1, turn=turn, met_s=met, utc=self._utc(),

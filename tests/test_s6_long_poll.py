@@ -71,3 +71,50 @@ def test_a_poll_superseded_by_a_newer_one_takes_no_turn(quiet):
     older.join(5)
     assert results["older"] is None
     assert json.loads(results["newer"])["check_in_text"] == CHECK_IN["text"]
+
+
+class LastStep:
+    """The run's clock at its last step: finished reads the simulator's time (wrapper/clock.py), so it turns true
+    as soon as the last step is taken, before that tick's work is done."""
+    finished = False
+
+    def stop(self):
+        pass
+
+
+def test_red_the_last_poll_and_the_last_tick_end_the_run_together(tmp_path):
+    # P3's spark_open dev run of 29 October 2026 never wrote RUN_END. Its last tick held the run, as every tick
+    # does, and waited for the trigger queue; ODIN's poll, waiting inside that queue, saw the clock finished and
+    # went to write RUN_END, which waits for the run. Each held what the other waited for.
+    import threading
+
+    run = HarnessWorld(tmp_path).run(pacing="REAL_TIME", rate=1.0)
+    assert run.start()
+    while len(records(run, "TRIGGER")) < 2 or run.queue.waiting():
+        poll(run, 5)
+    run.clock.stop()
+    run.clock = clock = LastStep()
+    replies = []
+    waiting = threading.Thread(target=lambda: replies.append(run.next_turn()), daemon=True)
+    waiting.start()
+    time.sleep(0.5)   # the poll waits inside the queue: nothing is due
+
+    def last_tick():
+        with run._lock:                    # a tick holds the run while it works (harness/run.py, _tick)
+            clock.finished = True          # the last step is taken
+            time.sleep(0.5)                # the waiting poll sees the clock finished meanwhile
+            with run.queue.together():     # and the tick's triggers arrive
+                pass
+
+    tick = threading.Thread(target=last_tick, daemon=True)
+    tick.start()
+    tick.join(5)
+    waiting.join(5)
+    if tick.is_alive() or waiting.is_alive():
+        for server in run._servers:        # run.stop() would wait for the run for ever too
+            server.shutdown()
+            server.server_close()
+        pytest.fail("the run's last poll and its last tick each waited for the other")
+    run.stop()
+    assert replies == [b'{"run_complete": true}']
+    assert [r["body"]["reason"] for r in records(run, "RUN_END")] == ["COMPLETE"]
