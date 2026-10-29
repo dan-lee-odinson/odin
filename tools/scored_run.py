@@ -7,8 +7,9 @@ target, in real time for 1,800 s. Phases 2 and 3 will start their scored runs wi
     python tools/scored_run.py go <run>       start the run, fly ODIN as its own process on spark, and stop the run
                                               by its exit
 
-<run> is PH1-SHAKEDOWN-SPARK-R1 (ARM-PH1), PH1-SHAKEDOWN-SPARK-R2 (ARM-PH1-R2, after R1's build defect) or
-PH1-SHAKEDOWN-SPARK-R3 (ARM-PH1-R3, after R2's), by the Director's rulings of 29 October 2026. ODIN's standard output and error are kept for every run, whatever its exit,
+<run> is PH1-SHAKEDOWN-SPARK-R1 (ARM-PH1), PH1-SHAKEDOWN-SPARK-R2 (ARM-PH1-R2, after R1's build defect),
+PH1-SHAKEDOWN-SPARK-R3 (ARM-PH1-R3, after R2's) or PH1-SHAKEDOWN-SPARK-R4 (ARM-PH1-R4, after R3's), by the
+Director's rulings of 29 October 2026. ODIN's standard output and error are kept for every run, whatever its exit,
 in runs/odin-output/<run>/, which git ignores, since a traceback carries private paths.
 
 check needs ODIN's COSMOS up with the demo plugin loaded (python -m connector.cosmos up, then demo-load). No
@@ -42,7 +43,8 @@ from harness.run import Run  # noqa: E402
 
 RUNS = {"PH1-SHAKEDOWN-SPARK-R1": ROOT / "acts" / "ARM-PH1.yaml",
         "PH1-SHAKEDOWN-SPARK-R2": ROOT / "acts" / "ARM-PH1-R2.yaml",
-        "PH1-SHAKEDOWN-SPARK-R3": ROOT / "acts" / "ARM-PH1-R3.yaml"}
+        "PH1-SHAKEDOWN-SPARK-R3": ROOT / "acts" / "ARM-PH1-R3.yaml",
+        "PH1-SHAKEDOWN-SPARK-R4": ROOT / "acts" / "ARM-PH1-R4.yaml"}
 PLAN = ROOT / "plans" / "TYR0-PH1-SHAKEDOWN-v1.yaml"
 OUTPUT = ROOT / "runs" / "odin-output"
 DICTIONARY = yaml.safe_load((ROOT / "config" / "dictionaries" / "INST.yaml").read_text(encoding="utf-8"))
