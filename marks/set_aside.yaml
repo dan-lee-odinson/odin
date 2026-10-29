@@ -4,3 +4,6 @@
 PH1-SHAKEDOWN-SPARK-R2:
   ruling: "2026-10-29"
   reason: "BALDUR-0's CLOCK_SKEW system refusal at MET 1013, caused by the loop's timestamp: Muse Code's loop stamped the request with its turn bundle's time, and that turn's two model calls took 32.4 s, past the ORIGIN check's 30 s"
+PH1-SHAKEDOWN-SPARK-R3:
+  ruling: "2026-10-29"
+  reason: "the frozen report format refused the NaN that COSMOS showed for TEMP2: the MET 720 check-in's report gave TEMP2 at MET 735 as COSMOS gave it, NaN, and common.schema.json's value_fits_point required a number for a numeric point, so its turn ended MALFORMED and filed no report"

@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from eval import phase1, score
+from eval import phase1, runlog, score
 from eval.phase1 import check_phase_1, limits_line, marks, sheet, sheet_text
 from eval.results import score_phase_1
 from eval.runlog import read_jsonl
@@ -196,6 +196,29 @@ def test_red_r2_is_set_aside_by_the_directors_ruling_not_scored():
     found = score_phase_1(REPO_ROOT / "runs" / "scored" / "PH1-SHAKEDOWN-SPARK-R2")
     assert (found["build_defect"] or "").startswith("set aside by the Director's ruling of 2026-10-29, not scored: ")
     assert "CLOCK_SKEW" in found["build_defect"] and "scored_by_s8" not in found
+
+
+R3 = REPO_ROOT / "runs" / "scored" / "PH1-SHAKEDOWN-SPARK-R3"
+
+
+def test_red_r3_is_set_aside_by_the_directors_ruling_not_scored():
+    # The Director's ruling of 29 October 2026: R3 kept as evidence, a build defect (the frozen report format refused
+    # the NaN that COSMOS showed for TEMP2), not scored.
+    found = score_phase_1(R3)
+    assert (found["build_defect"] or "").startswith("set aside by the Director's ruling of 2026-10-29, not scored: ")
+    assert "TEMP2" in found["build_defect"] and "scored_by_s8" not in found
+
+
+def test_red_r3s_met_1200_answer_does_not_land_on_its_720_check_in():
+    # R3's MET 720 check-in opened turn 58, which ended MALFORMED and filed no report (29 October 2026). That check-in
+    # stays unanswered, and the 1200 and 1620 check-ins keep their own answers, in S8's checks and on R3's sheet,
+    # kept unmarked in the repository.
+    records, truth = runlog.events(R3), runlog.truth(R3)
+    assert [(check_in, answer_met) for check_in, _, answer_met, _ in phase1.answered(records)] == [
+        (300, 345), (720, None), (1200, 1228), (1620, 1647)]
+    assert not check_phase_1(records, truth)["checks"]["health_status"]["success"]
+    kept = (phase1.SHEETS / "PH1-SHAKEDOWN-SPARK-R3.yaml").read_text(encoding="utf-8")
+    assert set(marks(kept, records, truth).values()) == {None}
 
 
 def test_red_a_mark_that_is_not_true_or_false_is_refused():

@@ -717,6 +717,11 @@ CASES = {"s0": [
      change_file("eval/results.py", replace_once(
          b'    ruled = set_aside(run_start["run_id"])\n    if ruled:\n        return {**found,',
          b'    ruled = None\n    if ruled:\n        return {**found,'))),
+    ("R3 scored though the Director set it aside (29 October 2026)",
+     "tests/test_s8_phase1.py::test_red_r3_is_set_aside_by_the_directors_ruling_not_scored",
+     change_file("eval/results.py", replace_once(
+         b'    ruled = set_aside(run_start["run_id"])\n    if ruled:\n        return {**found,',
+         b'    ruled = None\n    if ruled:\n        return {**found,'))),
     ("a phase-2 run the Director set aside scored (29 October 2026)",
      "tests/test_s8_measures.py::test_red_a_phase_2_run_the_director_set_aside_is_a_build_defect_not_scored",
      change_file("eval/results.py", replace_once(
@@ -727,6 +732,10 @@ CASES = {"s0": [
      change_file("eval/phase1.py", replace_once(b'                and o["body"]["request_id"] in sent\n', b""))),
     ("a later check-in's answer paired with one whose turn filed no report (29 October 2026)",
      "tests/test_s8_phase1.py::test_red_a_check_in_whose_turn_filed_no_report_is_unanswered_and_takes_no_later_answer",
+     change_file("eval/phase1.py", replace_once(b"report = reports.get(turns[i]) if i < len(turns) else None",
+                                                b"report = list(reports.values())[i] if i < len(reports) else None"))),
+    ("R3's MET 1200 answer paired with its 720 check-in, whose turn filed no report (29 October 2026)",
+     "tests/test_s8_phase1.py::test_red_r3s_met_1200_answer_does_not_land_on_its_720_check_in",
      change_file("eval/phase1.py", replace_once(b"report = reports.get(turns[i]) if i < len(turns) else None",
                                                 b"report = list(reports.values())[i] if i < len(reports) else None"))),
 ], "phase3": [

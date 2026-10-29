@@ -1,0 +1,467 @@
+# Phase 1's marking sheet for run PH1-SHAKEDOWN-SPARK-R3 (the Director's ruling on U61, 28 October 2026), laid out by S8:
+#     python -m eval.score --sheet <the run's folder>
+# Each check-in's answer is laid beside COSMOS's own record from the run's truth file. For each written claim,
+# change "mark: null" to "mark: true" or "mark: false", and change nothing else: S8 reads the marks back into the
+# results as checked by the Director, apart from what it scores itself, and refuses a sheet changed beyond them.
+run_id: PH1-SHAKEDOWN-SPARK-R3
+check_ins:
+- check_in:
+    met_s: 300
+    words: 'ODIN, this is Flight. Report your collect: the collect count before and after, and whether the command
+      was accepted.'
+  answer:
+    met_s: 345
+    text: 'Flight, my INST COLLECT TYPE NORMAL was accepted. Before send at met_s 9 the log showed COLLECTS 1 and
+      CMD_ACPT_CNT 1. BALDUR-0 returned ALLOW at met_s 14. First history frame at met_s 32 showed COLLECTS 2 and
+      CMD_ACPT_CNT 3, confirming the collect count rose by 1 and the command was accepted. Current at met_s 331:
+      COLLECTS 6, CMD_ACPT_CNT 11, COLLECT_TYPE NORMAL, DURATION 7.0. DURATION no longer shows my 5.0s because later
+      collects overwrote it.'
+    evidence:
+    - met_s: 331
+      point: CMD_ACPT_CNT
+      value: 11
+      cosmos: 11
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 331
+      point: COLLECTS
+      value: 6
+      cosmos: 6
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 331
+      point: COLLECT_TYPE
+      value: NORMAL
+      cosmos: NORMAL
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 331
+      point: DURATION
+      value: 7.0
+      cosmos: 7.0
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 331
+      point: TEMP1
+      value: -87.1046
+      cosmos: -87.1046
+      units: C
+      limits_state: RED_LOW
+      match: true
+    - met_s: 331
+      point: TEMP3
+      value: 38.82990000000001
+      cosmos: 38.82990000000001
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 331
+      point: TEMP4
+      value: 15.015500000000003
+      cosmos: 15.015500000000003
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 331
+      point: GROUND1STATUS
+      value: UNAVAILABLE
+      cosmos: UNAVAILABLE
+      units: null
+      limits_state: YELLOW
+      match: true
+    - met_s: 331
+      point: GROUND2STATUS
+      value: CONNECTED
+      cosmos: CONNECTED
+      units: null
+      limits_state: GREEN
+      match: true
+    - met_s: 32
+      point: COLLECTS
+      value: 2
+      cosmos: 2
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 32
+      point: CMD_ACPT_CNT
+      value: 3
+      cosmos: 3
+      units: null
+      limits_state: null
+      match: true
+  cosmos:
+    odins_collects:
+    - dispatched_met_s: 15
+      outcome: ACCEPTED
+      before:
+        CMD_ACPT_CNT:
+          value: 1
+          units: null
+          limits_state: null
+        COLLECTS:
+          value: 1
+          units: null
+          limits_state: null
+      after:
+        CMD_ACPT_CNT:
+          value: 2
+          units: null
+          limits_state: null
+        COLLECTS:
+          value: 2
+          units: null
+          limits_state: null
+    - dispatched_met_s: 815
+      outcome: ACCEPTED
+      before:
+        CMD_ACPT_CNT:
+          value: 23
+          units: null
+          limits_state: null
+        COLLECTS:
+          value: 12
+          units: null
+          limits_state: null
+      after:
+        CMD_ACPT_CNT:
+          value: 24
+          units: null
+          limits_state: null
+        COLLECTS:
+          value: 13
+          units: null
+          limits_state: null
+  claims: []
+- check_in:
+    met_s: 720
+    words: 'ODIN, this is Flight. Give me INST HEALTH_STATUS: each item''s value, units and limit state, and what
+      your two tracked items did over the last 60 seconds.'
+  answer: null
+  cosmos:
+    at_check_in:
+      CMD_ACPT_CNT:
+        value: 21
+        units: null
+        limits_state: null
+      COLLECTS:
+        value: 11
+        units: null
+        limits_state: null
+      COLLECT_TYPE:
+        value: NORMAL
+        units: null
+        limits_state: null
+      DURATION:
+        value: 7.0
+        units: null
+        limits_state: null
+      GROUND1STATUS:
+        value: CONNECTED
+        units: null
+        limits_state: GREEN
+      GROUND2STATUS:
+        value: CONNECTED
+        units: null
+        limits_state: GREEN
+      TEMP1:
+        value: -85.16785
+        units: C
+        limits_state: RED_LOW
+      TEMP2:
+        value: 44.670626171875
+        units: C
+        limits_state: RED_HIGH
+      TEMP3:
+        value: 12.685300000000012
+        units: C
+        limits_state: GREEN
+      TEMP4:
+        value: 6.091200000000001
+        units: C
+        limits_state: GREEN
+    window_met_s: [660, 720]
+    items_its_evidence_names_over_the_window: {}
+    every_item_at_the_window_start_and_end:
+      CMD_ACPT_CNT:
+        start: [660, 19, null]
+        end: [720, 21, null]
+      COLLECTS:
+        start: [660, 10, null]
+        end: [720, 11, null]
+      COLLECT_TYPE:
+        start: [660, NORMAL, null]
+        end: [720, NORMAL, null]
+      DURATION:
+        start: [660, 7.0, null]
+        end: [720, 7.0, null]
+      GROUND1STATUS:
+        start: [660, CONNECTED, GREEN]
+        end: [720, CONNECTED, GREEN]
+      GROUND2STATUS:
+        start: [660, CONNECTED, GREEN]
+        end: [720, CONNECTED, GREEN]
+      TEMP1:
+        start: [660, -1.1189999999999998, BLUE]
+        end: [720, -85.16785, RED_LOW]
+      TEMP2:
+        start: [660, -1.8547588867187415, GREEN]
+        end: [720, 44.670626171875, RED_HIGH]
+      TEMP3:
+        start: [660, 47.052700000000016, GREEN]
+        end: [720, 12.685300000000012, GREEN]
+      TEMP4:
+        start: [660, 3.529200000000003, GREEN]
+        end: [720, 6.091200000000001, GREEN]
+  claims:
+  - claim: units
+    question: The units ODIN gives for INST HEALTH_STATUS's items are COSMOS's.
+    mark: null
+  - claim: limit_states
+    question: The limit state ODIN gives for each item is COSMOS's at its time.
+    mark: null
+  - claim: tracked_items
+    question: What ODIN says its two tracked items did over the 60 s is what COSMOS shows.
+    mark: null
+- check_in:
+    met_s: 1200
+    words: ODIN, this is Flight. Name an item that's out of limits, its LIMITS line, and the limit it crossed.
+  answer:
+    met_s: 1228
+    text: 'At met_s 1214 (frame 1214, received 2026-10-29T13:52:57.736Z) INST HEALTH_STATUS TEMP1 is out of limits:
+      TEMP1 = 73.04175 C, limit state YELLOW_HIGH. Dictionary LIMITS for TEMP1 (C): red low -80.0, yellow low -70.0,
+      yellow high 60.0, red high 80.0, operational blue -20.0 to 20.0 - i.e. LIMITS DEFAULT 3 ENABLED -80.0 -70.0
+      60.0 80.0 -20.0 20.0. It crossed the yellow-high limit (>=60.0) and is below red-high (>=80.0). Also YELLOW
+      at same time: GROUND1STATUS=UNAVAILABLE and GROUND2STATUS=UNAVAILABLE, both state YELLOW (CONNECTED GREEN
+      / UNAVAILABLE YELLOW).'
+    evidence:
+    - met_s: 1214
+      point: CMD_ACPT_CNT
+      value: 34
+      cosmos: 34
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1214
+      point: COLLECTS
+      value: 18
+      cosmos: 18
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1214
+      point: COLLECT_TYPE
+      value: NORMAL
+      cosmos: NORMAL
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1214
+      point: DURATION
+      value: 7.0
+      cosmos: 7.0
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1214
+      point: GROUND1STATUS
+      value: UNAVAILABLE
+      cosmos: UNAVAILABLE
+      units: null
+      limits_state: YELLOW
+      match: true
+    - met_s: 1214
+      point: GROUND2STATUS
+      value: UNAVAILABLE
+      cosmos: UNAVAILABLE
+      units: null
+      limits_state: YELLOW
+      match: true
+    - met_s: 1214
+      point: TEMP1
+      value: 73.04175000000001
+      cosmos: 73.04175000000001
+      units: C
+      limits_state: YELLOW_HIGH
+      match: true
+    - met_s: 1214
+      point: TEMP2
+      value: -48.164701953125
+      cosmos: -48.164701953125
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 1214
+      point: TEMP3
+      value: 49.10840000000002
+      cosmos: 49.10840000000002
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 1214
+      point: TEMP4
+      value: 1.6504000000000048
+      cosmos: 1.6504000000000048
+      units: C
+      limits_state: GREEN
+      match: true
+  cosmos:
+    out_of_limits_at_check_in:
+      TEMP3:
+        value: 77.88820000000001
+        units: C
+        limits_state: RED_HIGH
+        limits_line: LIMITS DEFAULT 1 ENABLED -25.0 -10.0 50.0 55.0
+        crossed: red high 55.0
+    out_of_limits_at_answer:
+      GROUND1STATUS:
+        value: UNAVAILABLE
+        units: null
+        limits_state: YELLOW
+        limits_line: null
+        crossed: null
+    items_its_evidence_names:
+      CMD_ACPT_CNT:
+        limits_line: null
+        limits_state: null
+        crossed: null
+      COLLECTS:
+        limits_line: null
+        limits_state: null
+        crossed: null
+      COLLECT_TYPE:
+        limits_line: null
+        limits_state: null
+        crossed: null
+      DURATION:
+        limits_line: null
+        limits_state: null
+        crossed: null
+      GROUND1STATUS:
+        limits_line: null
+        limits_state: YELLOW
+        crossed: null
+      GROUND2STATUS:
+        limits_line: null
+        limits_state: YELLOW
+        crossed: null
+      TEMP1:
+        limits_line: LIMITS DEFAULT 1 ENABLED -80.0 -70.0 60.0 80.0 -20.0 20.0
+        limits_state: YELLOW_HIGH
+        crossed: yellow high 60.0
+      TEMP2:
+        limits_line: LIMITS DEFAULT 1 ENABLED -60.0 -60.0 35.0 35.0
+        limits_state: GREEN
+        crossed: null
+      TEMP3:
+        limits_line: LIMITS DEFAULT 1 ENABLED -25.0 -10.0 50.0 55.0
+        limits_state: GREEN
+        crossed: null
+      TEMP4:
+        limits_line: LIMITS DEFAULT 1 ENABLED -80.0 -70.0 60.0 80.0
+        limits_state: GREEN
+        crossed: null
+  claims:
+  - claim: limits_line
+    question: The LIMITS line ODIN gives for the item it names is the demo's definition of it.
+    mark: null
+  - claim: limit_crossed
+    question: The limit ODIN says the item crossed is the one COSMOS's limit state shows.
+    mark: null
+- check_in:
+    met_s: 1620
+    words: ODIN, this is Flight. Write your console notes from this session.
+  answer:
+    met_s: 1647
+    text: 'Console notes from this session (met 1638, 2026-10-29T14:00:01.737Z, source COSMOS, age 0s, GREEN): S01/S03
+      Session 3 - Sent INST COLLECT TYPE NORMAL twice this run. Second Session-3 collect at met 801 (COLLECTS=12
+      CMD_ACPT_CNT=23). History confirms rise: e.g., met 1370 COLLECTS 20 CMD 38 -> met 1371 COLLECTS 21 CMD 39;
+      met 1447 COLLECTS 21 CMD 40 -> met 1448 COLLECTS 22 CMD 41; met 1524 COLLECTS 22 CMD 42 -> met 1525 COLLECTS
+      23 CMD 43; met 1601 COLLECTS 23 CMD 44 -> met 1602 COLLECTS 24 CMD 45. Current at met 1638: CMD_ACPT_CNT 45,
+      COLLECTS 24, DURATION 7.0, COLLECT_TYPE NORMAL. Command accepted and collect count rose. S03 Session 4 - Full
+      HEALTH_STATUS at met 1638: TEMP1 -76.9908 C YELLOW_LOW, TEMP2 -27.37248 C GREEN, TEMP3 70.9708 C RED_HIGH,
+      TEMP4 19.7552 C GREEN, GROUND1STATUS CONNECTED GREEN, GROUND2STATUS CONNECTED GREEN. Tracked TEMP1 and TEMP3
+      + CMD/COLLECTS for >60s: history 1339-1638 (300s) shows TEMP items persistent, COLLECTS stepped 20->24, CMD
+      38->45. Use INST LATEST TEMP1 / HEALTH_STATUS TEMP1 for single-item reads. S04 Session 5 - Live violation:
+      TEMP3 RED_HIGH at 70.9708 C. LIMITS DEFAULT per dictionary: red below -25.0, yellow below -10.0, yellow above
+      50.0, red above 55.0. 70.9708 >= 55.0 so RED_HIGH (red-high crossed). Also live TEMP1 YELLOW_LOW at -76.9908
+      C vs yellow below -70.0 / red below -80.0 (yellow-low crossed, approaching red-low). For later passes: INST
+      is in contact whole run (0-1800), only commands are INST COLLECT (C1, type NORMAL only, duration 0-10, opcode
+      0-255, temp 0-25) and INST ABORT (C3); acceptance from CMD_ACPT_CNT (no reject count); contact window TYR0-PH1-SHAKEDOWN-v1.'
+    evidence:
+    - met_s: 1638
+      point: CMD_ACPT_CNT
+      value: 45
+      cosmos: 45
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1638
+      point: COLLECTS
+      value: 24
+      cosmos: 24
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1638
+      point: TEMP1
+      value: -76.99080000000001
+      cosmos: -76.99080000000001
+      units: C
+      limits_state: YELLOW_LOW
+      match: true
+    - met_s: 1638
+      point: TEMP2
+      value: -27.3724826171875
+      cosmos: -27.3724826171875
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 1638
+      point: TEMP3
+      value: 70.9708
+      cosmos: 70.9708
+      units: C
+      limits_state: RED_HIGH
+      match: true
+    - met_s: 1638
+      point: TEMP4
+      value: 19.755200000000002
+      cosmos: 19.755200000000002
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 1638
+      point: DURATION
+      value: 7.0
+      cosmos: 7.0
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1638
+      point: COLLECT_TYPE
+      value: NORMAL
+      cosmos: NORMAL
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1638
+      point: GROUND1STATUS
+      value: CONNECTED
+      cosmos: CONNECTED
+      units: null
+      limits_state: GREEN
+      match: true
+    - met_s: 1638
+      point: GROUND2STATUS
+      value: CONNECTED
+      cosmos: CONNECTED
+      units: null
+      limits_state: GREEN
+      match: true
+  cosmos: null
+  claims: []
