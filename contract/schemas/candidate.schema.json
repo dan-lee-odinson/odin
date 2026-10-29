@@ -9,9 +9,9 @@
     "run_id": {"$ref": "common.schema.json#/definitions/identifier"},
     "turn_id": {"$ref": "common.schema.json#/definitions/count_from_1"},
     "channel": {
-      "description": "CONTENT: the model's text, for spark. TOOL_CALLS: the answer-tool calls as returned, for spark_open.",
-      "enum": ["CONTENT", "TOOL_CALLS"]
+      "description": "CONTENT: the model's text, for spark. MESSAGE: for spark_open, the message that ends the turn, its content and its tool calls (§11.1 as amended 29 October 2026). TOOL_CALLS: spark_open's answer-tool calls alone, as written before that amendment, until Muse Code's M14 writes MESSAGE; no scored run has used it.",
+      "enum": ["CONTENT", "MESSAGE", "TOOL_CALLS"]
     },
-    "raw": {"description": "That text, or those calls serialized as JSON, unchanged.", "type": "string"}
+    "raw": {"description": "CONTENT: that text, unchanged. MESSAGE: {\"content\": ..., \"tool_calls\": [...]} serialized as JSON, each exactly as returned, content null when the message has none. TOOL_CALLS: those calls serialized as JSON.", "type": "string"}
   }
 }

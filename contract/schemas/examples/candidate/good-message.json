@@ -1,0 +1,6 @@
+{
+  "run_id": "dev-run-0002",
+  "turn_id": 3,
+  "channel": "MESSAGE",
+  "raw": "{\"content\": \"{\\\"kind\\\": \\\"command\\\", \\\"command\\\": \\\"CMD_PLD_SET_STATE\\\", \\\"parameters\\\": {\\\"state\\\": \\\"ON\\\"}, \\\"rationale\\\": \\\"State of charge is 78 percent, well above the payload's 40 percent floor.\\\"}\", \"tool_calls\": []}"
+}
