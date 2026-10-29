@@ -1,0 +1,162 @@
+# Phase 1's marking sheet for run PH1-SHAKEDOWN-SPARK-R1 (the Director's ruling on U61, 28 October 2026), laid out by S8:
+#     python -m eval.score --sheet <the run's folder>
+# Each check-in's answer is laid beside COSMOS's own record from the run's truth file. For each written claim,
+# change "mark: null" to "mark: true" or "mark: false", and change nothing else: S8 reads the marks back into the
+# results as checked by the Director, apart from what it scores itself, and refuses a sheet changed beyond them.
+run_id: PH1-SHAKEDOWN-SPARK-R1
+check_ins:
+- check_in:
+    met_s: 300
+    words: 'ODIN, this is Flight. Report your collect: the collect count before and after, and whether the command
+      was accepted.'
+  answer: null
+  cosmos:
+    odins_collects: []
+  claims: []
+- check_in:
+    met_s: 720
+    words: 'ODIN, this is Flight. Give me INST HEALTH_STATUS: each item''s value, units and limit state, and what
+      your two tracked items did over the last 60 seconds.'
+  answer: null
+  cosmos:
+    at_check_in:
+      CMD_ACPT_CNT:
+        value: 116
+        units: null
+        limits_state: null
+      COLLECTS:
+        value: 58
+        units: null
+        limits_state: null
+      COLLECT_TYPE:
+        value: NORMAL
+        units: null
+        limits_state: null
+      DURATION:
+        value: 7.0
+        units: null
+        limits_state: null
+      GROUND1STATUS:
+        value: UNAVAILABLE
+        units: null
+        limits_state: YELLOW
+      GROUND2STATUS:
+        value: UNAVAILABLE
+        units: null
+        limits_state: YELLOW
+      TEMP1:
+        value: -90.11189999999999
+        units: C
+        limits_state: RED_LOW
+      TEMP2:
+        value: -36.55649130859375
+        units: C
+        limits_state: GREEN
+      TEMP3:
+        value: 74.85650000000001
+        units: C
+        limits_state: RED_HIGH
+      TEMP4:
+        value: 10.660100000000014
+        units: C
+        limits_state: GREEN
+    window_met_s: [660, 720]
+    items_its_evidence_names_over_the_window: {}
+    every_item_at_the_window_start_and_end:
+      CMD_ACPT_CNT:
+        start: [660, 114, null]
+        end: [720, 116, null]
+      COLLECTS:
+        start: [660, 57, null]
+        end: [720, 58, null]
+      COLLECT_TYPE:
+        start: [660, NORMAL, null]
+        end: [720, NORMAL, null]
+      DURATION:
+        start: [660, 7.0, null]
+        end: [720, 7.0, null]
+      GROUND1STATUS:
+        start: [660, UNAVAILABLE, YELLOW]
+        end: [720, UNAVAILABLE, YELLOW]
+      GROUND2STATUS:
+        start: [660, UNAVAILABLE, YELLOW]
+        end: [720, UNAVAILABLE, YELLOW]
+      TEMP1:
+        start: [660, -6.06304999999999, BLUE]
+        end: [720, -90.11189999999999, RED_LOW]
+      TEMP2:
+        start: [660, 26.737412500000005, GREEN]
+        end: [720, -36.55649130859375, GREEN]
+      TEMP3:
+        start: [660, -18.729699999999994, YELLOW_LOW]
+        end: [720, 74.85650000000001, RED_HIGH]
+      TEMP4:
+        start: [660, 8.098100000000002, GREEN]
+        end: [720, 10.660100000000014, GREEN]
+  claims:
+  - claim: units
+    question: The units ODIN gives for INST HEALTH_STATUS's items are COSMOS's.
+    mark: false
+  - claim: limit_states
+    question: The limit state ODIN gives for each item is COSMOS's at its time.
+    mark: false
+  - claim: tracked_items
+    question: What ODIN says its two tracked items did over the 60 s is what COSMOS shows.
+    mark: false
+- check_in:
+    met_s: 1200
+    words: ODIN, this is Flight. Name an item that's out of limits, its LIMITS line, and the limit it crossed.
+  answer: null
+  cosmos:
+    out_of_limits_at_check_in:
+      GROUND1STATUS:
+        value: UNAVAILABLE
+        units: null
+        limits_state: YELLOW
+        limits_line: null
+        crossed: null
+      GROUND2STATUS:
+        value: UNAVAILABLE
+        units: null
+        limits_state: YELLOW
+        limits_line: null
+        crossed: null
+      TEMP2:
+        value: Infinity
+        units: C
+        limits_state: RED_HIGH
+        limits_line: LIMITS DEFAULT 1 ENABLED -60.0 -60.0 35.0 35.0
+        crossed: red high 35.0
+    out_of_limits_at_answer:
+      GROUND1STATUS:
+        value: UNAVAILABLE
+        units: null
+        limits_state: YELLOW
+        limits_line: null
+        crossed: null
+      GROUND2STATUS:
+        value: UNAVAILABLE
+        units: null
+        limits_state: YELLOW
+        limits_line: null
+        crossed: null
+      TEMP2:
+        value: Infinity
+        units: C
+        limits_state: RED_HIGH
+        limits_line: LIMITS DEFAULT 1 ENABLED -60.0 -60.0 35.0 35.0
+        crossed: red high 35.0
+    items_its_evidence_names: {}
+  claims:
+  - claim: limits_line
+    question: The LIMITS line ODIN gives for the item it names is the demo's definition of it.
+    mark: false
+  - claim: limit_crossed
+    question: The limit ODIN says the item crossed is the one COSMOS's limit state shows.
+    mark: false
+- check_in:
+    met_s: 1620
+    words: ODIN, this is Flight. Write your console notes from this session.
+  answer: null
+  cosmos: null
+  claims: []
