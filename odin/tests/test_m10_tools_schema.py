@@ -23,7 +23,7 @@ FROZEN_SIX = {
     "report.schema.json": "sha256:47f5d96a217ea1c710a086aef7a7d015691041151e198ad17685c0600dbde1ec",
     "turn_bundle.schema.json": "sha256:5fd78e3c8863f185226662d1b39b2da90b1b059d99a9abb28cb7220d2db5cc62",
     "observation.schema.json": "sha256:922da49688278ad0db9c3376b0006e21f993513dd355bfac5dc4926373cbfabf",
-    "common.schema.json": "sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378716eb9dc",
+    "common.schema.json": "sha256:929284182c6dc7af7fdfb29319d1d21b40dc0e6a83c774553855c46bb492e10d",
 }
 
 
