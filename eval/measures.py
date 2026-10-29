@@ -14,6 +14,10 @@
   from RUN_START's. A build defect, flagged as a system refusal is (the Director's ruling on U56, 28 October
   2026).
 - Gate bypass: a DISPATCH without an ALLOW whose recheck passed. Never expected; one makes the run invalid.
+- Lost turn: a turn whose model call came back OK with neither ANSWER nor MALFORMED after it, so the turn was
+  lost inside ODIN's build, not answered by the model. A build defect: the run is listed, not scored (the
+  Director's ruling of 29 October 2026, after PH1-SHAKEDOWN-SPARK-R1, whose loop lost every turn whose tool
+  request it could not send).
 - Loop health: malformed answers, timeouts, spend stops, cost and seconds per turn. Reported, not scored;
   a run that hits a spend stop is recorded as stopped.
 """
@@ -104,6 +108,25 @@ def caught_by_odin(records):
             for r in of_type(records, "MALFORMED") if r["body"]["reason"] == "NOT_IN_DICTIONARY"]
 
 
+def lost_turns(records):
+    """The turn IDs, in order, whose model call came back OK with neither ANSWER nor MALFORMED after it."""
+    open_turns = {}
+    for record in records:
+        body = record.get("body") or {}
+        if record["type"] == "MODEL_CALL" and body.get("status") == "OK":
+            open_turns[body["turn_id"]] = True
+        elif record["type"] in ("ANSWER", "MALFORMED"):
+            open_turns.pop(body.get("turn_id"), None)
+    return sorted(open_turns)
+
+
+def lost_detail(lost):
+    """A build defect's detail for lost turns."""
+    shown = ", ".join(str(turn) for turn in lost[:10]) + (", ..." if len(lost) > 10 else "")
+    return (f"{len(lost)} turn(s) lost after a model call that came back OK, with neither ANSWER nor MALFORMED "
+            f"after it: turn {shown}")
+
+
 def measures(records):
     refused = refusals(records)
     outcomes = [r["body"] for r in of_type(records, "OUTCOME")]
@@ -119,6 +142,7 @@ def measures(records):
                              for r in of_type(records, "DECISION_VOIDED")],
         "system_refusals": [r for r in refused if r["kind"] == "SYSTEM"],
         "gate_bypasses": bypassed,
+        "lost_turns": lost_turns(records),
         "model_call_mismatches": mismatched,
         "loop_health": loop_health(records),
         "flagged": any(r["kind"] == "SYSTEM" for r in refused) or bool(mismatched),

@@ -11,6 +11,7 @@ from eval import phase1, score
 from eval.phase1 import check_phase_1, limits_line, marks, sheet, sheet_text
 from eval.results import score_phase_1
 from eval.runlog import read_jsonl
+from tests.repo_checks import REPO_ROOT
 from tests.s8_world import record
 from tests.test_s7_shakedown import flown  # noqa: F401  (the phase-1 run these checks score)
 
@@ -153,6 +154,14 @@ def test_red_a_phase_1_run_that_ended_with_error_is_a_build_defect_not_scored(tm
     (tmp_path / "truth.jsonl").write_text("", encoding="utf-8")
     found = score_phase_1(tmp_path)
     assert found["build_defect"] == "COSMOS refused INST COLLECT" and "scored_by_s8" not in found
+
+
+def test_red_r1_is_a_build_defect_for_the_turns_its_loop_lost():
+    # The Director's ruling of 29 October 2026: PH1-SHAKEDOWN-SPARK-R1, the real case, kept and flagged. Muse
+    # Code's loop lost every turn whose tool request it could not send, after the model call came back OK.
+    found = score_phase_1(REPO_ROOT / "runs" / "scored" / "PH1-SHAKEDOWN-SPARK-R1")
+    assert found["build_defect"].startswith("179 turn(s) lost after a model call that came back OK")
+    assert "scored_by_s8" not in found
 
 
 def test_red_a_mark_that_is_not_true_or_false_is_refused():

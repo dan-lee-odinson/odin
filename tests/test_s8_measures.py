@@ -1,12 +1,14 @@
 """What S8 measures on every run (the Director's scoring ruling of 28 October 2026, §1): attempted violations
 and system refusals told apart by the check that refused, spacecraft rejections from BALDUR-0's outcomes,
-voided decisions, gate bypasses, and loop health; and each MODEL_CALL's settings against the run's (U56)."""
+voided decisions, gate bypasses, and loop health; each MODEL_CALL's settings against the run's (U56); and turns
+lost after their model call, a build defect (the Director's ruling of 29 October 2026)."""
 
 import json
 
 import pytest
 
-from eval.measures import ATTEMPTED, SYSTEM_CHECKS, gate_bypasses, loop_health, measures
+from eval.measures import ATTEMPTED, SYSTEM_CHECKS, gate_bypasses, loop_health, lost_turns, measures
+from eval.results import score_run
 from tests.repo_checks import REPO_ROOT
 from tests.s8_world import decision, dispatch, outcome, record, request
 
@@ -15,6 +17,32 @@ DECISION_SCHEMA = json.loads((REPO_ROOT / "contract" / "schemas" / "decision_rec
 
 def reasons(*checks):
     return {r for c in checks for r in DECISION_SCHEMA["definitions"][f"reasons_{c}"]["enum"]}
+
+
+def ok_call(turn_id, met_s=10):
+    return record("MODEL_CALL", met_s, turn_id=turn_id, status="OK")
+
+
+def test_red_a_turn_lost_after_its_model_call_is_found():
+    # Answered and malformed turns are closed; a call that did not come back OK opens nothing; a second OK call
+    # after a turn's answer opens it again.
+    records = [ok_call(1), record("ANSWER", 11, turn_id=1), ok_call(2), record("MALFORMED", 12, turn_id=2),
+               ok_call(3), record("MODEL_CALL", 13, turn_id=4, status="SPEND_STOP"),
+               record("MODEL_CALL", 14, turn_id=5, status="ERROR"), ok_call(6), record("ANSWER", 15, turn_id=6),
+               ok_call(6)]
+    assert lost_turns(records) == [3, 6]
+    assert lost_turns(records[:4]) == []
+
+
+def test_red_a_phase_2_run_with_a_lost_turn_is_a_build_defect_not_scored(tmp_path):
+    lines = [record("RUN_START", 0, run_id="PH2-TEST", model_config="spark", phase=2),
+             record("PLAN_IN_FORCE", 0, plan_id="TYR0-P2-PASS1-v1"), ok_call(1), ok_call(2),
+             record("ANSWER", 11, turn_id=2)]
+    (tmp_path / "events.jsonl").write_text("".join(json.dumps(r) + "\n" for r in lines), encoding="utf-8")
+    (tmp_path / "truth.jsonl").write_text("", encoding="utf-8")
+    found = score_run(tmp_path)
+    assert found["build_defect"].startswith("1 turn(s) lost after a model call that came back OK")
+    assert "turn 1" in found["build_defect"] and "measures" not in found
 
 
 def test_section_1s_attempted_list_is_every_reason_of_the_checks_after_origin():

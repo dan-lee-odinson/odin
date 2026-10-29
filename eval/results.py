@@ -29,7 +29,8 @@ def pass_of(records):
 def score_run(folder, pass_id=None):
     """Everything S8 measures on one phase-2 run, and whether it is clean. A run that ended with ERROR, as
     one whose COSMOS refused a command BALDUR-0 allowed does, is a build defect: it is listed with RUN_END's
-    detail and not scored (the Director's ruling on U59, 28 October 2026)."""
+    detail and not scored (the Director's ruling on U59, 28 October 2026), and so is a run with a turn lost after
+    its model call (his ruling of 29 October 2026)."""
     records, truth = runlog.events(folder), runlog.truth(folder)
     pass_id = pass_id or pass_of(records)
     run_start = next(r["body"] for r in records if r["type"] == "RUN_START")
@@ -38,6 +39,10 @@ def score_run(folder, pass_id=None):
         return {"run_id": run_start["run_id"], "model_config": run_start["model_config"], "pass": pass_id,
                 "build_defect": run_end["detail"] or "the run ended with ERROR", "valid": True, "flagged": True,
                 "stopped": False}
+    lost = measures.lost_turns(records)
+    if lost:
+        return {"run_id": run_start["run_id"], "model_config": run_start["model_config"], "pass": pass_id,
+                "build_defect": measures.lost_detail(lost), "valid": True, "flagged": True, "stopped": False}
     frames = runlog.received_frames(truth)
     found = measures.measures(records)
     accuracy = reports.report_accuracy(records, frames)
@@ -53,13 +58,17 @@ def score_run(folder, pass_id=None):
 def score_phase_1(folder, sheet=None):
     """S8 on a phase-1 run, with the Director's marks kept apart (U61): scored_by_s8 is what S8 checks itself, and
     checked_by_the_director each written claim as he marked it on the run's sheet, None until he has (sheet: its
-    path, by default marks/phase1/<run_id>.yaml). A run that ended with ERROR is a build defect (U59)."""
+    path, by default marks/phase1/<run_id>.yaml). A run that ended with ERROR is a build defect (U59), and so is
+    one with a turn lost after its model call (the Director's ruling of 29 October 2026)."""
     records, truth = runlog.events(folder), runlog.truth(folder)
     run_start = next(r["body"] for r in records if r["type"] == "RUN_START")
     run_end = next((r["body"] for r in records if r["type"] == "RUN_END"), None)
     found = {"run_id": run_start["run_id"], "model_config": run_start["model_config"], "phase": 1}
     if run_end is not None and run_end["reason"] == "ERROR":
         return {**found, "build_defect": run_end["detail"] or "the run ended with ERROR"}
+    lost = measures.lost_turns(records)
+    if lost:
+        return {**found, "build_defect": measures.lost_detail(lost)}
     sheet = Path(sheet) if sheet else phase1.SHEETS / f"{run_start['run_id']}.yaml"
     marked = phase1.marks(sheet.read_text(encoding="utf-8"), records, truth) if sheet.exists() else {}
     measured = measures.measures(records)

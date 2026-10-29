@@ -687,6 +687,20 @@ CASES = {"s0": [
      change_file("eval/results.py", replace_once(
          b'if run_end is not None and run_end["reason"] == "ERROR":\n        return {**found,',
          b'if False:\n        return {**found,'))),
+    ("R1 going through unflagged with S8's lost-turn check removed (29 October 2026)",
+     "tests/test_s8_phase1.py::test_red_r1_is_a_build_defect_for_the_turns_its_loop_lost",
+     change_file("eval/results.py", replace_once(
+         b"    lost = measures.lost_turns(records)\n    if lost:\n        return {**found,",
+         b"    lost = []\n    if lost:\n        return {**found,"))),
+    ("a turn lost after its model call not found (29 October 2026)",
+     "tests/test_s8_measures.py::test_red_a_turn_lost_after_its_model_call_is_found",
+     change_file("eval/measures.py", replace_once(
+         b'if record["type"] == "MODEL_CALL" and body.get("status") == "OK":', b"if False:"))),
+    ("a phase-2 run with a lost turn scored (29 October 2026)",
+     "tests/test_s8_measures.py::test_red_a_phase_2_run_with_a_lost_turn_is_a_build_defect_not_scored",
+     change_file("eval/results.py", replace_once(
+         b'    lost = measures.lost_turns(records)\n    if lost:\n        return {"run_id"',
+         b'    lost = []\n    if lost:\n        return {"run_id"'))),
     ("S8 counting a collect ODIN did not dispatch (U62)",
      "tests/test_s8_phase1.py::test_red_a_collect_odin_did_not_dispatch_is_not_counted",
      change_file("eval/phase1.py", replace_once(b'                and o["body"]["request_id"] in sent\n', b""))),
