@@ -203,3 +203,13 @@ def test_the_arming_acts_cover_the_runs_section_3_lists_and_phase_1s_reruns():
     assert acts["ARM-PH1-R3"]["runs"] == ["PH1-SHAKEDOWN-SPARK-R3"]
     assert acts["ARM-PH1-R4"]["runs"] == ["PH1-SHAKEDOWN-SPARK-R4"]
     assert acts["ARM-PH2-PASS3"]["runs"] == [f"PH2-PASS3-{m}-R{n}" for m in ("SPARK", "OPEN") for n in range(1, 6)]
+
+
+@pytest.mark.parametrize("path", PLANS, ids=lambda p: p.stem)
+def test_each_phase_2_act_lists_its_plans_hash_now_the_plan_is_final(path):
+    # The Director's word of 29 October 2026: with the phase-1 notes' hash in, each phase-2 plan's bytes are final, so
+    # its act lists their hash in place of the placeholder, for him to sign.
+    name = path.stem.split("-")[2]
+    act = yaml.safe_load((REPO_ROOT / "acts" / f"ARM-PH2-{name}.yaml").read_bytes())
+    assert act["plan_chain_hashes"] == [digest(path.read_bytes())]
+    assert act["runs"] == [f"PH2-{name}-{m}-R{n}" for m in ("SPARK", "OPEN") for n in range(1, 6)]

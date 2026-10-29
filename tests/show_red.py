@@ -627,6 +627,11 @@ CASES = {"s0": [
      "tests/test_inputs_plans_acts.py::test_the_phase_1_notes_are_r4s_answer_at_the_met_1620_check_in_byte_for_byte",
      change_file("plans/ODIN-PH1-console-notes.md", replace_once(b"for my own use on later passes",
                                                                  b"for my own use on the later passes"))),
+    ("PASS-3's act still listing the placeholder for its plan (29 October 2026)",
+     "tests/test_inputs_plans_acts.py::test_each_phase_2_act_lists_its_plans_hash_now_the_plan_is_final[TYR0-P2-PASS3-v1]",
+     change_file("acts/ARM-PH2-PASS3.yaml", replace_once(
+         b"sha256:c83559779cce54751185fa335a7fcae0c9d07bf9c80f12c980278fb7569432f2",
+         b"sha256:0000000000000000000000000000000000000000000000000000000000000000"))),
     ("PASS-3's plan with its acquisition a second late, so its window is not one the U35 tests use",
      "tests/test_inputs_plans_acts.py::test_each_plans_contact_window_is_one_the_u35_tests_use[TYR0-P2-PASS3-v1]",
      change_file("plans/TYR0-P2-PASS3-v1.yaml", replace_once(b"  aos_met_s: 800\n", b"  aos_met_s: 801\n"))),
