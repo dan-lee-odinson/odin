@@ -9,7 +9,10 @@ from tests.repo_checks import REPO_ROOT, check_file_hash
 # spark_open's answer is taken (§11.1, with §7.1 and §16.5 U17 to match); the packet's was
 # 9d39b83e42fbe0854b1d88813305273058df61ac57e278ebb5431e0437a91857.
 CONTRACT_SHA256 = "9084106cbae14a4afba0d9059ac111872967ffe05aed5f88b9cad46c27af3e02"
-AGENTS_SHA256 = "d3f26dcb46d267c47e1f5d0c6b00f5bd77ffb7adabdd04d6cc66a71c3193e4b7"
+# Muse Code's rules brought up to date with that amendment by the Director's ruling of 29 October 2026, "Apply it":
+# section 0 names the amended contract's hash, and 4.2 spark_open's answer rule. The packet's were
+# d3f26dcb46d267c47e1f5d0c6b00f5bd77ffb7adabdd04d6cc66a71c3193e4b7.
+AGENTS_SHA256 = "827284051c1819d2658afca2fc2a89976aefa998ce9f4d19ca6cf2753c091f98"
 
 GOVERNING = {
     "CONTRACT.md": CONTRACT_SHA256,
