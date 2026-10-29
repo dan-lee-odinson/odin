@@ -3,9 +3,10 @@
     python tests/show_red.py            every red case, then the whole suite green
     python tests/show_red.py NAME ...   only the red cases whose test id contains NAME
 
-For each test there is one red case: a change planted in VERDA's source, or in a
+For each test there is a red case: a change planted in VERDA's source, or in a
 temporary copy of an input that the test is pointed at, which must make that test
-fail. The runner plants it, runs that one test alone, and restores the source
+fail. A test that checks two things that could each go wrong alone has one red
+case for each. The runner plants it, runs that one test alone, and restores the source
 byte for byte. A red case counts as caught only if the test ran and failed: a
 test that did not run, passed, or stopped on an error does not count.
 
@@ -30,6 +31,7 @@ BACKUP = ROOT / ".scratch" / "red-backup"
 INPUTS = Path(os.environ.get("VERDA_INPUTS", ROOT / "inputs"))
 RUNS = Path(os.environ.get("VERDA_RUNS", INPUTS / "runs"))
 DICTIONARY = Path(os.environ.get("VERDA_DICTIONARY", INPUTS / "dictionaries" / "HUGINN" / "tlm_cmd.yaml"))
+SCRIPTED = Path(os.environ.get("VERDA_SCRIPTED", INPUTS / "scripted-commands" / "phase2_scripted_commands.json"))
 
 # Put together from pieces so this file holds none of the names the clean-room test looks for.
 OLD_PACKAGE = "v" + "e"
@@ -62,6 +64,30 @@ def changed_runs(tmp):
     return {"VERDA_RUNS": str(runs)}
 
 
+def changed_ground_seat_run(tmp):
+    runs = Path(tmp, "runs")
+    shutil.copytree(RUNS, runs)
+    log = runs / "dev-s5-live-ground-seat" / "events.jsonl"
+    data_ = log.read_bytes()
+    assert data_.count(b'"route":"COSMOS"') == 2
+    log.write_bytes(data_.replace(b'"route":"COSMOS"', b'"route":"UPLINK"', 1))
+    return {"VERDA_RUNS": str(runs)}
+
+
+def changed_scripted(old, new):
+    def make(tmp):
+        text = SCRIPTED.read_text(encoding="utf-8")
+        assert text.count(old) == 1, old
+        target = Path(tmp, SCRIPTED.name)
+        target.write_bytes(text.replace(old, new).encode("utf-8"))
+        return {"VERDA_SCRIPTED": str(target)}
+    return make
+
+
+P4_RESET = ('"when": "in contact",\n     "kept_in_odins_runs": false,\n'
+            '     "source": "sim/scenarios/P4_hk_generation_halt.yaml:31"')
+
+
 def changed_dictionary(old, new):
     def make(tmp):
         source = DICTIONARY
@@ -83,6 +109,7 @@ def contract_without_tool_use(tmp):
 
 
 CONVERT = "convert/verda_convert.py"
+PASSES = "convert/pass_records.py"
 JS = "page/verda.js"
 
 RED_CASES = [
@@ -99,8 +126,10 @@ RED_CASES = [
     # tests/test_convert.py
     ("test_convert.CanonicalJson.test_reproduces_every_contract_vector", "canonical JSON gains a space after commas",
      edit(CONVERT, 'separators=(",", ":"),\n                      ensure_ascii=False', 'separators=(", ", ":"),\n                      ensure_ascii=False')),
-    ("test_convert.HashChain.test_practice_runs_verify", "one record of a copied run is changed",
+    ("test_convert.HashChain.test_every_run_verifies", "one record of a copied practice run is changed",
      data(changed_runs)),
+    ("test_convert.HashChain.test_every_run_verifies", "one record of the copied ground-seat run is changed",
+     data(changed_ground_seat_run)),
     ("test_convert.HashChain.test_a_changed_record_breaks_the_chain", "the chain check stops comparing prev_hash",
      edit(CONVERT, 'if record.get("prev_hash") != prev:', 'if False:')),
     ("test_convert.Limits.test_dictionary_has_the_sixteen_points", "a copied dictionary's yellow staleness limit is 12 s",
@@ -123,6 +152,12 @@ RED_CASES = [
      edit(CONVERT, '    ("tlm:PLD_RATE", "Payload rate", ("PLD_RATE",), "chart"),\n', '')),
     ("test_convert.Timelines.test_every_record_is_drawn", "turn records are not marked as drawn",
      edit(CONVERT, '        turn["refs"].append(ref)\n        self.placed.add(ref)\n', '        turn["refs"].append(ref)\n')),
+    ("test_convert.Repeatable.test_the_same_inputs_give_the_same_files_whatever_the_hash_seed", "the truth flags are walked in their set's order",
+     edit(CONVERT, "                for name in sorted(flags):", "                for name in flags:")),
+    ("test_convert.GroundSeat.test_its_bundles_staleness_and_ground_link_are_drawn", "the ground link a bundle recorded is dropped",
+     edit(CONVERT, "            if link is not None:", "            if link is None:")),
+    ("test_convert.GroundSeat.test_its_derived_frame_age_agrees_with_the_age_it_recorded", "the derived age is a second short",
+     edit(CONVERT, "            age = t - newest\n", "            age = max(0, t - newest - 1)\n")),
     # tests/test_page.py
     ("test_page.NoNetwork.test_no_network_calls_or_addresses", "verda.js gains a fetch",
      edit(JS, "  function start() {", "  function start() {\n    fetch('timelines/index.js');")),
@@ -145,6 +180,43 @@ RED_CASES = [
      edit(JS, "if (target) { inspectHit(S.hits[Number(target.getAttribute('data-hit'))]); return; }", "if (target) { return; }")),
     ("test_page_in_browser.PageInBrowser.test_play_moves_the_playhead", "playback stands still",
      edit(JS, "setMet(S.met + dt * S.speed);", "setMet(S.met);")),
+    ("test_page_in_browser.PageInBrowser.test_hover_and_click_show_the_directors_command_and_his_rows", "clicks on the Director's command show nothing",
+     edit(JS, "    } else if (p.passCommand) {", "    } else if (false) {")),
+    ("test_page_in_browser.PageInBrowser.test_hover_and_click_show_the_scenarios_command_apart_from_his", "a click names the scenario's command the Director's",
+     edit(JS, "inspect('The scenario\u2019s command \u00b7 MET ' + c.met_s", "inspect('The Director\u2019s command \u00b7 MET ' + c.met_s")),
+    ("test_page_in_browser.PageInBrowser.test_hover_and_click_show_the_scenarios_command_apart_from_his", "the lane's note is cut to the label column",
+     edit(JS, "fit(sub, (lane.kind === 'chart' ? LABEL_W : PLOT_X) - 22)", "fit(sub, LABEL_W - 22)")),
+    ("test_page_in_browser.PageInBrowser.test_the_ground_seat_age_lane_names_what_its_bundles_recorded", "the strip above the age chart is never drawn",
+     edit(JS, "      if (lane.strip) {", "      if (!lane.strip) {")),
+    # tests/test_passes.py
+    ("test_passes.PassFiles.test_reads_all_five_passes", "each pass takes the last plan of its scenario, whatever its window",
+     edit(PASSES, '        s = overlap(pass_data["met_range"], [plan["aos_met_s"], plan["los_met_s"]])\n', '        s = 1.0\n')),
+    ("test_passes.PassFiles.test_p1_reads_both_blocks_of_repeated_columns", "arguments are read from the header's first block only",
+     edit(PASSES, "            for i, name in enumerate(c_header[3:], start=3):", "            for i, name in enumerate(c_header[3:11], start=3):")),
+    ("test_passes.PassFiles.test_what_his_telemetry_showed_next", "his counters are watched for 0 s after a command",
+     edit(PASSES, "OUTCOME_WINDOW_S = 10", "OUTCOME_WINDOW_S = 0")),
+    ("test_passes.KnownCommandTimes.test_one_known_command_time_on_each_side", "the Director's command takes the MET of the frame after it",
+     edit(PASSES, '        met = before["met_s"] + (t - before["utc_s"]) * rate\n', '        met = after["met_s"]\n')),
+    ("test_passes.KnownCommandTimes.test_one_known_command_time_on_each_side", "ODIN's dispatch is placed a second late",
+     edit(CONVERT, 'request.update({"dispatch_met_s": met, "route": body.get("route")})', 'request.update({"dispatch_met_s": met + 1, "route": body.get("route")})')),
+    ("test_passes.LineUp.test_each_pass_lines_up_with_its_runs", "no run pairs with a pass",
+     edit(CONVERT, '    best, score = None, 0.5\n    if summary["met_range"] is None:', '    best, score = None, 1.5\n    if summary["met_range"] is None:')),
+    ("test_passes.LineUp.test_his_frame_age_shows_the_gap_in_his_p4_frames", "his frame age forgets the gap in his frames",
+     edit(PASSES, "        age = t - newest\n", "        age = 0\n")),
+    ("test_passes.ScenarioCommands.test_reads_the_seven_and_checks_each_against_its_plan", "a copied file says P4's reset falls before contact and is kept",
+     data(changed_scripted(P4_RESET, P4_RESET.replace('"in contact"', '"before contact"').replace("false", "true")))),
+    ("test_passes.ScenarioCommands.test_on_his_side_as_the_scenarios_and_never_his", "the scenario's commands are filed among his",
+     edit(CONVERT, '    timeline["pass_commands"] = commands\n    timeline["scenario_commands"] = scenario\n',
+          '    timeline["pass_commands"] = commands + scenario\n    timeline["scenario_commands"] = scenario\n')),
+    ("test_passes.ScenarioCommands.test_on_his_side_as_the_scenarios_and_never_his", "the lane no longer says ODIN's runs drop the in-contact ones",
+     edit(CONVERT, "note, short = _scenario_note(entry), \"ODIN's runs drop the in-contact ones\"",
+          "note, short = _scenario_note(entry), \"The scenario's own\"")),
+    ("test_passes.ScenarioCommands.test_what_his_telemetry_showed_after_the_scenarios_commands", "the frame stamped with the command's MET counts as before it",
+     edit(PASSES, '        if frame["met_s"] < met_s:\n', '        if frame["met_s"] <= met_s:\n')),
+    ("test_passes.ScenarioCommands.test_a_span_his_command_shares_with_the_scenarios_is_credited_to_neither", "a shared span is never looked for",
+     edit(CONVERT, '            if shared and c["outcome"]["kind"] != "outside":', '            if False:')),
+    ("test_passes.ScenarioCommands.test_odins_runs_dropped_exactly_the_in_contact_ones", "a copied file puts P4's reset at MET 1321",
+     data(changed_scripted('"met_s": 1320,', '"met_s": 1321,'))),
     # tests/test_record_types.py
     ("test_record_types.RecordTypes.test_contract_and_schema_agree", "a copied contract drops TOOL_USE from its list",
      data(contract_without_tool_use)),
@@ -154,6 +226,8 @@ RED_CASES = [
     ("test_watch_only.WatchOnly.test_converter_writes_only_its_files_and_leaves_the_run_untouched", "the converter leaves a file in the run folder",
      edit(CONVERT, '    path = _write_output(out_dir, timeline["id"] + ".js", timeline_script(timeline))\n',
           '    path = _write_output(out_dir, timeline["id"] + ".js", timeline_script(timeline))\n    _write_output(run_dir, "verda-was-here.txt", "x")\n')),
+    ("test_watch_only.WatchOnly.test_with_passes_it_writes_only_timelines_and_leaves_passes_and_plans_untouched", "the converter leaves a file in a pass folder",
+     edit(CONVERT, '    name = timeline["id"] + ".js"\n', '    name = timeline["id"] + ".js"\n    _write_output(pass_dir, "verda-was-here.txt", "x")\n')),
     ("test_watch_only.WatchOnly.test_output_names_cannot_leave_the_folder", "output names may hold a backslash",
      edit(CONVERT, 'if "/" in name or "\\\\" in name or name in', 'if "/" in name or name in')),
 ]

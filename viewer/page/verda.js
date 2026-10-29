@@ -17,6 +17,8 @@
   const SPEEDS = [1, 2, 5, 10, 20, 60];
   const INTERNAL = new Set(['AGENT_INPUT', 'MODEL_CALL', 'CANDIDATE', 'ANSWER', 'SPEND', 'TOOL_USE']);
   const CHAR_W = 7.1;
+  const EDGE_W = 6.4;           // a character of the notes at a lane's edge
+  const STRIP_H = 26;           // the strip above a ground seat's age chart
   const STRING_NAMES = { EPS_SA1_I: 'STRING 1', EPS_SA2_I: 'STRING 2' };
 
   const $ = (id) => document.getElementById(id);
@@ -180,7 +182,7 @@
     scrub.max = String(tl.met_range[1]);
     history.replaceState(null, '', '#run=' + tl.id);
     drawHeader(tl);
-    drawLegend();
+    drawLegend(tl);
     drawCoverage(tl);
     render();
     setMet(S.met);
@@ -198,8 +200,19 @@
       }
     }
     for (const s of tl.spans) if (typeof s.start === 'number') marks.add(s.start);
+    for (const c of (tl.pass_commands || []).concat(tl.scenario_commands || [])) {
+      if (c.met_s >= tl.met_range[0] && c.met_s <= tl.met_range[1]) marks.add(c.met_s);
+      if (typeof c.outcome_met_s === 'number') marks.add(c.outcome_met_s);
+    }
     S.marks = Array.from(marks).sort((a, b) => a - b);
   }
+
+  // The Director's own pass, when the timeline holds one: a separate flight on the same MET axis.
+  function passInfo(tl) { return (tl.header || {}).pass || null; }
+  function passOnly(tl) { return !!(tl.header || {}).pass_only; }
+  // The checks of files that carry no hash chain: his pass files, and the scenario's scripted commands.
+  function fileCheck(c) { return c.kind === 'pass_files' || c.kind === 'scripted_file'; }
+  function integrityOk(c) { return fileCheck(c) ? !!c.ok : (c.chain === 'VERIFIED' && c.head !== 'DIFFERS'); }
 
   // ---- header, legend, coverage -----------------------------------------
   function drawHeader(tl) {
@@ -213,16 +226,23 @@
     if (h.model_config) add('Model ' + h.model_config + (h.model_id ? ' (' + h.model_id + ')' : ''));
     if (h.mode) add(h.mode === 'DEVELOPMENT' ? 'Development mode' : h.mode, h.mode === 'DEVELOPMENT' ? 'caution' : null);
     for (const c of tl.integrity || []) {
-      const ok = c.chain === 'VERIFIED' && c.head !== 'DIFFERS';
+      const ok = integrityOk(c);
+      if (fileCheck(c)) {
+        add(c.label + (ok ? ' read' : ' FAILED its check'), ok ? 'good' : 'alarm', (c.problems || []).join('\n') || c.summary);
+        continue;
+      }
       const what = c.label + (ok ? ' verified' : ' FAILED its check');
       add(what, ok ? 'good' : 'alarm', (c.problems || []).join('\n') || (c.records + ' records, hash chain' + (c.head ? ' and head ' + c.head.toLowerCase() : '')));
     }
     if (h.run_end) add('Ended ' + h.run_end.reason, h.run_end.reason === 'COMPLETE' ? null : 'alarm');
-    const broken = (tl.integrity || []).filter((c) => c.chain !== 'VERIFIED' || c.head === 'DIFFERS');
+    const broken = (tl.integrity || []).filter((c) => !integrityOk(c));
+    const pass = passInfo(tl);
     if (broken.length) {
       showBanner('A check of this run folder failed: ' + broken.map((c) => c.label).join(', ') + '. What is shown may not be what was recorded.', true);
+    } else if (passOnly(tl)) {
+      showBanner('No ODIN run of this pass yet: the Director’s flight alone, flown on ' + pass.date + ' in HUGINN' + (pass.plan_id ? ', beside the contact window of plan ' + pass.plan_id : '') + '.', false);
     } else if (h.mode === 'DEVELOPMENT' || h.model_config === 'stand_in') {
-      showBanner('Practice run: ' + (h.model_config === 'stand_in' ? 'ODIN’s model was the scripted stand-in' : 'development mode') + ', not a scored run.', false);
+      showBanner('Practice run: ' + (h.model_config === 'stand_in' ? 'ODIN’s model was the scripted stand-in' : 'development mode') + ', not a scored run.' + (pass ? ' Beside it, the Director’s own pass of this scenario, flown on ' + pass.date + ' in HUGINN: a separate flight on the same MET axis.' : ''), false);
     } else {
       showBanner('', false);
     }
@@ -231,7 +251,7 @@
     w.textContent = (tl.warnings || []).length ? 'Converter warnings: ' + tl.warnings.join(' | ') : '';
   }
 
-  function drawLegend() {
+  function drawLegend(tl) {
     const lg = $('legend');
     clear(lg);
     const key = (draw, label) => {
@@ -240,16 +260,21 @@
       draw(s);
       html('span', null, k, label);
     };
-    key((s) => { svg('line', { x1: 2, y1: 7, x2: 32, y2: 7, class: 'series-odin' }, s); svg('circle', { cx: 17, cy: 7, r: 4, class: 'dot-obs ls-GREEN' }, s); }, 'In ODIN’s turn bundles (dot: a turn’s observation)');
-    key((s) => { svg('line', { x1: 2, y1: 7, x2: 32, y2: 7, class: 'series-truth' }, s); }, 'Simulator truth, never seen by ODIN');
-    key((s) => { svg('rect', { x: 2, y: 1, width: 30, height: 5, class: 'band-caution' }, s); svg('rect', { x: 2, y: 7, width: 30, height: 6, class: 'band-alarm' }, s); }, 'Yellow and red limits, named on each band');
-    key((s) => { svg('path', { d: 'M4 7 L10 1 L16 7 L10 13 Z', class: 'sev-odin' }, s); }, 'ODIN’s turn');
-    key((s) => { svg('circle', { cx: 9, cy: 7, r: 5, class: 'sev-director' }, s); }, 'The Director');
+    const pass = passInfo(tl);
+    if (!passOnly(tl)) {
+      key((s) => { svg('line', { x1: 2, y1: 7, x2: 32, y2: 7, class: 'series-odin' }, s); svg('circle', { cx: 17, cy: 7, r: 4, class: 'dot-obs ls-GREEN' }, s); }, 'In ODIN’s turn bundles (dot: a turn’s observation)');
+      if (tl.sources && tl.sources.truth) key((s) => { svg('line', { x1: 2, y1: 7, x2: 32, y2: 7, class: 'series-truth' }, s); }, 'Simulator truth, never seen by ODIN');
+    }
+    if (pass) key((s) => { svg('line', { x1: 2, y1: 7, x2: 32, y2: 7, class: 'series-director' }, s); marker(s, 'triangle', 17, 7, 4, 'sev-director'); }, 'The Director’s pass ' + pass.name);
+    if ((tl.scenario_commands || []).length) key((s) => { marker(s, 'diamond', 17, 7, 4.5, 'scenario-mark'); }, 'The scenario’s commands, not his');
+    key((s) => { svg('rect', { x: 2, y: 1, width: 30, height: 5, class: 'band-caution' }, s); svg('rect', { x: 2, y: 7, width: 30, height: 6, class: 'band-alarm' }, s); }, 'Yellow and red limits');
+    if (!passOnly(tl)) key((s) => { svg('path', { d: 'M4 7 L10 1 L16 7 L10 13 Z', class: 'sev-odin' }, s); }, 'ODIN’s turn');
   }
 
   function drawCoverage(tl) {
     const rows = tl.record_types || [];
     const shown = rows.filter((r) => r.shown_as && !/^Not shown/.test(r.shown_as)).length;
+    $('coverage').hidden = !rows.length;
     $('coverage-summary').textContent = 'Record types: ' + shown + ' of ' + rows.length + ' the contract lists are shown';
     const t = $('coverage-table');
     clear(t);
@@ -264,6 +289,8 @@
   // ---- the timeline drawing ---------------------------------------------
   function laneHeight(lane, tl) {
     if (lane.kind === 'requests') return Math.max(lane.height || 40, requestRows(tl).rows * 24 + 12);
+    if (lane.kind === 'pass-commands') return Math.max(lane.height || 40, passRows(tl).rows * 24 + 12);
+    if (lane.kind === 'scenario-commands') return Math.max(lane.height || 36, scenarioRows(tl).rows * 24 + 12);
     return lane.height || 40;
   }
 
@@ -281,6 +308,61 @@
       placed.push({ r: r, row: row, mets: mets });
     }
     return { rows: Math.max(1, ends.length), placed: placed };
+  }
+
+  // The Director's commands, laid out like ODIN's requests: one row per command
+  // unless it fits after the one before it.
+  function passRows(tl) {
+    const x = S.geo ? S.geo.x : (m) => m;
+    const placed = [];
+    const ends = [];
+    for (const c of tl.pass_commands || []) {
+      const mets = [c.met_s].concat(typeof c.outcome_met_s === 'number' ? [c.outcome_met_s] : []);
+      const x0 = x(Math.min.apply(null, mets));
+      const x1 = x(Math.max.apply(null, mets)) + 12 + c.summary.length * CHAR_W;
+      let row = ends.findIndex((e) => e < x0 - 6);
+      if (row < 0) { row = ends.length; ends.push(x1); } else { ends[row] = x1; }
+      placed.push({ c: c, row: row, mets: mets });
+    }
+    return { rows: Math.max(1, ends.length), placed: placed };
+  }
+
+  // The scenario's own commands in view, laid out the same way. Those outside the
+  // view are named at its edge instead, each edge's note taking a place in a row.
+  function scenarioRows(tl) {
+    const x = S.geo ? S.geo.x : (m) => m;
+    const plotW = S.geo ? S.geo.plotW : 0;
+    const placed = [], ends = [];
+    const all = tl.scenario_commands || [];
+    const before = all.filter((c) => c.met_s < S.view[0]), after = all.filter((c) => c.met_s > S.view[1]);
+    const notes = [];
+    if (before.length) {
+      const text = edgeText(before, true);
+      ends.push(PLOT_X + 8 + text.length * EDGE_W);
+      notes.push({ c: before[before.length - 1], text: text, left: true, row: 0 });
+    }
+    for (const c of all) {
+      if (c.met_s < S.view[0] || c.met_s > S.view[1]) continue;
+      const x0 = x(c.met_s);
+      const x1 = x(Math.max(c.met_s, typeof c.outcome_met_s === 'number' ? c.outcome_met_s : c.met_s)) + 12 + c.summary.length * CHAR_W;
+      let row = ends.findIndex((e) => e < x0 - 6);
+      if (row < 0) { row = ends.length; ends.push(x1); } else { ends[row] = x1; }
+      placed.push({ c: c, row: row });
+    }
+    if (after.length) {
+      const text = edgeText(after, false);
+      let row = ends.findIndex((e) => e < PLOT_X + plotW - 8 - text.length * EDGE_W - 6);
+      if (row < 0) { row = ends.length; ends.push(PLOT_X + plotW); }
+      notes.push({ c: after[0], text: text, left: false, row: row });
+    }
+    return { rows: Math.max(1, ends.length), placed: placed, notes: notes };
+  }
+
+  function edgeText(list, left) {
+    const c = left ? list[list.length - 1] : list[0];
+    const more = list.length > 1 ? ' (and ' + (list.length - 1) + ' more)' : '';
+    const what = (c.command + ' ' + params(c.parameters)).trim() + ', ' + c.when + more;
+    return left ? '◂ earlier: MET ' + c.met_s + ' ' + what : 'later: MET ' + c.met_s + ' ' + what + ' ▸';
   }
 
   function patterns(defs) {
@@ -332,6 +414,8 @@
       const g = svg('g', { 'clip-path': 'url(#plot-clip)' }, root);
       if (lane.kind === 'track') drawTrack(g, lane, y, h);
       else if (lane.kind === 'requests') drawRequests(g, lane, y, h);
+      else if (lane.kind === 'pass-commands') drawPassCommands(g, lane, y, h);
+      else if (lane.kind === 'scenario-commands') drawScenarioCommands(g, lane, y, h);
       else if (lane.kind === 'chart') drawChart(g, root, lane, y, h);
       else if (lane.kind === 'state') drawState(g, lane, y, h);
       y += h + GAP;
@@ -378,7 +462,8 @@
   }
 
   function drawLaneLabel(root, lane, y, h) {
-    svg('rect', { x: 0, y: y + 7, width: 3, height: 13, class: lane.id === 'truth' ? 'lane-mark truth' : 'lane-mark' }, root);
+    const mark = lane.id === 'truth' ? ' truth' : (lane.source === 'director' ? ' director' : (lane.source === 'scenario' ? ' scenario' : ''));
+    svg('rect', { x: 0, y: y + 7, width: 3, height: 13, class: 'lane-mark' + mark }, root);
     const label = svgText(root, 14, y + 18, lane.label, 'lane-label');
     if (lane.note) {
       label.classList.add('hit');
@@ -388,15 +473,19 @@
     if (lane.points && (lane.kind === 'chart' || lane.kind === 'state')) sub = lane.points.join('  ');
     if (lane.id === 'truth') sub = 'NEVER SEEN BY ODIN';
     if (lane.note_short) sub = lane.note_short;
-    if (sub && h >= 34) svgText(root, 14, y + 33, fit(sub, LABEL_W - 22), lane.id === 'truth' ? 'lane-sub truth' : 'lane-sub');
-    if (lane.kind === 'chart' && (lane.points || []).length > 1 && h >= 50) {
-      // Which mark is which string, for when the two read the same.
+    const keyed = lane.kind === 'chart' && (lane.points || []).length > 1 && h >= 44;
+    if (keyed) {
+      // Which mark is which string, for when the two read the same. It takes the
+      // place of the point names; the hover names each string's point.
       let kx = 14;
       lane.points.forEach((pt, i) => {
-        marker(root, i ? 'ring' : 'circle', kx + 5, y + h - 11, i ? 5 : 3.5, 'dot-obs ls-NONE' + (i ? ' p1' : ''));
-        const t = svgText(root, kx + 14, y + h - 7, STRING_NAMES[pt] || pt, 'key-text');
+        marker(root, i ? 'ring' : 'circle', kx + 5, y + 29, i ? 5 : 3.5, 'dot-obs ls-NONE' + (i ? ' p1' : ''));
+        const t = svgText(root, kx + 14, y + 33, STRING_NAMES[pt] || pt, 'key-text');
         kx += 26 + t.textContent.length * 7;
       });
+    } else if (sub && h >= 34) {
+      // A lane with no scale may run its note into the scale's gutter.
+      svgText(root, 14, y + 33, fit(sub, (lane.kind === 'chart' ? LABEL_W : PLOT_X) - 22), lane.id === 'truth' ? 'lane-sub truth' : 'lane-sub');
     }
   }
 
@@ -485,7 +574,12 @@
         }
       }
     }
-    if (truth) svgText(g, S.geo.width - PAD_R - 6, y + h - 6, 'SIMULATOR TRUTH · NEVER SEEN BY ODIN', 'truth-tag', 'end');
+    if (truth) {
+      // On a plate of its own, so no span's hatch runs through the words.
+      const tag = svgText(g, S.geo.width - PAD_R - 6, y + h - 6, 'SIMULATOR TRUTH · NEVER SEEN BY ODIN', 'truth-tag', 'end');
+      const b = tag.getBBox();
+      g.insertBefore(svg('rect', { x: b.x - 5, y: b.y - 1, width: b.width + 10, height: b.height + 2, class: 'truth-plate' }, g), tag);
+    }
   }
 
   function eventTip(e) {
@@ -526,6 +620,78 @@
     }
   }
 
+  function drawPassCommands(g, lane, y, h) {
+    const x = S.geo.x;
+    const layout = passRows(S.tl);
+    if (!(S.tl.pass_commands || []).length) svgText(g, PLOT_X + 10, y + h / 2 + 4, 'The Director sent no command in this pass.', 'note-text');
+    for (const p of layout.placed) {
+      const c = p.c;
+      const cy = y + 6 + p.row * 24 + 12;
+      const x0 = x(Math.min.apply(null, p.mets)), x1 = x(Math.max.apply(null, p.mets));
+      const id = addHit('The Director’s command: ' + c.summary, passCommandTip(c), { passCommand: c });
+      const line = svg('line', { x1: x0, y1: cy, x2: x1, y2: cy, class: 'chain-line ' + c.status }, g);
+      line.setAttribute('data-hit', id);
+      if (typeof c.outcome_met_s === 'number') {
+        const o = marker(g, 'square', x(c.outcome_met_s), cy, 5, 'hit ' + (c.status === 'good' ? 'sev-good' : 'sev-bad'));
+        o.setAttribute('data-hit', id);
+      }
+      // His mark goes on top: at the whole-run zoom it sits on the outcome's square.
+      const m = marker(g, 'triangle', x(c.met_s), cy, 5.5, 'hit sev-director');
+      m.setAttribute('data-hit', id);
+      const t = svgText(g, x1 + 10, cy + 4.5, c.summary, 'ev-label');
+      t.classList.add('hit');
+      t.setAttribute('data-hit', id);
+    }
+  }
+
+  // The scenario's own commands, which his pass carried: a hollow mark of their own,
+  // never the Director's triangle.
+  function drawScenarioCommands(g, lane, y, h) {
+    const x = S.geo.x;
+    const layout = scenarioRows(S.tl);
+    if (lane.empty) svgText(g, PLOT_X + 10, y + h / 2 + 4, lane.empty, 'note-text');
+    for (const p of layout.placed) {
+      const c = p.c;
+      const cy = y + 6 + p.row * 24 + 12;
+      const id = addHit('The scenario’s command: ' + c.summary, scenarioCommandTip(c), { scenarioCommand: c });
+      if (typeof c.outcome_met_s === 'number') {
+        const line = svg('line', { x1: x(c.met_s), y1: cy, x2: x(c.outcome_met_s), y2: cy, class: 'chain-line ' + c.status }, g);
+        line.setAttribute('data-hit', id);
+        const o = marker(g, 'square', x(c.outcome_met_s), cy, 4, 'hit ' + (c.status === 'good' ? 'sev-good' : 'sev-bad'));
+        o.setAttribute('data-hit', id);
+      }
+      const m = marker(g, 'diamond', x(c.met_s), cy, 5.5, 'hit scenario-mark');
+      m.setAttribute('data-hit', id);
+      const t = svgText(g, x(Math.max(c.met_s, c.outcome_met_s || c.met_s)) + 10, cy + 4.5, c.summary, 'ev-label');
+      t.classList.add('hit');
+      t.setAttribute('data-hit', id);
+    }
+    for (const n of layout.notes) {
+      const cy = y + 6 + n.row * 24 + 12;
+      const t = svgText(g, n.left ? PLOT_X + 8 : PLOT_X + S.geo.plotW - 8, cy + 4, n.text, 'edge-note hit', n.left ? 'start' : 'end');
+      t.setAttribute('data-hit', addHit('The scenario’s command: ' + n.c.summary, scenarioCommandTip(n.c), { scenarioCommand: n.c }));
+    }
+  }
+
+  function scenarioCommandTip(c) {
+    const w = c.contact_window;
+    const lines = ['The scenario’s own command, not the Director’s: ' + (c.command + ' ' + params(c.parameters)).trim() + ' at MET ' + c.met_s,
+      'From the scenario file ' + c.source + ', by the scripted-commands input',
+      (c.when === 'in contact' ? 'In contact' : (c.when === 'before contact' ? 'Before contact' : 'After contact')) +
+        ' (plan ' + c.plan_id + ', MET ' + w.aos_met_s + ' to ' + w.los_met_s + '): his pass carried it; ODIN’s runs ' + (c.kept_in_odins_runs ? 'keep' : 'drop') + ' it',
+      'His telemetry next: ' + c.outcome.text + (c.outcome.kind === 'outside' ? '' : ' (derived by VERDA)')];
+    if (typeof c.outcome.before_met_s === 'number') lines.push('Compared with his frame before it, at MET ' + c.outcome.before_met_s);
+    lines.push(c.refs.length ? '(click for his rows)' : '(click for its entry)');
+    return lines.join('\n');
+  }
+
+  function passCommandTip(c) {
+    return ['The Director sent ' + c.command + ' ' + params(c.parameters) + ' at ' + c.utc.replace('T', ' ').replace(/(\.\d{3})\d*Z$/, '$1 UTC'),
+      'MET ' + c.met_s.toFixed(2) + ', ' + c.met_basis,
+      'His telemetry next: ' + c.outcome.text + ' (derived by VERDA)',
+      '(click for his rows)'].join('\n');
+  }
+
   function requestTip(r) {
     const lines = ['Turn ' + r.turn_id + ': ODIN asked for ' + r.command + ' ' + params(r.parameters) + ' at MET ' + r.met_s];
     if (r.rationale) lines.push('Rationale: ' + r.rationale);
@@ -559,7 +725,8 @@
         const t = limits[k];
         if (typeof t === 'number' && t >= lo - span * 0.8 && t <= hi + span * 0.8) { lo = Math.min(lo, t); hi = Math.max(hi, t); }
       }
-      span = hi - lo;
+      // A line that never moves, with no limit near it, keeps the height given above.
+      span = Math.max(hi - lo, span);
     }
     return [lo - span * 0.12, hi + span * 0.12];
   }
@@ -579,7 +746,8 @@
   function drawChart(g, root, lane, y, h) {
     const x = S.geo.x;
     const dom = chartDomain(lane);
-    const top = y + 6, bottom = y + h - 6;
+    // A ground seat's age lane keeps a strip above its chart for the states it recorded.
+    const top = y + (lane.strip ? 6 + STRIP_H : 6), bottom = y + h - 6;
     const hitRect = svg('rect', { x: PLOT_X, y: y, width: S.geo.plotW, height: h, fill: 'transparent' }, g);
     hitRect.setAttribute('data-chart', lane.id);
     if (!dom) { svgText(g, PLOT_X + 10, y + h / 2 + 4, 'No samples.', 'note-text'); return; }
@@ -606,8 +774,11 @@
         if (typeof t === 'number' && t >= dom[0] && t <= dom[1]) {
           svg('line', { x1: x0, y1: yy(t), x2: x1, y2: yy(t), class: 'limit-line ' + kind }, g);
           const name = lane.id === 'staleness' ? (k === 'yh' ? 'YELLOW' : 'RED') + ' ' + t + ' s' : LIMIT_NAMES[k] + ' ' + t;
-          const high = k[1] === 'h';
-          svgText(g, x1 - 6, high ? yy(t) - 4 : yy(t) + 12, name, 'limit-text ' + kind, 'end');
+          // A limit is named at the right end of its line, unless the red one sits just
+          // above the yellow one: then the yellow one is named at the left end instead.
+          const crowded = k === 'yh' && typeof limits.rh === 'number' && Math.abs(yy(limits.rh) - yy(t)) < 16;
+          const above = k[1] === 'h';
+          svgText(g, crowded ? x0 + 6 : x1 - 6, above ? yy(t) - 4 : yy(t) + 12, name, 'limit-text ' + kind, crowded ? 'start' : 'end');
         }
       }
     }
@@ -622,8 +793,14 @@
       const d = path(s.samples, x, yy, 1.5);
       if (d) svg('path', { d: d, class: 'series-truth' + (second(s) ? ' p1' : '') }, g);
     }
+    // The Director's pass: his frames, one a second, as a line with no marks.
     for (const s of series) {
-      if (s.source === 'truth') continue;
+      if (s.source !== 'director') continue;
+      const d = path(s.samples, x, yy, 1.5);
+      if (d) svg('path', { d: d, class: 'series-director' + (second(s) ? ' p1' : '') }, g);
+    }
+    for (const s of series) {
+      if (s.source === 'truth' || s.source === 'director') continue;
       const p = second(s) ? ' p1' : '';
       const d = path(s.samples, x, yy, 1.5);
       if (d) svg('path', { d: d, class: 'series-odin' + p }, g);
@@ -643,9 +820,30 @@
       }
     }
     if (lane.id === 'staleness') {
-      for (const e of S.tl.events.filter((ev) => ev.lane === 'staleness')) {
-        const m = marker(g, e.shape, x(e.met_s), top + 6 + (e.row || 0) * 12, 4.5, 'hit sev-' + e.severity);
-        m.setAttribute('data-hit', addHit(e.label, eventTip(e), { event: e }));
+      const events = S.tl.events.filter((ev) => ev.lane === 'staleness').sort((a, b) => a.met_s - b.met_s);
+      const rowCy = (row) => (lane.strip ? y + 11 + row * 13 : top + 6 + row * 12);
+      const hits = events.map((e) => {
+        const hit = addHit(e.label, eventTip(e), { event: e });
+        const m = marker(g, e.shape, x(e.met_s), rowCy(e.row || 0), lane.strip ? 4 : 4.5, 'hit sev-' + e.severity);
+        m.setAttribute('data-hit', hit);
+        return hit;
+      });
+      if (lane.strip) {
+        // The strip above the chart: its rows named in the scale's gutter, and each
+        // row's state written at its first mark and wherever it changes, over the marks.
+        [['STALENESS', 0], ['LINK', 1]].forEach(([tag, row]) => svgText(root, PLOT_X - 8, rowCy(row) + 3.5, tag, 'row-tag strip-tag', 'end'));
+        const named = {};
+        events.forEach((e, i) => {
+          const row = e.row || 0;
+          const state = e.label.replace(/^Ground (staleness|link) /, '').replace(/, \d+ packets$/, '');
+          if (named[row] === state) return;
+          named[row] = state;
+          // Written past any marks that share its moment, so it starts clear of them.
+          const at = Math.max.apply(null, events.filter((o) => (o.row || 0) === row && o.met_s >= e.met_s && o.met_s - e.met_s <= 2).map((o) => x(o.met_s)));
+          const late = at + 8 + state.length * CHAR_W > x1;
+          const t = svgText(g, late ? x(e.met_s) - 8 : at + 8, rowCy(row) + 4.5, state, 'ev-label hit', late ? 'end' : 'start');
+          t.setAttribute('data-hit', hits[i]);
+        });
       }
     }
   }
@@ -673,6 +871,7 @@
       const top = y + 3 + i * rh;
       const sev = s.state_severity || {};
       const truth = s.source === 'truth';
+      const director = s.source === 'director';
       // Runs of one value over frames that follow each other. A lone sample (a
       // turn's observation with no history row around it) is a thin tick.
       const runs = [];
@@ -696,7 +895,8 @@
         const label = changed ? fit(String(run.value), room) : '';
         if (label && rh >= 12) svgText(g, x0 + (lone ? 5 : 3), top + rh / 2 + 4, label, lone ? 'ev-label muted' : 'span-label');
       });
-      svgText(g, PLOT_X + S.geo.plotW - 4, top + rh / 2 + 4, truth ? 'TRUTH' : 'ODIN', truth ? 'row-tag truth' : 'row-tag', 'end');
+      svgText(g, PLOT_X + S.geo.plotW - 4, top + rh / 2 + 4, truth ? 'TRUTH' : director ? 'DIRECTOR' : 'ODIN',
+        truth ? 'row-tag truth' : director ? 'row-tag director' : 'row-tag', 'end');
     });
   }
 
@@ -745,9 +945,12 @@
       const s = S.tl.series[id];
       if (!s || (s.source === 'truth' && !S.showTruth)) continue;
       const q = nearest(s.samples, met, 2);
-      out.push({ series: id, point: s.point, source: s.source === 'truth' ? 'Simulator truth, never seen by ODIN' : (s.derived ? 'Derived by VERDA from ODIN’s bundles' : 'ODIN’s turn bundles'),
+      const source = s.source === 'truth' ? 'Simulator truth, never seen by ODIN'
+        : s.source === 'director' ? (s.derived ? 'Derived by VERDA from the Director’s frames' : 'The Director’s pass, his ground station’s frames')
+          : (s.derived ? 'Derived by VERDA from ODIN’s bundles' : 'ODIN’s turn bundles');
+      out.push({ series: id, point: s.point, source: source,
         met_s: q ? q[0] : null, value: q ? q[1] : null, limit_state: q ? q[2] : null,
-        from: q ? ({ obs: 'a turn’s observation (limit state as recorded)', hist: 'a bundle’s history row (limit state computed by VERDA)', truth: 'truth.jsonl (limit state computed by VERDA)', derived: 'derived' }[q[3]] || q[3]) : 'no sample within 2 s', units: s.units });
+        from: q ? ({ obs: 'a turn’s observation (limit state as recorded)', hist: 'a bundle’s history row (limit state computed by VERDA)', truth: 'truth.jsonl (limit state computed by VERDA)', pass: 'a frame his ground station received (limit state computed by VERDA)', derived: 'derived' }[q[3]] || q[3]) : 'no sample within 2 s', units: s.units });
     }
     return { lane: lane.label, near_met_s: Math.round(met), values: out };
   }
@@ -756,7 +959,7 @@
     const v = chartValues(laneId, met);
     const lines = [v.lane + ' near MET ' + v.near_met_s];
     for (const item of v.values) {
-      const who = item.source.startsWith('Simulator') ? 'truth ' : 'ODIN  ';
+      const who = item.source.startsWith('Simulator') ? 'truth    ' : item.series.startsWith('director:') ? 'Director ' : 'ODIN     ';
       const name = STRING_NAMES[item.point] ? STRING_NAMES[item.point].toLowerCase() + ' (' + item.point + ')' : item.point;
       lines.push(who + name + ': ' + (item.value === null ? 'no frame' : fmt(item.value, item.units) + (item.limit_state && item.limit_state !== 'NONE' ? '  ' + words(item.limit_state) : '') + '  (MET ' + item.met_s + ')'));
     }
@@ -774,6 +977,7 @@
       if (kind === 'log' && S.tl.records[id]) out.push(S.tl.records[id]);
       else if (kind === 'truth' && S.tl.truth_records[id]) out.push(Object.assign({ shown_as: 'Simulator truth, never seen by ODIN' }, S.tl.truth_records[id]));
       else if (kind === 'turn') out.push(turnDetail(id));
+      else if (kind === 'pass' && S.tl.pass_records && S.tl.pass_records[id]) out.push(Object.assign({ shown_as: 'The Director’s pass, a row of his file' }, S.tl.pass_records[id]));
     }
     return out;
   }
@@ -801,6 +1005,20 @@
     } else if (p.request) {
       const r = p.request;
       inspect('Request ' + r.request_id, JSON.stringify({ summary: r.summary, records: recordsFor(r.refs) }, null, 2));
+    } else if (p.passCommand) {
+      const c = p.passCommand;
+      inspect('The Director’s command · MET ' + c.met_s.toFixed(2), JSON.stringify({
+        summary: c.summary, sent_utc: c.utc, met_s: c.met_s, placed: c.met_basis,
+        his_telemetry_next: c.outcome.text + ' (derived by VERDA)', rows: recordsFor(c.refs) }, null, 2));
+    } else if (p.scenarioCommand) {
+      const c = p.scenarioCommand;
+      inspect('The scenario’s command · MET ' + c.met_s, JSON.stringify({
+        not_the_directors: 'sent by the scenario itself; his pass carried it',
+        summary: c.summary, met_s: c.met_s, command: c.command, parameters: c.parameters,
+        when: c.when, contact_window: Object.assign({ plan_id: c.plan_id }, c.contact_window),
+        kept_in_odins_runs: c.kept_in_odins_runs, source: c.source,
+        his_telemetry_next: c.outcome.text + (c.outcome.kind === 'outside' ? '' : ' (derived by VERDA)'),
+        rows: recordsFor(c.refs) }, null, 2));
     } else if (p.record) {
       inspect('Record ' + p.record.record_id + ' · ' + p.record.type, JSON.stringify(p.record, null, 2));
     } else if (p.note) {
@@ -935,27 +1153,44 @@
     box.title = 'Scale ' + lo + ' to ' + hi + (named.length ? '; limits: ' + named.join(', ') : '');
   }
 
+  // One boxed readout. Its big number is ODIN's, or the Director's when the
+  // timeline holds his pass alone; beside ODIN's, a line gives the Director's.
   function readout(grid, spec) {
     const tl = S.tl, t = S.met;
+    const main = spec.points.some((p) => tl.series['odin:' + p]) ? 'odin' : 'director';
+    const whose = main === 'odin' ? 'ODIN’s frame' : 'His frame';
     const box = html('div', 'ro' + (spec.wide ? ' wide' : ''), grid);
     html('div', 'lab', box, spec.label);
     const line = html('div', 'line', box);
     const subs = html('div', 'sub', box);
+    const dirLine = main === 'odin' && passInfo(tl) ? html('div', 'sub dirv', box) : null;
     const truthLine = html('div', 'sub truthv', box);
     let ages = [];
     spec.points.forEach((p, i) => {
-      const odin = tl.series['odin:' + p];
-      const q = odin ? lastAtOrBefore(odin.samples, t) : null;
+      const s0 = tl.series[main + ':' + p];
+      const q = s0 ? lastAtOrBefore(s0.samples, t) : null;
       if (i > 0) html('span', 'sep', line, spec.joiner || ' ');
       if (spec.names) html('span', 'nm', line, spec.names[i]);
-      html('span', 'val', line, q ? num(q[1], odin.units) : '-');
-      if (q && typeof q[1] === 'number' && odin.units && odin.units !== 'n/a' && (!spec.oneUnit || i === spec.points.length - 1)) html('span', 'unit', line, odin.units);
+      html('span', 'val', line, q ? num(q[1], s0.units) : '-');
+      if (q && typeof q[1] === 'number' && s0.units && s0.units !== 'n/a' && (!spec.oneUnit || i === spec.points.length - 1)) html('span', 'unit', line, s0.units);
       if (q && !spec.noChip) chip(line, q[2]);
       if (q && p !== 'FRAME_AGE') ages.push(Math.floor(t) - q[0]);
-      if (i === 0 && spec.gauge && q) gauge(box, q[1], spec.gauge[0], spec.gauge[1], spec.gauge[2], odin.limits, q[2]);
+      if (i === 0 && spec.gauge && q) gauge(box, q[1], spec.gauge[0], spec.gauge[1], spec.gauge[2], s0.limits, q[2]);
     });
     const age = ages.length ? Math.max.apply(null, ages) : null;
-    html('span', 'age', subs, spec.points[0] === 'FRAME_AGE' ? 'derived by VERDA' : (age === null ? '' : age <= 1 ? 'ODIN’s frame: now' : 'ODIN’s frame: ' + age + ' s old'));
+    html('span', 'age', subs, spec.points[0] === 'FRAME_AGE' ? 'derived by VERDA' : (age === null ? '' : age <= 1 ? whose + ': now' : whose + ': ' + age + ' s old'));
+    if (dirLine) {
+      let oldest = 0;
+      const dv = spec.points.map((p) => {
+        const s = tl.series['director:' + p];
+        const q = s ? lastAtOrBefore(s.samples, t) : null;
+        if (!q) return null;
+        if (p !== 'FRAME_AGE') oldest = Math.max(oldest, Math.floor(t) - q[0]);
+        const state = q[2] && q[2] !== 'NONE' && q[2] !== 'GREEN' ? ' ' + words(q[2]) : '';
+        return num(q[1], s.units) + (s.units && s.units !== 'n/a' ? ' ' + s.units : '') + state;
+      }).filter((v) => v !== null);
+      dirLine.textContent = dv.length ? 'DIRECTOR ' + dv.join(' · ') + (oldest > 1 ? ' (' + oldest + ' s old)' : '') : 'DIRECTOR no frame yet';
+    }
     if (S.showTruth) {
       const tv = spec.points.map((p) => {
         const s = tl.series['truth:' + p];
@@ -972,14 +1207,21 @@
     clear(box);
     $('now-title').textContent = 'At MET ' + Math.floor(t) + ' s';
     const facts = html('div', 'facts', box);
+    const only = passOnly(tl), pass = passInfo(tl);
     const contact = spanAt('contact', 0, t);
-    html('span', 'fact ' + (contact ? 'good' : 'off'), facts, contact ? 'IN CONTACT' : 'OUT OF CONTACT');
-    const plan = spanAt('authority', 1, t) || spanAt('authority', 0, t);
-    html('span', 'fact', facts, plan ? 'PLAN ' + plan.label : 'NO PLAN IN FORCE');
-    const rung = spanAt('authority', 2, t);
-    if (rung) html('span', 'fact ' + (rung.severity === 'good' ? 'good' : 'alarm'), facts, rung.label);
+    if (only) {
+      html('span', 'fact ' + (contact ? 'good' : 'off'), facts, contact ? 'IN PLAN WINDOW' : 'OUTSIDE PLAN WINDOW');
+      html('span', 'fact', facts, pass.plan_id ? 'PLAN ' + pass.plan_id : 'NO PLAN FOUND');
+      html('span', 'fact director', facts, 'THE DIRECTOR’S PASS ALONE');
+    } else {
+      html('span', 'fact ' + (contact ? 'good' : 'off'), facts, contact ? 'IN CONTACT' : 'OUT OF CONTACT');
+      const plan = spanAt('authority', 1, t) || spanAt('authority', 0, t);
+      html('span', 'fact', facts, plan ? 'PLAN ' + plan.label : 'NO PLAN IN FORCE');
+      const rung = spanAt('authority', 2, t);
+      if (rung) html('span', 'fact ' + (rung.severity === 'good' ? 'good' : 'alarm'), facts, rung.label);
+    }
     const grid = html('div', 'readouts', box);
-    const has = (p) => !!tl.series['odin:' + p];
+    const has = (p) => !!(tl.series['odin:' + p] || tl.series['director:' + p]);
     if (has('EPS_BATT_SOC')) readout(grid, { label: 'State of charge', points: ['EPS_BATT_SOC'], gauge: [0, 100, 20] });
     if (has('EPS_BATT_V')) readout(grid, { label: 'Battery voltage', points: ['EPS_BATT_V'], gauge: [6.6, 8.7, 21] });
     if (has('EPS_LOAD_I')) readout(grid, { label: 'Load current', points: ['EPS_LOAD_I'], gauge: [0, 2.5, 25] });
@@ -990,9 +1232,16 @@
     let turn = null;
     for (const k of Object.keys(tl.turns)) { const tt = tl.turns[k]; if (tt.met_s !== null && tt.met_s <= t) turn = tt; }
     const last = html('div', 'ro wide turnbox', grid);
-    html('div', 'lab', last, 'Latest turn');
-    html('div', 'turn', last, turn ? turn.summary : 'none yet');
-    if (S.showTruth) html('div', 'truth-note', box, 'SIM TRUTH: the simulator’s true state, never seen by ODIN.');
+    if (!only) {
+      html('div', 'lab', last, 'Latest turn');
+      html('div', 'turn', last, turn ? turn.summary : 'none yet');
+    }
+    if (pass) {
+      const cmd = (tl.pass_commands || []).filter((c) => c.met_s <= t).pop();
+      if (only) html('div', 'lab', last, 'The Director’s latest command');
+      html('div', 'turn dirv', last, (only ? '' : 'DIRECTOR: ') + (cmd ? cmd.summary + ' at MET ' + cmd.met_s.toFixed(1) : 'no command yet'));
+    }
+    if (S.showTruth && tl.sources && tl.sources.truth) html('div', 'truth-note', box, 'SIM TRUTH: the simulator’s true state, never seen by ODIN.');
   }
 
   function describe(rec) {
@@ -1031,6 +1280,7 @@
     S.feedKey = key;
     const list = $('feed');
     clear(list);
+    if (passOnly(tl)) html('li', 'internal', list, 'No event log: no ODIN run of this pass yet.');
     const recent = shown.slice(-40).reverse();
     recent.forEach((r, i) => {
       const li = html('li', INTERNAL.has(r.type) ? 'internal' : '', list);

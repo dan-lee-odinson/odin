@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""VERDA's converter: run folders in, timeline files out.
+"""VERDA's converter: run folders and the Director's passes in, timeline files out.
 
     python convert/verda_convert.py RUN_FOLDER [RUN_FOLDER ...]
     python convert/verda_convert.py --all FOLDER_OF_RUNS
         options: --out DIR (default page/timelines)  --dictionary PATH  --no-truth
+                 --passes FOLDER_OF_PASSES  --plans FOLDER_OF_PLANS  --scripted FILE
 
 For each run folder it reads events.jsonl and events.head, the saved turn
 bundles in inputs/, and truth.jsonl and truth.head when present. It checks the
@@ -23,6 +24,18 @@ Telemetry comes from two places, kept apart and labeled:
     (every received frame of the points its procedures name).
   - "truth": the simulator's true state, one record per tick, from truth.jsonl.
     ODIN never reads it. Shown only as "simulator truth, never seen by ODIN".
+  - "director": the Director's own pass of the same scenario, flown in HUGINN:
+    the commands he sent and the frames his ground station received
+    (convert/pass_records.py). It is a separate flight, on the same MET axis.
+  - "scenario": the commands the scenario sent by itself, which his pass
+    carried (convert/scripted_commands.py). They sit on his side, apart from
+    his own commands, and are never his. ODIN's runs keep the ones before
+    contact and drop the ones in contact.
+
+With --passes, each run is paired with the Director's pass of its scenario
+whose frames its MET span covers, and each pass that no run pairs with gets a
+timeline of its own, beside its plan's contact window (--plans). With
+--scripted, each pass's timeline also shows the scenario's own commands.
 """
 
 import argparse
@@ -38,7 +51,9 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
 import huginn_dictionary  # noqa: E402
+import pass_records  # noqa: E402
 import record_types  # noqa: E402
+import scripted_commands  # noqa: E402
 
 FORMAT = "verda-timeline"
 FORMAT_VERSION = 1
@@ -46,6 +61,8 @@ FORMAT_VERSION = 1
 ODIN = "odin"
 TRUTH = "truth"
 TRUTH_LABEL = "Simulator truth, never seen by ODIN"
+DIRECTOR = "director"
+SCENARIO = "scenario"
 
 DEFAULT_OUT = HERE.parent / "page" / "timelines"
 DICTIONARY_CANDIDATES = (
@@ -89,6 +106,10 @@ STATE_SEVERITY = {
     "PLD_STATE": {"ON": "info", "OFF": "muted"},
     "ADM_ECLIPSE": {"SUNLIT": "info", "ECLIPSE": "muted"},
 }
+
+# Lane heights in pixels, so that every lane of a run beside a pass fits a 1920 x 1080 screen.
+CHART_H, STATE_H, AGE_H = 48, 38, 56
+STRIP_H = 26  # the strip above the age chart for what a ground seat's bundles recorded
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
@@ -537,7 +558,8 @@ class _Builder:
                 for name in list(intervals):
                     if name not in flags:
                         closed.append((name, intervals.pop(name)))
-                for name in flags:
+                # In sorted order: a set's order changes with Python's hash seed, and so would the file.
+                for name in sorted(flags):
                     if name in intervals:
                         intervals[name][1] = met
                     else:
@@ -721,7 +743,8 @@ def build_timeline(run_dir, dictionary_path, include_truth=True):
     requests = builder.request_rows()
 
     seat = builder.header.get("seat")
-    staleness_short = "Line: newest-frame age, derived"
+    recorded = any(e["lane"] == "staleness" for e in builder.events)
+    staleness_short = "Line derived, marks recorded" if recorded else "Line: newest-frame age, derived"
     if seat == "ONBOARD":
         staleness_short = "Onboard seat: none recorded"
         staleness_note = ("Onboard seat: the ground staleness monitor and the ground link are the "
@@ -729,15 +752,16 @@ def build_timeline(run_dir, dictionary_path, include_truth=True):
                           "the age of the newest frame in ODIN's bundles, derived by VERDA.")
     else:
         staleness_note = ("The line is the age of the newest frame in ODIN's bundles, derived by VERDA. "
-                          "Marks are the staleness state and ground link the bundles recorded.")
+                          "Dots on it are the age each turn's observation recorded. Above the chart are the "
+                          "ground staleness state (circles) and the ground link (squares) the bundles recorded.")
 
     lanes = [
-        {"id": "contact", "label": "Contact", "kind": "track", "height": 34, "rows": 2},
-        {"id": "authority", "label": "Plan and authority", "kind": "track", "height": 54, "rows": 3},
-        {"id": "director", "label": "The Director", "kind": "track", "height": 32, "rows": 1},
-        {"id": "turns", "label": "ODIN's turns", "kind": "track", "height": 40, "rows": 1},
-        {"id": "reports", "label": "Reports and escalations", "kind": "track", "height": 34, "rows": 1},
-        {"id": "commands", "label": "Requests, BALDUR-0, spacecraft", "kind": "requests", "height": 40},
+        {"id": "contact", "label": "Contact", "kind": "track", "height": 30, "rows": 2},
+        {"id": "authority", "label": "Plan and authority", "kind": "track", "height": 48, "rows": 3},
+        {"id": "director", "label": "The Director's check-ins", "kind": "track", "height": 30, "rows": 1},
+        {"id": "turns", "label": "ODIN's turns", "kind": "track", "height": 38, "rows": 1},
+        {"id": "reports", "label": "ODIN's reports and escalations", "kind": "track", "height": 30, "rows": 1},
+        {"id": "commands", "label": "ODIN's requests, BALDUR-0", "kind": "requests", "height": 36},
     ]
     for lane_id, label, lane_points, kind in TELEMETRY_LANES:
         series_ids = []
@@ -746,14 +770,14 @@ def build_timeline(run_dir, dictionary_path, include_truth=True):
                 key = "%s:%s" % (source, point)
                 if key in builder.series:
                     series_ids.append(key)
-        lanes.append({"id": lane_id, "label": label, "kind": kind, "height": 58 if kind == "chart" else 38,
+        lanes.append({"id": lane_id, "label": label, "kind": kind, "height": CHART_H if kind == "chart" else STATE_H,
                       "series": series_ids, "points": list(lane_points)})
     lanes.append({"id": "staleness", "label": "Telemetry age and ground link", "kind": "chart",
-                  "height": 68, "series": ["odin:FRAME_AGE"], "marks": "odin:AGE_S",
+                  "height": AGE_H + (STRIP_H if recorded else 0), "series": ["odin:FRAME_AGE"], "marks": "odin:AGE_S",
                   "points": ["FRAME_AGE"], "note": staleness_note, "note_short": staleness_short,
-                  "rows": 2})
+                  "rows": 2, "strip": recorded})
     if truth_records:
-        lanes.append({"id": "truth", "label": "Simulator truth", "kind": "track", "height": 56,
+        lanes.append({"id": "truth", "label": "Simulator truth", "kind": "track", "height": 54,
                       "rows": 4, "source": TRUTH, "note": TRUTH_LABEL})
 
     for record in records:
@@ -807,6 +831,256 @@ def build_timeline(run_dir, dictionary_path, include_truth=True):
         "record_types": coverage,
         "warnings": builder.warnings,
     }
+
+
+# -- the Director's flown pass -------------------------------------------------
+
+def _pass_note(pass_data):
+    return ("The Director's own pass of this scenario, flown on %s in HUGINN: a separate flight, on the "
+            "same MET axis, from his files commands.csv and telemetry_hk.csv. Each command is placed "
+            "between the two frames his ground station received around its UTC time. What follows each "
+            "command is read from his command counters (CDH_CMD_ACC_CNT, CDH_CMD_REJ_CNT), derived by VERDA."
+            % pass_data["date"])
+
+
+def _telemetry_lane(lane_id, label, lane_points, kind):
+    return {"id": lane_id, "label": label, "kind": kind, "height": CHART_H if kind == "chart" else STATE_H,
+            "series": [], "points": list(lane_points)}
+
+
+SCRIPTED_FILE = "phase2_scripted_commands.json"
+
+
+def _scenario_note(entry):
+    window = entry["contact_window"]
+    return ("Commands the scenario sent by itself, each at a set MET, from HUGINN's scenario file for this pass "
+            "(the input %s; each command's details give its file and line). They are not the Director's. His pass "
+            "carried all of them. ODIN's runs keep the ones before contact and drop the ones in contact, so every "
+            "command during a pass is ODIN's (the Director's ruling on U35). The contact window is plan %s's, MET "
+            "%d to %d. What his telemetry showed after each is read from his command counters, derived by VERDA."
+            % (SCRIPTED_FILE, entry["plan_id"], window["aos_met_s"], window["los_met_s"]))
+
+
+def add_pass(timeline, pass_data, plan, points, scripted=None):
+    """Puts the Director's pass into a timeline as the source "director".
+
+    With `scripted` (scripted_commands.read), the commands the scenario sent by
+    itself go beside his, as the source "scenario"."""
+    name = pass_data["name"]
+    timeline["sources"][DIRECTOR] = {
+        "label": "The Director's pass %s, flown in HUGINN" % name, "kind": "director_pass", "folder": name,
+        "date": pass_data["date"], "plan_id": plan["plan_id"] if plan else None, "files": pass_data["files"]}
+    timeline["header"]["pass"] = {"name": name, "date": pass_data["date"], "tag": pass_data["tag"],
+                                  "plan_id": plan["plan_id"] if plan else None,
+                                  "scenario_id": plan["scenario_id"] if plan else None}
+
+    # His telemetry: every frame, for the points the lanes draw.
+    lane_points = [p for _, _, pts, _ in TELEMETRY_LANES for p in pts]
+    for point in lane_points:
+        info = points.get(point)
+        samples = [[f["met_s"], f["values"][point], pass_records.limit_state(points, point, f["values"][point]), "pass"]
+                   for f in pass_data["frames"] if point in f["values"]]
+        if not samples:
+            continue
+        timeline["series"]["%s:%s" % (DIRECTOR, point)] = {
+            "id": "%s:%s" % (DIRECTOR, point), "source": DIRECTOR, "point": point,
+            "units": info.get("units") if info else None,
+            "kind": "state" if info and info.get("type") == "enum" else "numeric",
+            "states": info.get("enum_values") if info else None,
+            "limits": huginn_dictionary.chart_limits(info), "state_severity": STATE_SEVERITY.get(point),
+            "samples": samples}
+    limits = huginn_dictionary.staleness_limits(points)
+    timeline["series"]["%s:FRAME_AGE" % DIRECTOR] = {
+        "id": "%s:FRAME_AGE" % DIRECTOR, "source": DIRECTOR, "point": "FRAME_AGE", "units": "s",
+        "kind": "numeric", "states": None, "state_severity": None, "derived": True,
+        "limits": {"rl": None, "yl": None, "yh": limits["yellow_s"], "rh": limits["red_s"]},
+        "samples": pass_records.frame_age(pass_data, limits)}
+
+    # His commands, each with the rows it was placed from and what his counters showed next.
+    records = timeline.setdefault("pass_records", {})
+    commands = []
+    by_line = {f["line"]: f for f in pass_data["frames"]}
+    for c in pass_data["commands"]:
+        refs = ["pass:c%d" % c["line"]]
+        records["c%d" % c["line"]] = {"file": pass_records.COMMANDS_FILE, "line": c["line"], "fields": c["fields"]}
+        frame_lines = list(c["frame_lines"])
+        if c["outcome"].get("line"):
+            frame_lines.append(c["outcome"]["line"])
+        for line in frame_lines:
+            refs.append("pass:h%d" % line)
+            records["h%d" % line] = {"file": pass_records.TELEMETRY_FILE, "line": line, "fields": by_line[line]["fields"]}
+        kind = c["outcome"]["kind"]
+        commands.append({
+            "id": "pc%d" % c["line"], "line": c["line"], "command": c["command"], "parameters": c["parameters"],
+            "utc": c["utc"], "met_s": c["met_s"], "met_basis": c["met_basis"],
+            "outcome": c["outcome"], "outcome_met_s": c["outcome"].get("met_s"),
+            "summary": "%s -> sent -> %s" % (("%s %s" % (c["command"], _fmt_params(c["parameters"]))).strip(),
+                                             {"unchanged": "no counter change"}.get(kind, kind)),
+            "status": {"accepted": "good", "rejected": "bad"}.get(kind, "warn"), "refs": refs})
+
+    # The scenario's own commands, which his pass carried: on his side, never his.
+    entry = scripted_commands.for_plan(scripted, plan["plan_id"]) if scripted and plan else None
+    scenario = []
+    for k, s in enumerate(entry["commands"] if entry else [], start=1):
+        result = pass_records.outcome_at_met(pass_data["frames"], s["met_s"])
+        refs = []
+        for line in (result.get("before_line"), result.get("line")):
+            if line:
+                refs.append("pass:h%d" % line)
+                records["h%d" % line] = {"file": pass_records.TELEMETRY_FILE, "line": line, "fields": by_line[line]["fields"]}
+        kind = result["kind"]
+        scenario.append({
+            "id": "sc%d" % k, "met_s": s["met_s"], "command": s["command"], "parameters": s["parameters"],
+            "when": s["when"], "kept_in_odins_runs": s["kept_in_odins_runs"], "source": s["source"],
+            "plan_id": entry["plan_id"], "contact_window": entry["contact_window"],
+            "outcome": result, "outcome_met_s": result.get("met_s"),
+            "summary": "%s, %s: ODIN's runs %s it" % (("%s %s" % (s["command"], _fmt_params(s["parameters"]))).strip(),
+                                                    s["when"], "keep" if s["kept_in_odins_runs"] else "drop"),
+            "status": {"accepted": "good", "rejected": "bad", "outside": "muted"}.get(kind, "warn"), "refs": refs})
+    # A counter change in a span where both his command and the scenario's were sent is credited to neither.
+    for mine, theirs, who in ((commands, scenario, "the scenario's"), (scenario, commands, "the Director's")):
+        for c in mine:
+            shared = pass_records.sharing(c["met_s"], c["outcome"], [(o["met_s"], who, o["command"]) for o in theirs])
+            if shared and c["outcome"]["kind"] != "outside":
+                c["outcome"] = dict(c["outcome"], shared=[{"met_s": m, "who": w, "command": n} for m, w, n in shared])
+                c["outcome"]["text"] += "; %s %s at MET %.2f was sent in the same span, so the change may be its" % (
+                    shared[0][1], shared[0][2], shared[0][0])
+                c["status"] = "warn"
+                c["summary"] += " (span shared with %s %s)" % (shared[0][1], shared[0][2])
+    timeline["pass_commands"] = commands
+    timeline["scenario_commands"] = scenario
+    if scripted:
+        timeline["sources"][SCENARIO] = {
+            "label": "The scenario's own commands, carried by his pass %s" % name, "kind": "scenario_commands",
+            "file": scripted["file"], "sha256": scripted["sha256"], "plan_id": entry["plan_id"] if entry else None}
+
+    # The lanes: his commands beside ODIN's requests, his lines on every telemetry lane.
+    lanes = timeline["lanes"]
+    ids = [lane["id"] for lane in lanes]
+    after = ids.index("commands") + 1 if "commands" in ids else (ids.index("contact") + 1 if "contact" in ids else 0)
+    lanes.insert(after, {"id": "pass-commands", "label": "The Director's commands", "kind": "pass-commands",
+                         "height": 36, "source": DIRECTOR, "note": _pass_note(pass_data),
+                         "note_short": "His pass %s" % name})
+    if entry:
+        empty = None if scenario else "The scenario sent no command by itself in this pass."
+        note, short = _scenario_note(entry), "ODIN's runs drop the in-contact ones"
+    elif scripted:
+        empty = "The scripted-commands file lists no pass flown under plan %s." % (plan["plan_id"] if plan else "(none)")
+        note, short = empty, "Not listed in the file"
+    else:
+        empty = "Not shown: the converter was given no scripted-commands file (--scripted)."
+        note, short = empty, "No file given"
+    lanes.insert(after + 1, {"id": "scenario-commands", "label": "The scenario's commands", "kind": "scenario-commands",
+                             "height": 36, "source": SCENARIO, "note": note, "note_short": short, "empty": empty})
+    by_id = {lane["id"]: lane for lane in lanes}
+    for lane_id, label, pts, kind in TELEMETRY_LANES:
+        lane = by_id.get(lane_id)
+        if lane is None:
+            lane = _telemetry_lane(lane_id, label, pts, kind)
+            lanes.append(lane)
+            by_id[lane_id] = lane
+        for point in pts:
+            key = "%s:%s" % (DIRECTOR, point)
+            if key in timeline["series"] and key not in lane["series"]:
+                lane["series"].append(key)
+        if kind == "state" and len(lane["series"]) >= 3:
+            lane["height"] = STATE_H + 8  # a third row, the Director's
+    staleness = by_id.get("staleness")
+    if staleness is None:
+        staleness = {"id": "staleness", "label": "Telemetry age", "kind": "chart", "height": AGE_H, "series": [],
+                     "points": ["FRAME_AGE"], "rows": 2,
+                     "note": "The age of the newest frame his ground station had received, derived by VERDA.",
+                     "note_short": "His newest frame's age, derived"}
+        lanes.append(staleness)
+    staleness["series"].append("%s:FRAME_AGE" % DIRECTOR)
+    if "truth" in by_id:  # the truth lane stays last
+        lanes.remove(by_id["truth"])
+        lanes.append(by_id["truth"])
+
+    ok = not pass_data["problems"]
+    timeline["integrity"].append({
+        "label": "Director's pass", "kind": "pass_files", "ok": ok, "chain": None, "head": None,
+        "records": len(pass_data["frames"]) + len(pass_data["commands"]), "problems": pass_data["problems"][:20],
+        "file": name, "files": pass_data["files"],
+        "summary": "%d frames, %d commands%s" % (len(pass_data["frames"]), len(pass_data["commands"]),
+                                                  "" if pass_records.COMMANDS_FILE in pass_data["files"]
+                                                  else " (no commands.csv: he sent none)")})
+    if scripted:
+        timeline["integrity"].append({
+            "label": "Scenario's commands", "kind": "scripted_file", "ok": not scripted["problems"], "chain": None,
+            "head": None, "records": len(scenario), "problems": scripted["problems"][:20], "file": scripted["file"],
+            "summary": "%d of the scenario's commands for plan %s, each checked against its plan file" % (
+                len(scenario), entry["plan_id"]) if entry else "no pass in the file is flown under this plan"})
+    low = min([timeline["met_range"][0], pass_data["met_range"][0]] + [c["met_s"] for c in commands])
+    high = max([timeline["met_range"][1], pass_data["met_range"][1]] + [c["met_s"] for c in commands])
+    timeline["met_range"] = [low, high]
+    return timeline
+
+
+def pass_timeline(pass_data, plan, points, scripted=None):
+    """A timeline for a pass no run pairs with yet: the Director's flight beside its plan's window."""
+    tid = "pass-%s" % pass_data["name"]
+    if not _SAFE_ID.match(tid):
+        raise RunFolderError("pass %r cannot name a file" % pass_data["name"])
+    spans = []
+    lanes = [{"id": "contact", "label": "Plan contact window", "kind": "track", "height": 30, "rows": 1}]
+    met_range = list(pass_data["met_range"])
+    if plan:
+        spans.append({"lane": "contact", "start": plan["aos_met_s"], "end": plan["los_met_s"],
+                      "label": "Plan %s contact window" % plan["plan_id"], "severity": "planned", "refs": [], "row": 0})
+        met_range = [min(met_range[0], plan["aos_met_s"]), max(met_range[1], plan["los_met_s"])]
+    timeline = {
+        "format": FORMAT, "format_version": FORMAT_VERSION, "id": tid,
+        "title": "The Director's pass %s" % pass_data["name"], "met_range": met_range,
+        "sources": {},
+        "header": {"phase": 2, "pass_only": True,
+                   "scenario_id": plan["scenario_id"] if plan else pass_data["tag"]},
+        "integrity": [], "lanes": lanes, "spans": spans, "events": [], "requests": [], "series": {},
+        "turns": {}, "records": {}, "truth_records": {}, "record_types": [],
+        "warnings": [] if plan else ["no phase-2 plan's contact window holds this pass"],
+    }
+    return add_pass(timeline, pass_data, plan, points, scripted)
+
+
+def run_summary(run_dir):
+    """A run's scenario and MET span, read from its event log, for pairing it with a pass."""
+    scenario, mets = None, []
+    with open(Path(run_dir) / "events.jsonl", encoding="utf-8") as handle:
+        for line in handle:
+            record = json.loads(line)
+            if record.get("type") == "RUN_START":
+                scenario = record.get("body", {}).get("scenario_id")
+            if isinstance(record.get("met_s"), (int, float)):
+                mets.append(record["met_s"])
+    return {"scenario": pass_records.scenario_base(scenario), "met_range": [min(mets), max(mets)] if mets else None}
+
+
+def pass_for_run(run_dir, passes):
+    """The Director's pass of the run's scenario that the run's MET span covers most of (at least half)."""
+    summary = run_summary(run_dir)
+    best, score = None, 0.5
+    if summary["met_range"] is None:
+        return None
+    for p in passes:
+        if p["scenario"] != summary["scenario"]:
+            continue
+        s = pass_records.overlap(p["met_range"], summary["met_range"])
+        if s >= score:
+            best, score = p, s
+    return best
+
+
+def read_passes(passes_dir, points):
+    return [pass_records.read_pass(p, points) for p in sorted(Path(passes_dir).iterdir())
+            if (p / pass_records.TELEMETRY_FILE).exists()]
+
+
+def read_plans(plans_dir):
+    return [pass_records.read_plan(p) for p in sorted(Path(plans_dir).glob("*.yaml"))] if plans_dir else []
+
+
+def read_scripted(scripted_path, plans_dir):
+    return scripted_commands.read(scripted_path, read_plans(plans_dir)) if scripted_path else None
 
 
 # -- output ------------------------------------------------------------------
@@ -866,12 +1140,66 @@ def write_index(out_dir):
     return _write_output(out_dir, "index.js", text)
 
 
-def convert(run_dir, out_dir=DEFAULT_OUT, dictionary_path=None, include_truth=True):
+def convert(run_dir, out_dir=DEFAULT_OUT, dictionary_path=None, include_truth=True, pass_dir=None, plans_dir=None,
+            scripted_path=None):
+    """One run's timeline file; with pass_dir, the Director's pass beside it, and with scripted_path the
+    scenario's own commands on his side."""
     dictionary_path = dictionary_path or find_dictionary()
     timeline = build_timeline(run_dir, dictionary_path, include_truth)
+    if pass_dir is not None:
+        points = huginn_dictionary.read_points(dictionary_path)
+        pass_data = pass_records.read_pass(pass_dir, points)
+        add_pass(timeline, pass_data, pass_records.plan_for(pass_data, read_plans(plans_dir)), points,
+                 read_scripted(scripted_path, plans_dir))
+        timeline["title"] = "%s beside the Director's pass %s" % (timeline["id"], pass_data["name"])
     path = _write_output(out_dir, timeline["id"] + ".js", timeline_script(timeline))
     write_index(out_dir)
     return path, timeline
+
+
+def convert_pass(pass_dir, out_dir=DEFAULT_OUT, dictionary_path=None, plans_dir=None, scripted_path=None):
+    """A timeline file for a pass of the Director's that no run pairs with yet."""
+    dictionary_path = dictionary_path or find_dictionary()
+    points = huginn_dictionary.read_points(dictionary_path)
+    pass_data = pass_records.read_pass(pass_dir, points)
+    timeline = pass_timeline(pass_data, pass_records.plan_for(pass_data, read_plans(plans_dir)), points,
+                             read_scripted(scripted_path, plans_dir))
+    name = timeline["id"] + ".js"
+    path = _write_output(out_dir, name, timeline_script(timeline))
+    write_index(out_dir)
+    return path, timeline
+
+
+def convert_all(runs, out_dir=DEFAULT_OUT, dictionary_path=None, include_truth=True, passes_dir=None, plans_dir=None,
+                scripted_path=None):
+    """Every run, each beside the Director's pass of its scenario if one lines up, then each pass no run took.
+
+    Yields (what, path, timeline) or (what, None, the exception) for each timeline file."""
+    dictionary_path = dictionary_path or find_dictionary()
+    passes = read_passes(passes_dir, huginn_dictionary.read_points(dictionary_path)) if passes_dir else []
+    taken = set()
+    for run in runs:
+        match = pass_for_run(run, passes) if passes else None
+        try:
+            path, timeline = convert(run, out_dir, dictionary_path, include_truth,
+                                     Path(passes_dir) / match["name"] if match else None, plans_dir, scripted_path)
+        except (RunFolderError, huginn_dictionary.DictionaryError, pass_records.PassError,
+                scripted_commands.ScriptedError, OSError) as exc:
+            yield Path(run).name, None, exc
+            continue
+        if match:
+            taken.add(match["name"])
+        yield Path(run).name, path, timeline
+    for p in passes:
+        if p["name"] in taken:
+            continue
+        try:
+            path, timeline = convert_pass(Path(passes_dir) / p["name"], out_dir, dictionary_path, plans_dir,
+                                          scripted_path)
+        except (RunFolderError, pass_records.PassError, scripted_commands.ScriptedError, OSError) as exc:
+            yield p["name"], None, exc
+            continue
+        yield p["name"], path, timeline
 
 
 def find_dictionary():
@@ -882,29 +1210,38 @@ def find_dictionary():
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Turn ODIN run folders into VERDA timeline files.")
+    parser = argparse.ArgumentParser(description="Turn ODIN run folders and the Director's passes into VERDA timeline files.")
     parser.add_argument("runs", nargs="*", help="run folders, each holding events.jsonl")
     parser.add_argument("--all", metavar="FOLDER", help="convert every run folder inside FOLDER")
     parser.add_argument("--out", default=str(DEFAULT_OUT), help="where to write timeline files")
     parser.add_argument("--dictionary", help="HUGINN's tlm_cmd.yaml")
     parser.add_argument("--no-truth", action="store_true", help="leave the simulator truth out")
+    parser.add_argument("--passes", metavar="FOLDER", help="the Director's pass folders, each holding telemetry_hk.csv")
+    parser.add_argument("--plans", metavar="FOLDER", help="the plans, for each pass's contact window")
+    parser.add_argument("--scripted", metavar="FILE",
+                        help="each scenario's own scripted commands, shown on the Director's side")
     args = parser.parse_args(argv)
     runs = [Path(r) for r in args.runs]
     if args.all:
         runs += sorted(p for p in Path(args.all).iterdir() if (p / "events.jsonl").exists())
-    if not runs:
-        parser.error("name at least one run folder, or --all FOLDER")
+    if not runs and not args.passes:
+        parser.error("name at least one run folder, or --all FOLDER, or --passes FOLDER")
     status = 0
-    for run in runs:
-        try:
-            path, timeline = convert(run, args.out, args.dictionary, not args.no_truth)
-        except (RunFolderError, huginn_dictionary.DictionaryError, OSError) as exc:
-            print("FAILED %s: %s" % (run, exc), file=sys.stderr)
+    for name, path, timeline in convert_all(runs, args.out, args.dictionary, not args.no_truth, args.passes, args.plans,
+                                            args.scripted):
+        if path is None:
+            print("FAILED %s: %s" % (name, timeline), file=sys.stderr)
             status = 1
             continue
-        broken = [c["label"] for c in timeline["integrity"] if c["chain"] != "VERIFIED"]
-        print("%s -> %s (%d records, %d turns, %d requests%s%s)" % (
-            run.name, path, len(timeline["records"]), len(timeline["turns"]), len(timeline["requests"]),
+        broken = [c["label"] for c in timeline["integrity"] if not c.get("ok", c["chain"] == "VERIFIED")]
+        beside = timeline["header"].get("pass")
+        print("%s -> %s (%d records, %d turns, %d requests%s%s%s)" % (
+            name, path, len(timeline["records"]), len(timeline["turns"]), len(timeline["requests"]),
+            ", beside the Director's pass %s (%d commands, %d of the scenario's)" % (
+                beside["name"], len(timeline["pass_commands"]), len(timeline["scenario_commands"]))
+            if beside and not timeline["header"].get("pass_only") else
+            (", the Director's pass alone (%d commands, %d of the scenario's)" % (
+                len(timeline["pass_commands"]), len(timeline["scenario_commands"])) if beside else ""),
             ", CHECK FAILED: " + ", ".join(broken) if broken else "",
             ", %d warnings" % len(timeline["warnings"]) if timeline["warnings"] else ""))
         for warning in timeline["warnings"]:

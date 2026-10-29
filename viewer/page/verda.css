@@ -34,7 +34,8 @@
   --odin: #eaf6ff;
   --odin-2: #8edcff;
   --truth: #d6be8e;
-  --director: #c8a8ff;
+  --director: #c8a8ff;      /* the Director: his check-ins, and his own flown pass */
+  --director-2: #9a82dc;
   --report: #5fe0c9;
   --info: #7fd2ff;
   --muted: #5b7793;
@@ -70,12 +71,14 @@ body {
     var(--panel);
   clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);
 }
+/* The hairline across each notch. 15 px long, so that turned 45 degrees it stays
+   inside its panel and never gives a scrolling panel a pixel to scroll. */
 .frame::before, .frame::after {
-  content: ""; position: absolute; width: 16px; height: 1px; background: var(--hair-2);
+  content: ""; position: absolute; width: 15px; height: 1px; background: var(--hair-2);
   transform: rotate(-45deg); pointer-events: none; z-index: 2;
 }
-.frame::before { left: -2.5px; top: 5px; }
-.frame::after { right: -2.5px; bottom: 5px; }
+.frame::before { left: -2px; top: 5px; }
+.frame::after { right: -2px; bottom: 5px; }
 
 header#top { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 8px 18px; }
 .brand { display: flex; align-items: baseline; gap: 12px; }
@@ -156,6 +159,9 @@ main { display: grid; grid-template-columns: 1fr 540px; gap: 6px; min-height: 0;
 .ro .sep { color: var(--text-3); }
 .ro .sub { display: flex; justify-content: space-between; gap: 6px; font: 11.5px var(--mono); color: var(--text-3); white-space: nowrap; overflow: hidden; }
 .ro .sub.truthv { color: var(--truth); min-height: 15px; overflow: hidden; text-overflow: ellipsis; }
+.ro .sub.dirv { display: block; color: var(--director); overflow: hidden; text-overflow: ellipsis; }
+.ro .turn.dirv { color: var(--director); }
+.fact.director { color: var(--director); border-color: var(--director); }
 .ro .turn { font-size: 12.5px; color: var(--text-2); line-height: 1.3; }
 .truth-note { margin-top: 6px; font-size: 11.5px; color: var(--truth); letter-spacing: 0.04em; }
 
@@ -223,6 +229,8 @@ svg text { font-family: var(--font); fill: var(--text); }
 .lane-rule { stroke: var(--hair); stroke-width: 1; }
 .lane-mark { fill: var(--bracket); opacity: 0.8; }
 .lane-mark.truth { fill: var(--truth); }
+.lane-mark.director { fill: var(--director); }
+.lane-mark.scenario { fill: none; stroke: var(--director-2); stroke-width: 1.5; }
 .lane-label { font-size: 14px; font-weight: 600; fill: var(--text); }
 .lane-sub { font-size: 11px; fill: var(--text-3); letter-spacing: 0.06em; }
 .lane-sub.truth { fill: var(--truth); font-weight: 600; letter-spacing: 0.12em; }
@@ -240,7 +248,10 @@ svg text { font-family: var(--font); fill: var(--text); }
 .key-text { font-size: 11px; letter-spacing: 0.1em; fill: var(--text-2); }
 .row-tag { font-size: 10px; letter-spacing: 0.14em; fill: var(--text-3); }
 .row-tag.truth { fill: var(--truth); }
+.row-tag.director { fill: var(--director); }
+.row-tag.strip-tag { font-size: 9px; letter-spacing: 0.12em; }
 .note-text { font-size: 12.5px; fill: var(--text-3); font-style: italic; }
+.edge-note { font-size: 11.5px; fill: var(--text-2); font-style: italic; }
 .hit { cursor: pointer; }
 .hit:hover { filter: brightness(1.35); }
 
@@ -251,6 +262,8 @@ svg text { font-family: var(--font); fill: var(--text); }
 .sev-odin { fill: var(--odin); stroke: var(--odin); }
 .sev-report { fill: var(--report); stroke: var(--report); }
 .sev-director { fill: var(--director); stroke: var(--director); }
+/* The scenario's own commands, on his side: hollow, never his filled triangle. */
+.scenario-mark { fill: var(--panel); stroke: var(--director-2); stroke-width: 1.8; }
 .sev-truth { fill: var(--truth); stroke: var(--truth); }
 .sev-quiet, .sev-muted { fill: var(--muted); stroke: var(--muted); }
 
@@ -275,6 +288,7 @@ svg text { font-family: var(--font); fill: var(--text); }
 .hatch-truth-line { stroke: var(--truth); stroke-width: 1; opacity: 0.10; }
 .truth-frame { fill: none; stroke: var(--truth); stroke-width: 1; stroke-dasharray: 6 4; opacity: 0.7; }
 .truth-tag { font: 600 11px var(--font); letter-spacing: 0.16em; fill: var(--truth); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
+.truth-plate { fill: var(--panel); stroke: var(--truth); stroke-width: 1; stroke-opacity: 0.5; }
 
 .band-alarm { fill: url(#hatch-alarm); }
 .band-caution { fill: url(#hatch-caution); }
@@ -289,6 +303,8 @@ svg text { font-family: var(--font); fill: var(--text); }
 .series-odin.p1 { stroke: var(--odin-2); }
 .series-truth { fill: none; stroke: var(--truth); stroke-width: 1.4; stroke-dasharray: 5 4; opacity: 0.95; }
 .series-truth.p1 { opacity: 0.6; }
+.series-director { fill: none; stroke: var(--director); stroke-width: 1.6; }
+.series-director.p1 { stroke: var(--director-2); }
 .dot-obs { stroke: var(--panel); stroke-width: 1.5; }
 .dot-obs.ring { fill: none; stroke-width: 1.6; }
 .ls-GREEN { fill: var(--good); }

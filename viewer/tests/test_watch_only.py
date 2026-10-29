@@ -1,4 +1,5 @@
-"""VERDA is watch-only: the converter writes its own two files and nothing else."""
+"""VERDA is watch-only: the converter writes its own timeline files and nothing else,
+and leaves every run folder, pass folder and plan as it found them."""
 
 import hashlib
 import shutil
@@ -30,6 +31,29 @@ class WatchOnly(unittest.TestCase):
             after = snapshot(tmp)
         added = sorted(set(after) - set(before))
         self.assertEqual(added, ["out/%s.js" % source.name, "out/index.js"])
+        self.assertEqual({k: after[k] for k in before}, before, "a file that was there before changed")
+
+    def test_with_passes_it_writes_only_timelines_and_leaves_passes_and_plans_untouched(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runs = Path(tmp, "runs")
+            for source in S.all_runs():
+                shutil.copytree(source, runs / source.name)
+            passes, plans = Path(tmp, "pass-records"), Path(tmp, "plans")
+            shutil.copytree(S.passes_dir(), passes)
+            shutil.copytree(S.plans_dir(), plans)
+            scripted = Path(tmp, "scripted-commands", S.scripted_path().name)
+            scripted.parent.mkdir()
+            shutil.copy(S.scripted_path(), scripted)
+            out = Path(tmp, "out")
+            before = snapshot(tmp)
+            results = list(vc.convert_all(sorted(runs.iterdir()), out, S.dictionary_path(), True, passes, plans, scripted))
+            after = snapshot(tmp)
+        self.assertEqual([r[1] is not None for r in results], [True] * 7)
+        added = sorted(set(after) - set(before))
+        # The ground-seat run's timeline is named by its run_id, dev-s6-0001.
+        names = list(S.PRACTICE_RUNS) + ["dev-s6-0001", "pass-2026-09-13-P1", "pass-2026-09-20-P2a",
+                                         "pass-2026-09-20-P2b", "index"]
+        self.assertEqual(added, sorted("out/%s.js" % name for name in names))
         self.assertEqual({k: after[k] for k in before}, before, "a file that was there before changed")
 
     def test_output_names_cannot_leave_the_folder(self):

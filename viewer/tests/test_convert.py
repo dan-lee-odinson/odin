@@ -1,9 +1,14 @@
 """The converter's checks: hashing, the log's chain, limit states, the truth
-mapping, and the timeline each practice run becomes."""
+mapping, the timeline each practice run becomes, what the ground-seat run's
+bundles recorded of the ground link and staleness, and that the same inputs give
+the same files."""
 
 import json
+import os
 import shutil
 import struct
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -32,8 +37,8 @@ class CanonicalJson(unittest.TestCase):
 
 
 class HashChain(unittest.TestCase):
-    def test_practice_runs_verify(self):
-        for run in S.practice_runs():
+    def test_every_run_verifies(self):
+        for run in S.all_runs():
             for name in ("events", "truth"):
                 with self.subTest(run=run.name, file=name):
                     records, check = vc.read_chain(run / (name + ".jsonl"), run / (name + ".head"))
@@ -70,7 +75,7 @@ class Limits(unittest.TestCase):
         """VERDA's limit states agree with every limit state the bundles recorded."""
         points = hd.read_points(S.dictionary_path())
         compared = 0
-        for run in S.practice_runs():
+        for run in S.all_runs():
             for trigger, bundle in S.bundles(run):
                 for name, point in (bundle["observation"]["points"] or {}).items():
                     with self.subTest(run=run.name, turn=bundle["turn_id"], point=name):
@@ -83,7 +88,7 @@ class TruthMapping(unittest.TestCase):
     def test_truth_matches_every_observation(self):
         """Each observed frame equals the simulator's true state at that frame's MET."""
         compared = 0
-        for run in S.practice_runs():
+        for run in S.all_runs():
             truth = {}
             with open(run / "truth.jsonl", encoding="utf-8") as handle:
                 for line in handle:
@@ -198,6 +203,73 @@ class Timelines(unittest.TestCase):
                     refs.update(request["refs"])
                 missing = [k for k in tl["records"] if "log:" + k not in refs]
                 self.assertEqual(missing, [])
+
+
+class Repeatable(unittest.TestCase):
+    def test_the_same_inputs_give_the_same_files_whatever_the_hash_seed(self):
+        """Python orders a set by its hash seed, which changes from one process to the next."""
+        made = []
+        with tempfile.TemporaryDirectory() as tmp:
+            for seed in ("1", "2", "3", "4"):
+                out = Path(tmp, seed)
+                done = subprocess.run(
+                    [sys.executable, str(S.ROOT / "convert" / "verda_convert.py"), *map(str, S.all_runs()),
+                     "--out", str(out), "--dictionary", str(S.dictionary_path()), "--passes", str(S.passes_dir()),
+                     "--plans", str(S.plans_dir()), "--scripted", str(S.scripted_path())],
+                    env=dict(os.environ, PYTHONHASHSEED=seed, PYTHONDONTWRITEBYTECODE="1"),
+                    capture_output=True, text=True, timeout=300)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                made.append({p.name: p.read_bytes() for p in sorted(out.glob("*.js"))})
+        self.assertEqual(len(made[0]), len(S.ALL_RUNS) + 3 + 1)  # each run, the three passes alone, the index
+        for seed, files in zip(("2", "3", "4"), made[1:]):
+            with self.subTest(seed=seed):
+                self.assertEqual(sorted(files), sorted(made[0]))
+                self.assertEqual([n for n in files if files[n] != made[0][n]], [])
+
+
+class GroundSeat(unittest.TestCase):
+    """S5's live check, flown in the ground seat: its bundles carry the ground
+    station's staleness state and ground link, which an onboard seat's never do."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        path, _ = vc.convert(S.ground_seat_run(), Path(cls.tmp.name), S.dictionary_path())
+        cls.tl = vc.read_timeline_script(path)[1]
+        cls.observed = [(trigger["met_s"], bundle["observation"]) for trigger, bundle in S.bundles(S.ground_seat_run())]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_its_bundles_staleness_and_ground_link_are_drawn(self):
+        tl = self.tl
+        self.assertEqual((tl["id"], tl["header"]["seat"], tl["header"]["scenario_id"]), ("dev-s6-0001", "GROUND", "P3"))
+        lane = [l for l in tl["lanes"] if l["id"] == "staleness"][0]
+        self.assertTrue(lane["strip"])
+        self.assertEqual(lane["height"], vc.AGE_H + vc.STRIP_H)
+        marks = [e for e in tl["events"] if e["lane"] == "staleness"]
+        states = [(e["met_s"], e["label"]) for e in marks if (e.get("row") or 0) == 0]
+        links = [(e["met_s"], e["label"]) for e in marks if e.get("row") == 1]
+        # What each turn's bundle recorded, read here from the bundles themselves.
+        self.assertEqual(states, [(m, "Ground staleness %s" % o["staleness_state"]) for m, o in self.observed])
+        self.assertEqual(links, [(m, "Ground link %s, %d packets" % (o["ground_link"]["state"], o["ground_link"]["received_count"]))
+                                 for m, o in self.observed])
+        self.assertEqual([label.split()[-1] for _, label in states], ["GREEN"] * 9 + ["YELLOW"])
+        self.assertEqual(states[-1][0], 909)
+        self.assertEqual([int(label.split()[-2]) for _, label in links], [100] * 5 + [101, 110, 170, 200, 200])
+        contact = [(s["start"], s["end"]) for s in tl["spans"] if s["lane"] == "contact" and s.get("row") == 0]
+        self.assertEqual(contact, [(800, 900)])
+
+    def test_its_derived_frame_age_agrees_with_the_age_it_recorded(self):
+        derived = {q[0]: q for q in self.tl["series"]["odin:FRAME_AGE"]["samples"]}
+        recorded = self.tl["series"]["odin:AGE_S"]["samples"]
+        self.assertEqual(len(recorded), len(set(m for m, _ in self.observed)))
+        for met, age, state, _ in recorded:
+            with self.subTest(met=met):
+                self.assertEqual(derived[met][1:3], [age, state])
+        self.assertEqual(derived[900][1:3], [1, "GREEN"])
+        self.assertEqual(derived[909][1:3], [10, "YELLOW"])
 
 
 if __name__ == "__main__":
