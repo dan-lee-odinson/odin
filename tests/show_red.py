@@ -607,7 +607,7 @@ CASES = {"s0": [
      "tests/test_inputs_plans_acts.py::test_contact_a_is_frozen_and_listed_by_pass_2b",
      change_file("plans/TYR0-P2-PASS2B-v1.contact-a-telemetry.csv", replace_once(b",2519,2520,", b",2518,2520,"))),
     ("an arming act expiring a day after the submission deadline",
-     "tests/test_inputs_plans_acts.py::test_the_six_arming_acts_cover_the_runs_section_3_lists",
+     "tests/test_inputs_plans_acts.py::test_the_arming_acts_cover_the_runs_section_3_lists_and_phase_1s_second_run",
      change_file("acts/ARM-PH2-PASS3.yaml", replace_once(b"2026-11-05T02:00:00.000Z", b"2026-11-06T02:00:00.000Z"))),
     ("PASS-1's plan naming the COSMOS reference by a hash one digit off",
      "tests/test_inputs_plans_acts.py::test_every_hash_a_plan_lists_is_a_file_here_or_a_placeholder[TYR0-P2-PASS1-v1]",

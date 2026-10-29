@@ -171,13 +171,15 @@ def test_each_plan_ends_its_references_with_the_dictionary_and_baldur0s_class_ta
 
 # -- the arming acts ---------------------------------------------------------------------------------------
 
-def test_the_six_arming_acts_cover_the_runs_section_3_lists():
+def test_the_arming_acts_cover_the_runs_section_3_lists_and_phase_1s_second_run():
+    # ARM-PH1-R2 for phase 1's second run (the Director's ruling of 29 October 2026, after R1's build defect).
     acts = {p.stem: yaml.safe_load(p.read_bytes()) for p in ACTS}
-    assert sorted(acts) == ["ARM-PH1", "ARM-PH2-PASS1", "ARM-PH2-PASS2A", "ARM-PH2-PASS2B", "ARM-PH2-PASS3",
-                            "ARM-PH2-PASS4"]
+    assert sorted(acts) == ["ARM-PH1", "ARM-PH1-R2", "ARM-PH2-PASS1", "ARM-PH2-PASS2A", "ARM-PH2-PASS2B",
+                            "ARM-PH2-PASS3", "ARM-PH2-PASS4"]
     for act_id, act in acts.items():
         assert check("arming_act", act) == [] and act["act_id"] == act_id
         assert (act["rung"], act["expires_utc"], len(act["plan_chain_hashes"])) == (
             "AI_AUTONOMOUS", "2026-11-05T02:00:00.000Z", 1)
     assert acts["ARM-PH1"]["runs"] == ["PH1-SHAKEDOWN-SPARK-R1"]
+    assert acts["ARM-PH1-R2"]["runs"] == ["PH1-SHAKEDOWN-SPARK-R2"]
     assert acts["ARM-PH2-PASS3"]["runs"] == [f"PH2-PASS3-{m}-R{n}" for m in ("SPARK", "OPEN") for n in range(1, 6)]

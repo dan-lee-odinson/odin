@@ -310,3 +310,12 @@ def test_the_phase_1_plan_runs_1800_s_and_holds_every_check_in():
 def test_arm_ph1_lists_the_phase_1_plan_by_its_hash():
     act = yaml.safe_load((REPO_ROOT / "acts" / "ARM-PH1.yaml").read_text(encoding="utf-8"))
     assert act["plan_chain_hashes"] == [inst_dictionary.sha256(PHASE_1_PLAN.read_bytes())]
+
+
+def test_arm_ph1_r2_is_arm_ph1_with_only_its_id_and_run_changed():
+    # The Director's ruling of 29 October 2026: phase 1's second run, on the same signed plan.
+    first = (REPO_ROOT / "acts" / "ARM-PH1.yaml").read_bytes().split(b"\n")
+    second = (REPO_ROOT / "acts" / "ARM-PH1-R2.yaml").read_bytes().split(b"\n")
+    assert len(first) == len(second)
+    assert [(a, b) for a, b in zip(first, second) if a != b] == [
+        (b"act_id: ARM-PH1", b"act_id: ARM-PH1-R2"), (b"  - PH1-SHAKEDOWN-SPARK-R1", b"  - PH1-SHAKEDOWN-SPARK-R2")]
