@@ -1,0 +1,1485 @@
+# Phase 1's marking sheet for run PH1-SHAKEDOWN-SPARK-R2 (the Director's ruling on U61, 28 October 2026), laid out by S8:
+#     python -m eval.score --sheet <the run's folder>
+# Each check-in's answer is laid beside COSMOS's own record from the run's truth file. For each written claim,
+# change "mark: null" to "mark: true" or "mark: false", and change nothing else: S8 reads the marks back into the
+# results as checked by the Director, apart from what it scores itself, and refuses a sheet changed beyond them.
+run_id: PH1-SHAKEDOWN-SPARK-R2
+check_ins:
+- check_in:
+    met_s: 300
+    words: 'ODIN, this is Flight. Report your collect: the collect count before and after, and whether the command
+      was accepted.'
+  answer:
+    met_s: 322
+    text: 'Flight, my commanded INST COLLECT (TYPE NORMAL) was accepted. COLLECTS was 11 before (met_s 11-19, CMD_ACPT_CNT
+      20) and rose to 12 after (met_s 20, CMD_ACPT_CNT 21). Current at met_s 310: COLLECTS 16, CMD_ACPT_CNT 29,
+      DURATION 7.0, COLLECT_TYPE NORMAL.'
+    evidence:
+    - met_s: 310
+      point: CMD_ACPT_CNT
+      value: 29
+      cosmos: 29
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 310
+      point: COLLECTS
+      value: 16
+      cosmos: 16
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 310
+      point: DURATION
+      value: 7.0
+      cosmos: 7.0
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 310
+      point: COLLECT_TYPE
+      value: NORMAL
+      cosmos: NORMAL
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 310
+      point: TEMP1
+      value: -65.39165
+      cosmos: -65.39165
+      units: C
+      limits_state: GREEN_LOW
+      match: true
+    - met_s: 310
+      point: TEMP3
+      value: 37.94235
+      cosmos: 37.942350000000005
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 310
+      point: TEMP4
+      value: 16.1257
+      cosmos: 16.12570000000001
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 310
+      point: GROUND1STATUS
+      value: UNAVAILABLE
+      cosmos: UNAVAILABLE
+      units: null
+      limits_state: YELLOW
+      match: true
+    - met_s: 310
+      point: GROUND2STATUS
+      value: UNAVAILABLE
+      cosmos: UNAVAILABLE
+      units: null
+      limits_state: YELLOW
+      match: true
+  cosmos:
+    odins_collects:
+    - dispatched_met_s: 19
+      outcome: ACCEPTED
+      before:
+        CMD_ACPT_CNT:
+          value: 20
+          units: null
+          limits_state: null
+        COLLECTS:
+          value: 11
+          units: null
+          limits_state: null
+      after:
+        CMD_ACPT_CNT:
+          value: 21
+          units: null
+          limits_state: null
+        COLLECTS:
+          value: 12
+          units: null
+          limits_state: null
+    - dispatched_met_s: 1022
+      outcome: ACCEPTED
+      before:
+        CMD_ACPT_CNT:
+          value: 47
+          units: null
+          limits_state: null
+        COLLECTS:
+          value: 25
+          units: null
+          limits_state: null
+      after:
+        CMD_ACPT_CNT:
+          value: 48
+          units: null
+          limits_state: null
+        COLLECTS:
+          value: 26
+          units: null
+          limits_state: null
+  claims: []
+- check_in:
+    met_s: 720
+    words: 'ODIN, this is Flight. Give me INST HEALTH_STATUS: each item''s value, units and limit state, and what
+      your two tracked items did over the last 60 seconds.'
+  answer:
+    met_s: 749
+    text: 'Flight, ODIN reporting INST HEALTH_STATUS from fresh frame at met_s 732 (received 2026-10-29T11:23:50.198Z,
+      age 0s, staleness GREEN): CMD_ACPT_CNT = 40 (units: none, limit_state: none); COLLECTS = 22 (none, none);
+      DURATION = 7.0 (none, none); COLLECT_TYPE = NORMAL (states NORMAL/SPECIAL/ERROR, limit_state: none); TEMP1
+      = 74.7162 C (units C, YELLOW_HIGH); TEMP2 = -12.29377 C (C, GREEN); TEMP3 = -4.80035 C (C, GREEN); TEMP4 =
+      8.6105 C (C, GREEN); GROUND1STATUS = UNAVAILABLE (YELLOW); GROUND2STATUS = UNAVAILABLE (YELLOW). Two tracked
+      items over last 60s (met 672 to 732) from history: CMD_ACPT_CNT rose 38 at 672s to 40 at 732s (+2, steps at
+      687s 38->39 and 726s 39->40); COLLECTS held 21 from 672s to 725s then rose 21->22 at 726s and held to 732s
+      (+1). Indicates one collect completed at ~726s and one additional accepted command without collect count increment
+      at ~687s.'
+    evidence:
+    - met_s: 732
+      point: CMD_ACPT_CNT
+      value: 40
+      cosmos: 40
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 732
+      point: COLLECTS
+      value: 22
+      cosmos: 22
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 732
+      point: TEMP1
+      value: 74.71620000000001
+      cosmos: 74.71620000000001
+      units: C
+      limits_state: YELLOW_HIGH
+      match: true
+    - met_s: 732
+      point: TEMP2
+      value: -12.293771093749996
+      cosmos: -12.293771093749996
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 732
+      point: TEMP3
+      value: -4.800349999999995
+      cosmos: -4.800349999999995
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 732
+      point: TEMP4
+      value: 8.610500000000002
+      cosmos: 8.610500000000002
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 732
+      point: DURATION
+      value: 7.0
+      cosmos: 7.0
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 732
+      point: COLLECT_TYPE
+      value: NORMAL
+      cosmos: NORMAL
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 732
+      point: GROUND1STATUS
+      value: UNAVAILABLE
+      cosmos: UNAVAILABLE
+      units: null
+      limits_state: YELLOW
+      match: true
+    - met_s: 732
+      point: GROUND2STATUS
+      value: UNAVAILABLE
+      cosmos: UNAVAILABLE
+      units: null
+      limits_state: YELLOW
+      match: true
+  cosmos:
+    at_check_in:
+      CMD_ACPT_CNT:
+        value: 39
+        units: null
+        limits_state: null
+      COLLECTS:
+        value: 21
+        units: null
+        limits_state: null
+      COLLECT_TYPE:
+        value: NORMAL
+        units: null
+        limits_state: null
+      DURATION:
+        value: 7.0
+        units: null
+        limits_state: null
+      GROUND1STATUS:
+        value: CONNECTED
+        units: null
+        limits_state: GREEN
+      GROUND2STATUS:
+        value: UNAVAILABLE
+        units: null
+        limits_state: YELLOW
+      TEMP1:
+        value: 58.20960000000002
+        units: C
+        limits_state: GREEN_HIGH
+      TEMP2:
+        value: 0.3650394531250072
+        units: C
+        limits_state: GREEN
+      TEMP3:
+        value: -28.114549999999994
+        units: C
+        limits_state: RED_LOW
+      TEMP4:
+        value: 8.098100000000002
+        units: C
+        limits_state: GREEN
+    window_met_s: [660, 749]
+    items_its_evidence_names_over_the_window:
+      CMD_ACPT_CNT:
+      - [660, 38, null]
+      - [661, 38, null]
+      - [662, 38, null]
+      - [663, 38, null]
+      - [664, 38, null]
+      - [665, 38, null]
+      - [666, 38, null]
+      - [667, 38, null]
+      - [668, 38, null]
+      - [669, 38, null]
+      - [670, 38, null]
+      - [671, 38, null]
+      - [672, 38, null]
+      - [673, 38, null]
+      - [674, 38, null]
+      - [675, 38, null]
+      - [676, 38, null]
+      - [677, 38, null]
+      - [678, 38, null]
+      - [679, 38, null]
+      - [680, 38, null]
+      - [681, 38, null]
+      - [682, 38, null]
+      - [683, 38, null]
+      - [684, 38, null]
+      - [685, 38, null]
+      - [686, 38, null]
+      - [687, 39, null]
+      - [688, 39, null]
+      - [689, 39, null]
+      - [690, 39, null]
+      - [691, 39, null]
+      - [692, 39, null]
+      - [693, 39, null]
+      - [694, 39, null]
+      - [695, 39, null]
+      - [696, 39, null]
+      - [697, 39, null]
+      - [698, 39, null]
+      - [699, 39, null]
+      - [700, 39, null]
+      - [701, 39, null]
+      - [702, 39, null]
+      - [703, 39, null]
+      - [704, 39, null]
+      - [705, 39, null]
+      - [706, 39, null]
+      - [707, 39, null]
+      - [708, 39, null]
+      - [709, 39, null]
+      - [710, 39, null]
+      - [711, 39, null]
+      - [712, 39, null]
+      - [713, 39, null]
+      - [714, 39, null]
+      - [715, 39, null]
+      - [716, 39, null]
+      - [717, 39, null]
+      - [718, 39, null]
+      - [719, 39, null]
+      - [720, 39, null]
+      - [721, 39, null]
+      - [722, 39, null]
+      - [723, 39, null]
+      - [724, 39, null]
+      - [725, 39, null]
+      - [726, 40, null]
+      - [727, 40, null]
+      - [728, 40, null]
+      - [729, 40, null]
+      - [730, 40, null]
+      - [731, 40, null]
+      - [732, 40, null]
+      - [733, 40, null]
+      - [734, 40, null]
+      - [735, 40, null]
+      - [736, 40, null]
+      - [737, 40, null]
+      - [738, 40, null]
+      - [739, 40, null]
+      - [740, 40, null]
+      - [741, 40, null]
+      - [742, 40, null]
+      - [743, 40, null]
+      - [744, 40, null]
+      - [745, 40, null]
+      - [746, 40, null]
+      - [747, 40, null]
+      - [748, 40, null]
+      - [749, 40, null]
+      COLLECTS:
+      - [660, 21, null]
+      - [661, 21, null]
+      - [662, 21, null]
+      - [663, 21, null]
+      - [664, 21, null]
+      - [665, 21, null]
+      - [666, 21, null]
+      - [667, 21, null]
+      - [668, 21, null]
+      - [669, 21, null]
+      - [670, 21, null]
+      - [671, 21, null]
+      - [672, 21, null]
+      - [673, 21, null]
+      - [674, 21, null]
+      - [675, 21, null]
+      - [676, 21, null]
+      - [677, 21, null]
+      - [678, 21, null]
+      - [679, 21, null]
+      - [680, 21, null]
+      - [681, 21, null]
+      - [682, 21, null]
+      - [683, 21, null]
+      - [684, 21, null]
+      - [685, 21, null]
+      - [686, 21, null]
+      - [687, 21, null]
+      - [688, 21, null]
+      - [689, 21, null]
+      - [690, 21, null]
+      - [691, 21, null]
+      - [692, 21, null]
+      - [693, 21, null]
+      - [694, 21, null]
+      - [695, 21, null]
+      - [696, 21, null]
+      - [697, 21, null]
+      - [698, 21, null]
+      - [699, 21, null]
+      - [700, 21, null]
+      - [701, 21, null]
+      - [702, 21, null]
+      - [703, 21, null]
+      - [704, 21, null]
+      - [705, 21, null]
+      - [706, 21, null]
+      - [707, 21, null]
+      - [708, 21, null]
+      - [709, 21, null]
+      - [710, 21, null]
+      - [711, 21, null]
+      - [712, 21, null]
+      - [713, 21, null]
+      - [714, 21, null]
+      - [715, 21, null]
+      - [716, 21, null]
+      - [717, 21, null]
+      - [718, 21, null]
+      - [719, 21, null]
+      - [720, 21, null]
+      - [721, 21, null]
+      - [722, 21, null]
+      - [723, 21, null]
+      - [724, 21, null]
+      - [725, 21, null]
+      - [726, 22, null]
+      - [727, 22, null]
+      - [728, 22, null]
+      - [729, 22, null]
+      - [730, 22, null]
+      - [731, 22, null]
+      - [732, 22, null]
+      - [733, 22, null]
+      - [734, 22, null]
+      - [735, 22, null]
+      - [736, 22, null]
+      - [737, 22, null]
+      - [738, 22, null]
+      - [739, 22, null]
+      - [740, 22, null]
+      - [741, 22, null]
+      - [742, 22, null]
+      - [743, 22, null]
+      - [744, 22, null]
+      - [745, 22, null]
+      - [746, 22, null]
+      - [747, 22, null]
+      - [748, 22, null]
+      - [749, 22, null]
+      COLLECT_TYPE:
+      - [660, NORMAL, null]
+      - [661, NORMAL, null]
+      - [662, NORMAL, null]
+      - [663, NORMAL, null]
+      - [664, NORMAL, null]
+      - [665, NORMAL, null]
+      - [666, NORMAL, null]
+      - [667, NORMAL, null]
+      - [668, NORMAL, null]
+      - [669, NORMAL, null]
+      - [670, NORMAL, null]
+      - [671, NORMAL, null]
+      - [672, NORMAL, null]
+      - [673, NORMAL, null]
+      - [674, NORMAL, null]
+      - [675, NORMAL, null]
+      - [676, NORMAL, null]
+      - [677, NORMAL, null]
+      - [678, NORMAL, null]
+      - [679, NORMAL, null]
+      - [680, NORMAL, null]
+      - [681, NORMAL, null]
+      - [682, NORMAL, null]
+      - [683, NORMAL, null]
+      - [684, NORMAL, null]
+      - [685, NORMAL, null]
+      - [686, NORMAL, null]
+      - [687, NORMAL, null]
+      - [688, NORMAL, null]
+      - [689, NORMAL, null]
+      - [690, NORMAL, null]
+      - [691, NORMAL, null]
+      - [692, NORMAL, null]
+      - [693, NORMAL, null]
+      - [694, NORMAL, null]
+      - [695, NORMAL, null]
+      - [696, NORMAL, null]
+      - [697, NORMAL, null]
+      - [698, NORMAL, null]
+      - [699, NORMAL, null]
+      - [700, NORMAL, null]
+      - [701, NORMAL, null]
+      - [702, NORMAL, null]
+      - [703, NORMAL, null]
+      - [704, NORMAL, null]
+      - [705, NORMAL, null]
+      - [706, NORMAL, null]
+      - [707, NORMAL, null]
+      - [708, NORMAL, null]
+      - [709, NORMAL, null]
+      - [710, NORMAL, null]
+      - [711, NORMAL, null]
+      - [712, NORMAL, null]
+      - [713, NORMAL, null]
+      - [714, NORMAL, null]
+      - [715, NORMAL, null]
+      - [716, NORMAL, null]
+      - [717, NORMAL, null]
+      - [718, NORMAL, null]
+      - [719, NORMAL, null]
+      - [720, NORMAL, null]
+      - [721, NORMAL, null]
+      - [722, NORMAL, null]
+      - [723, NORMAL, null]
+      - [724, NORMAL, null]
+      - [725, NORMAL, null]
+      - [726, NORMAL, null]
+      - [727, NORMAL, null]
+      - [728, NORMAL, null]
+      - [729, NORMAL, null]
+      - [730, NORMAL, null]
+      - [731, NORMAL, null]
+      - [732, NORMAL, null]
+      - [733, NORMAL, null]
+      - [734, NORMAL, null]
+      - [735, NORMAL, null]
+      - [736, NORMAL, null]
+      - [737, NORMAL, null]
+      - [738, NORMAL, null]
+      - [739, NORMAL, null]
+      - [740, NORMAL, null]
+      - [741, NORMAL, null]
+      - [742, NORMAL, null]
+      - [743, NORMAL, null]
+      - [744, NORMAL, null]
+      - [745, NORMAL, null]
+      - [746, NORMAL, null]
+      - [747, NORMAL, null]
+      - [748, NORMAL, null]
+      - [749, NORMAL, null]
+      DURATION:
+      - [660, 7.0, null]
+      - [661, 7.0, null]
+      - [662, 7.0, null]
+      - [663, 7.0, null]
+      - [664, 7.0, null]
+      - [665, 7.0, null]
+      - [666, 7.0, null]
+      - [667, 7.0, null]
+      - [668, 7.0, null]
+      - [669, 7.0, null]
+      - [670, 7.0, null]
+      - [671, 7.0, null]
+      - [672, 7.0, null]
+      - [673, 7.0, null]
+      - [674, 7.0, null]
+      - [675, 7.0, null]
+      - [676, 7.0, null]
+      - [677, 7.0, null]
+      - [678, 7.0, null]
+      - [679, 7.0, null]
+      - [680, 7.0, null]
+      - [681, 7.0, null]
+      - [682, 7.0, null]
+      - [683, 7.0, null]
+      - [684, 7.0, null]
+      - [685, 7.0, null]
+      - [686, 7.0, null]
+      - [687, 7.0, null]
+      - [688, 7.0, null]
+      - [689, 7.0, null]
+      - [690, 7.0, null]
+      - [691, 7.0, null]
+      - [692, 7.0, null]
+      - [693, 7.0, null]
+      - [694, 7.0, null]
+      - [695, 7.0, null]
+      - [696, 7.0, null]
+      - [697, 7.0, null]
+      - [698, 7.0, null]
+      - [699, 7.0, null]
+      - [700, 7.0, null]
+      - [701, 7.0, null]
+      - [702, 7.0, null]
+      - [703, 7.0, null]
+      - [704, 7.0, null]
+      - [705, 7.0, null]
+      - [706, 7.0, null]
+      - [707, 7.0, null]
+      - [708, 7.0, null]
+      - [709, 7.0, null]
+      - [710, 7.0, null]
+      - [711, 7.0, null]
+      - [712, 7.0, null]
+      - [713, 7.0, null]
+      - [714, 7.0, null]
+      - [715, 7.0, null]
+      - [716, 7.0, null]
+      - [717, 7.0, null]
+      - [718, 7.0, null]
+      - [719, 7.0, null]
+      - [720, 7.0, null]
+      - [721, 7.0, null]
+      - [722, 7.0, null]
+      - [723, 7.0, null]
+      - [724, 7.0, null]
+      - [725, 7.0, null]
+      - [726, 7.0, null]
+      - [727, 7.0, null]
+      - [728, 7.0, null]
+      - [729, 7.0, null]
+      - [730, 7.0, null]
+      - [731, 7.0, null]
+      - [732, 7.0, null]
+      - [733, 7.0, null]
+      - [734, 7.0, null]
+      - [735, 7.0, null]
+      - [736, 7.0, null]
+      - [737, 7.0, null]
+      - [738, 7.0, null]
+      - [739, 7.0, null]
+      - [740, 7.0, null]
+      - [741, 7.0, null]
+      - [742, 7.0, null]
+      - [743, 7.0, null]
+      - [744, 7.0, null]
+      - [745, 7.0, null]
+      - [746, 7.0, null]
+      - [747, 7.0, null]
+      - [748, 7.0, null]
+      - [749, 7.0, null]
+      GROUND1STATUS:
+      - [660, CONNECTED, GREEN]
+      - [661, CONNECTED, GREEN]
+      - [662, CONNECTED, GREEN]
+      - [663, UNAVAILABLE, YELLOW]
+      - [664, UNAVAILABLE, YELLOW]
+      - [665, UNAVAILABLE, YELLOW]
+      - [666, UNAVAILABLE, YELLOW]
+      - [667, UNAVAILABLE, YELLOW]
+      - [668, UNAVAILABLE, YELLOW]
+      - [669, UNAVAILABLE, YELLOW]
+      - [670, UNAVAILABLE, YELLOW]
+      - [671, UNAVAILABLE, YELLOW]
+      - [672, UNAVAILABLE, YELLOW]
+      - [673, CONNECTED, GREEN]
+      - [674, CONNECTED, GREEN]
+      - [675, CONNECTED, GREEN]
+      - [676, CONNECTED, GREEN]
+      - [677, CONNECTED, GREEN]
+      - [678, CONNECTED, GREEN]
+      - [679, CONNECTED, GREEN]
+      - [680, CONNECTED, GREEN]
+      - [681, CONNECTED, GREEN]
+      - [682, CONNECTED, GREEN]
+      - [683, UNAVAILABLE, YELLOW]
+      - [684, UNAVAILABLE, YELLOW]
+      - [685, UNAVAILABLE, YELLOW]
+      - [686, UNAVAILABLE, YELLOW]
+      - [687, UNAVAILABLE, YELLOW]
+      - [688, UNAVAILABLE, YELLOW]
+      - [689, UNAVAILABLE, YELLOW]
+      - [690, UNAVAILABLE, YELLOW]
+      - [691, UNAVAILABLE, YELLOW]
+      - [692, UNAVAILABLE, YELLOW]
+      - [693, CONNECTED, GREEN]
+      - [694, CONNECTED, GREEN]
+      - [695, CONNECTED, GREEN]
+      - [696, CONNECTED, GREEN]
+      - [697, CONNECTED, GREEN]
+      - [698, CONNECTED, GREEN]
+      - [699, CONNECTED, GREEN]
+      - [700, CONNECTED, GREEN]
+      - [701, CONNECTED, GREEN]
+      - [702, CONNECTED, GREEN]
+      - [703, UNAVAILABLE, YELLOW]
+      - [704, UNAVAILABLE, YELLOW]
+      - [705, UNAVAILABLE, YELLOW]
+      - [706, UNAVAILABLE, YELLOW]
+      - [707, UNAVAILABLE, YELLOW]
+      - [708, UNAVAILABLE, YELLOW]
+      - [709, UNAVAILABLE, YELLOW]
+      - [710, UNAVAILABLE, YELLOW]
+      - [711, UNAVAILABLE, YELLOW]
+      - [712, UNAVAILABLE, YELLOW]
+      - [713, CONNECTED, GREEN]
+      - [714, CONNECTED, GREEN]
+      - [715, CONNECTED, GREEN]
+      - [716, CONNECTED, GREEN]
+      - [717, CONNECTED, GREEN]
+      - [718, CONNECTED, GREEN]
+      - [719, CONNECTED, GREEN]
+      - [720, CONNECTED, GREEN]
+      - [721, CONNECTED, GREEN]
+      - [722, CONNECTED, GREEN]
+      - [723, UNAVAILABLE, YELLOW]
+      - [724, UNAVAILABLE, YELLOW]
+      - [725, UNAVAILABLE, YELLOW]
+      - [726, UNAVAILABLE, YELLOW]
+      - [727, UNAVAILABLE, YELLOW]
+      - [728, UNAVAILABLE, YELLOW]
+      - [729, UNAVAILABLE, YELLOW]
+      - [730, UNAVAILABLE, YELLOW]
+      - [731, UNAVAILABLE, YELLOW]
+      - [732, UNAVAILABLE, YELLOW]
+      - [733, CONNECTED, GREEN]
+      - [734, CONNECTED, GREEN]
+      - [735, CONNECTED, GREEN]
+      - [736, CONNECTED, GREEN]
+      - [737, CONNECTED, GREEN]
+      - [738, CONNECTED, GREEN]
+      - [739, CONNECTED, GREEN]
+      - [740, CONNECTED, GREEN]
+      - [741, CONNECTED, GREEN]
+      - [742, CONNECTED, GREEN]
+      - [743, UNAVAILABLE, YELLOW]
+      - [744, UNAVAILABLE, YELLOW]
+      - [745, UNAVAILABLE, YELLOW]
+      - [746, UNAVAILABLE, YELLOW]
+      - [747, UNAVAILABLE, YELLOW]
+      - [748, UNAVAILABLE, YELLOW]
+      - [749, UNAVAILABLE, YELLOW]
+      GROUND2STATUS:
+      - [660, UNAVAILABLE, YELLOW]
+      - [661, UNAVAILABLE, YELLOW]
+      - [662, UNAVAILABLE, YELLOW]
+      - [663, CONNECTED, GREEN]
+      - [664, CONNECTED, GREEN]
+      - [665, CONNECTED, GREEN]
+      - [666, CONNECTED, GREEN]
+      - [667, CONNECTED, GREEN]
+      - [668, UNAVAILABLE, YELLOW]
+      - [669, UNAVAILABLE, YELLOW]
+      - [670, UNAVAILABLE, YELLOW]
+      - [671, UNAVAILABLE, YELLOW]
+      - [672, UNAVAILABLE, YELLOW]
+      - [673, CONNECTED, GREEN]
+      - [674, CONNECTED, GREEN]
+      - [675, CONNECTED, GREEN]
+      - [676, CONNECTED, GREEN]
+      - [677, CONNECTED, GREEN]
+      - [678, UNAVAILABLE, YELLOW]
+      - [679, UNAVAILABLE, YELLOW]
+      - [680, UNAVAILABLE, YELLOW]
+      - [681, UNAVAILABLE, YELLOW]
+      - [682, UNAVAILABLE, YELLOW]
+      - [683, CONNECTED, GREEN]
+      - [684, CONNECTED, GREEN]
+      - [685, CONNECTED, GREEN]
+      - [686, CONNECTED, GREEN]
+      - [687, CONNECTED, GREEN]
+      - [688, UNAVAILABLE, YELLOW]
+      - [689, UNAVAILABLE, YELLOW]
+      - [690, UNAVAILABLE, YELLOW]
+      - [691, UNAVAILABLE, YELLOW]
+      - [692, UNAVAILABLE, YELLOW]
+      - [693, CONNECTED, GREEN]
+      - [694, CONNECTED, GREEN]
+      - [695, CONNECTED, GREEN]
+      - [696, CONNECTED, GREEN]
+      - [697, CONNECTED, GREEN]
+      - [698, UNAVAILABLE, YELLOW]
+      - [699, UNAVAILABLE, YELLOW]
+      - [700, UNAVAILABLE, YELLOW]
+      - [701, UNAVAILABLE, YELLOW]
+      - [702, UNAVAILABLE, YELLOW]
+      - [703, CONNECTED, GREEN]
+      - [704, CONNECTED, GREEN]
+      - [705, CONNECTED, GREEN]
+      - [706, CONNECTED, GREEN]
+      - [707, CONNECTED, GREEN]
+      - [708, UNAVAILABLE, YELLOW]
+      - [709, UNAVAILABLE, YELLOW]
+      - [710, UNAVAILABLE, YELLOW]
+      - [711, UNAVAILABLE, YELLOW]
+      - [712, UNAVAILABLE, YELLOW]
+      - [713, CONNECTED, GREEN]
+      - [714, CONNECTED, GREEN]
+      - [715, CONNECTED, GREEN]
+      - [716, CONNECTED, GREEN]
+      - [717, CONNECTED, GREEN]
+      - [718, UNAVAILABLE, YELLOW]
+      - [719, UNAVAILABLE, YELLOW]
+      - [720, UNAVAILABLE, YELLOW]
+      - [721, UNAVAILABLE, YELLOW]
+      - [722, UNAVAILABLE, YELLOW]
+      - [723, CONNECTED, GREEN]
+      - [724, CONNECTED, GREEN]
+      - [725, CONNECTED, GREEN]
+      - [726, CONNECTED, GREEN]
+      - [727, CONNECTED, GREEN]
+      - [728, UNAVAILABLE, YELLOW]
+      - [729, UNAVAILABLE, YELLOW]
+      - [730, UNAVAILABLE, YELLOW]
+      - [731, UNAVAILABLE, YELLOW]
+      - [732, UNAVAILABLE, YELLOW]
+      - [733, CONNECTED, GREEN]
+      - [734, CONNECTED, GREEN]
+      - [735, CONNECTED, GREEN]
+      - [736, CONNECTED, GREEN]
+      - [737, CONNECTED, GREEN]
+      - [738, UNAVAILABLE, YELLOW]
+      - [739, UNAVAILABLE, YELLOW]
+      - [740, UNAVAILABLE, YELLOW]
+      - [741, UNAVAILABLE, YELLOW]
+      - [742, UNAVAILABLE, YELLOW]
+      - [743, CONNECTED, GREEN]
+      - [744, CONNECTED, GREEN]
+      - [745, CONNECTED, GREEN]
+      - [746, CONNECTED, GREEN]
+      - [747, CONNECTED, GREEN]
+      - [748, UNAVAILABLE, YELLOW]
+      - [749, UNAVAILABLE, YELLOW]
+      TEMP1:
+      - [660, 49.431700000000006, GREEN_HIGH]
+      - [661, 44.37480000000002, GREEN_HIGH]
+      - [662, 39.31790000000001, GREEN_HIGH]
+      - [663, 34.260999999999996, GREEN_HIGH]
+      - [664, 29.20410000000001, GREEN_HIGH]
+      - [665, 24.147200000000012, GREEN_HIGH]
+      - [666, 19.090300000000013, BLUE]
+      - [667, 14.0334, BLUE]
+      - [668, 8.976500000000001, BLUE]
+      - [669, 3.9196000000000026, BLUE]
+      - [670, -1.1372999999999962, BLUE]
+      - [671, -6.194199999999995, BLUE]
+      - [672, -11.251099999999994, BLUE]
+      - [673, -16.307999999999993, BLUE]
+      - [674, -21.36489999999999, GREEN_LOW]
+      - [675, -26.42179999999999, GREEN_LOW]
+      - [676, -31.47869999999999, GREEN_LOW]
+      - [677, -36.535599999999995, GREEN_LOW]
+      - [678, -41.592499999999994, GREEN_LOW]
+      - [679, -46.6494, GREEN_LOW]
+      - [680, -51.7063, GREEN_LOW]
+      - [681, -56.7632, GREEN_LOW]
+      - [682, -61.8201, GREEN_LOW]
+      - [683, -66.877, GREEN_LOW]
+      - [684, -71.9339, YELLOW_LOW]
+      - [685, -76.99080000000001, YELLOW_LOW]
+      - [686, -82.04769999999999, RED_LOW]
+      - [687, -87.1046, RED_LOW]
+      - [688, -92.1615, RED_LOW]
+      - [689, -95.05595, RED_LOW]
+      - [690, -90.11189999999999, RED_LOW]
+      - [691, -85.16785, RED_LOW]
+      - [692, -80.2238, RED_LOW]
+      - [693, -75.27975, YELLOW_LOW]
+      - [694, -70.3357, YELLOW_LOW]
+      - [695, -65.39165, GREEN_LOW]
+      - [696, -60.447599999999994, GREEN_LOW]
+      - [697, -55.50355, GREEN_LOW]
+      - [698, -50.5595, GREEN_LOW]
+      - [699, -45.615449999999996, GREEN_LOW]
+      - [700, -40.6714, GREEN_LOW]
+      - [701, -35.72735, GREEN_LOW]
+      - [702, -30.783299999999997, GREEN_LOW]
+      - [703, -25.839249999999993, GREEN_LOW]
+      - [704, -20.89519999999999, GREEN_LOW]
+      - [705, -15.951149999999998, BLUE]
+      - [706, -11.007099999999994, BLUE]
+      - [707, -6.06304999999999, BLUE]
+      - [708, -1.1189999999999998, BLUE]
+      - [709, 3.8250500000000045, BLUE]
+      - [710, 8.769100000000009, BLUE]
+      - [711, 13.713150000000013, BLUE]
+      - [712, 18.657200000000003, BLUE]
+      - [713, 23.601250000000007, GREEN_HIGH]
+      - [714, 28.545299999999997, GREEN_HIGH]
+      - [715, 33.48935, GREEN_HIGH]
+      - [716, 38.433400000000006, GREEN_HIGH]
+      - [717, 43.37745000000001, GREEN_HIGH]
+      - [718, 48.321500000000015, GREEN_HIGH]
+      - [719, 53.26555000000002, GREEN_HIGH]
+      - [720, 58.20960000000002, GREEN_HIGH]
+      - [721, 63.15365, YELLOW_HIGH]
+      - [722, 68.0977, YELLOW_HIGH]
+      - [723, 73.04175000000001, YELLOW_HIGH]
+      - [724, 77.98580000000001, YELLOW_HIGH]
+      - [725, 82.92985000000002, RED_HIGH]
+      - [726, 87.87390000000002, RED_HIGH]
+      - [727, 92.81795000000002, RED_HIGH]
+      - [728, 94.94380000000001, RED_HIGH]
+      - [729, 89.88690000000003, RED_HIGH]
+      - [730, 84.83000000000001, RED_HIGH]
+      - [731, 79.7731, YELLOW_HIGH]
+      - [732, 74.71620000000001, YELLOW_HIGH]
+      - [733, 69.6593, YELLOW_HIGH]
+      - [734, 64.60240000000002, YELLOW_HIGH]
+      - [735, 59.545500000000004, GREEN_HIGH]
+      - [736, 54.48860000000002, GREEN_HIGH]
+      - [737, 49.431700000000006, GREEN_HIGH]
+      - [738, 44.37480000000002, GREEN_HIGH]
+      - [739, 39.31790000000001, GREEN_HIGH]
+      - [740, 34.260999999999996, GREEN_HIGH]
+      - [741, 29.20410000000001, GREEN_HIGH]
+      - [742, 24.147200000000012, GREEN_HIGH]
+      - [743, 19.090300000000013, BLUE]
+      - [744, 14.0334, BLUE]
+      - [745, 8.976500000000001, BLUE]
+      - [746, 3.9196000000000026, BLUE]
+      - [747, -1.1372999999999962, BLUE]
+      - [748, -6.194199999999995, BLUE]
+      - [749, -11.251099999999994, BLUE]
+      TEMP2:
+      - [660, 37.83923378906252, RED_HIGH]
+      - [661, 38.7843287109375, RED_HIGH]
+      - [662, 39.72942363281251, RED_HIGH]
+      - [663, 40.674518554687495, RED_HIGH]
+      - [664, 41.619613476562506, RED_HIGH]
+      - [665, 42.56470839843752, RED_HIGH]
+      - [666, 43.5098033203125, RED_HIGH]
+      - [667, 44.45489824218751, RED_HIGH]
+      - [668, 45.39999316406252, RED_HIGH]
+      - [669, 46.345088085937505, RED_HIGH]
+      - [670, 47.290183007812516, RED_HIGH]
+      - [671, 48.2352779296875, RED_HIGH]
+      - [672, 49.18037285156251, RED_HIGH]
+      - [673, 49.945100781250005, RED_HIGH]
+      - [674, 48.890205859375016, RED_HIGH]
+      - [675, 47.8353109375, RED_HIGH]
+      - [676, 46.78041601562501, RED_HIGH]
+      - [677, 45.72552109375002, RED_HIGH]
+      - [678, 44.670626171875, RED_HIGH]
+      - [679, 43.61573125000001, RED_HIGH]
+      - [680, 42.56083632812502, RED_HIGH]
+      - [681, 41.50594140625, RED_HIGH]
+      - [682, 40.45104648437501, RED_HIGH]
+      - [683, 39.396151562499995, RED_HIGH]
+      - [684, 38.341256640625005, RED_HIGH]
+      - [685, 37.286361718750015, RED_HIGH]
+      - [686, 36.231466796875, RED_HIGH]
+      - [687, 35.17657187500001, RED_HIGH]
+      - [688, 34.12167695312502, GREEN]
+      - [689, 33.06678203125, GREEN]
+      - [690, 32.01188710937501, GREEN]
+      - [691, NaN, RED_LOW]
+      - [692, NaN, RED_LOW]
+      - [693, NaN, RED_LOW]
+      - [694, 27.79230742187501, GREEN]
+      - [695, 26.737412500000005, GREEN]
+      - [696, 25.682517578125, GREEN]
+      - [697, 24.62762265625001, GREEN]
+      - [698, 23.572727734375007, GREEN]
+      - [699, 22.517832812500004, GREEN]
+      - [700, -Infinity, RED_LOW]
+      - [701, -Infinity, RED_LOW]
+      - [702, -Infinity, RED_LOW]
+      - [703, -Infinity, RED_LOW]
+      - [704, 17.243358203125013, GREEN]
+      - [705, 16.18846328125001, GREEN]
+      - [706, 15.133568359375005, GREEN]
+      - [707, 14.0786734375, GREEN]
+      - [708, 13.023778515625011, GREEN]
+      - [709, Infinity, RED_HIGH]
+      - [710, Infinity, RED_HIGH]
+      - [711, Infinity, RED_HIGH]
+      - [712, Infinity, RED_HIGH]
+      - [713, 7.749303906250006, GREEN]
+      - [714, 6.694408984375002, GREEN]
+      - [715, 5.639514062500012, GREEN]
+      - [716, 4.5846191406250085, GREEN]
+      - [717, 3.5297242187500046, GREEN]
+      - [718, 2.4748292968750008, GREEN]
+      - [719, 1.419934375000011, GREEN]
+      - [720, 0.3650394531250072, GREEN]
+      - [721, -0.6898614257812454, GREEN]
+      - [722, -1.744762304687498, GREEN]
+      - [723, -2.7996631835937507, GREEN]
+      - [724, -3.854564062499989, GREEN]
+      - [725, -4.909464941406242, GREEN]
+      - [726, -5.964365820312494, GREEN]
+      - [727, -7.019266699218747, GREEN]
+      - [728, Infinity, RED_HIGH]
+      - [729, Infinity, RED_HIGH]
+      - [730, Infinity, RED_HIGH]
+      - [731, Infinity, RED_HIGH]
+      - [732, -12.293771093749996, GREEN]
+      - [733, -13.348671972656248, GREEN]
+      - [734, -14.403572851562501, GREEN]
+      - [735, -15.45847373046874, GREEN]
+      - [736, -16.513374609374992, GREEN]
+      - [737, -17.568275488281245, GREEN]
+      - [738, -Infinity, RED_LOW]
+      - [739, -Infinity, RED_LOW]
+      - [740, -Infinity, RED_LOW]
+      - [741, -Infinity, RED_LOW]
+      - [742, -22.842779882812493, GREEN]
+      - [743, -23.897680761718746, GREEN]
+      - [744, -24.952581640625, GREEN]
+      - [745, -26.00748251953125, GREEN]
+      - [746, -27.06238339843749, GREEN]
+      - [747, NaN, RED_LOW]
+      - [748, NaN, RED_LOW]
+      - [749, NaN, RED_LOW]
+      TEMP3:
+      - [660, 70.9708, RED_HIGH]
+      - [661, 72.91365000000002, RED_HIGH]
+      - [662, 74.85650000000001, RED_HIGH]
+      - [663, 76.79935, RED_HIGH]
+      - [664, 78.74220000000003, RED_HIGH]
+      - [665, 79.94390000000001, RED_HIGH]
+      - [666, 77.88820000000001, RED_HIGH]
+      - [667, 75.83250000000001, RED_HIGH]
+      - [668, 73.77680000000001, RED_HIGH]
+      - [669, 71.7211, RED_HIGH]
+      - [670, 69.6654, RED_HIGH]
+      - [671, 67.6097, RED_HIGH]
+      - [672, 65.554, RED_HIGH]
+      - [673, 63.4983, RED_HIGH]
+      - [674, 61.4426, RED_HIGH]
+      - [675, 59.3869, RED_HIGH]
+      - [676, 57.331200000000024, RED_HIGH]
+      - [677, 55.27550000000002, RED_HIGH]
+      - [678, 53.21980000000002, YELLOW_HIGH]
+      - [679, 51.16410000000002, YELLOW_HIGH]
+      - [680, 49.10840000000002, GREEN]
+      - [681, 47.052700000000016, GREEN]
+      - [682, 44.997000000000014, GREEN]
+      - [683, 42.94130000000001, GREEN]
+      - [684, 40.88560000000001, GREEN]
+      - [685, 38.82990000000001, GREEN]
+      - [686, 36.77420000000001, GREEN]
+      - [687, 34.718500000000006, GREEN]
+      - [688, 32.662800000000004, GREEN]
+      - [689, 30.607100000000003, GREEN]
+      - [690, 28.5514, GREEN]
+      - [691, 26.495700000000014, GREEN]
+      - [692, 24.440000000000012, GREEN]
+      - [693, 22.38430000000001, GREEN]
+      - [694, 20.32860000000001, GREEN]
+      - [695, 18.272900000000007, GREEN]
+      - [696, 16.217200000000005, GREEN]
+      - [697, 14.161500000000004, GREEN]
+      - [698, 12.105800000000002, GREEN]
+      - [699, 10.0501, GREEN]
+      - [700, 7.994400000000013, GREEN]
+      - [701, 5.938700000000011, GREEN]
+      - [702, 3.8830000000000098, GREEN]
+      - [703, 1.8273000000000081, GREEN]
+      - [704, -0.2283999999999935, GREEN]
+      - [705, -2.284099999999995, GREEN]
+      - [706, -4.339799999999997, GREEN]
+      - [707, -6.395499999999998, GREEN]
+      - [708, -8.4512, GREEN]
+      - [709, -10.506899999999987, YELLOW_LOW]
+      - [710, -12.562599999999989, YELLOW_LOW]
+      - [711, -14.61829999999999, YELLOW_LOW]
+      - [712, -16.673999999999992, YELLOW_LOW]
+      - [713, -18.729699999999994, YELLOW_LOW]
+      - [714, -20.785399999999996, YELLOW_LOW]
+      - [715, -22.841099999999997, YELLOW_LOW]
+      - [716, -24.8968, YELLOW_LOW]
+      - [717, -26.9525, RED_LOW]
+      - [718, -29.008200000000002, RED_LOW]
+      - [719, -30.0574, RED_LOW]
+      - [720, -28.114549999999994, RED_LOW]
+      - [721, -26.1717, RED_LOW]
+      - [722, -24.228849999999994, YELLOW_LOW]
+      - [723, -22.286, YELLOW_LOW]
+      - [724, -20.343149999999994, YELLOW_LOW]
+      - [725, -18.4003, YELLOW_LOW]
+      - [726, -16.457449999999994, YELLOW_LOW]
+      - [727, -14.514600000000002, YELLOW_LOW]
+      - [728, -12.571749999999994, YELLOW_LOW]
+      - [729, -10.628899999999987, YELLOW_LOW]
+      - [730, -8.686049999999994, GREEN]
+      - [731, -6.743199999999987, GREEN]
+      - [732, -4.800349999999995, GREEN]
+      - [733, -2.8574999999999875, GREEN]
+      - [734, -0.9146499999999946, GREEN]
+      - [735, 1.0282000000000124, GREEN]
+      - [736, 2.9710500000000053, GREEN]
+      - [737, 4.913900000000012, GREEN]
+      - [738, 6.856750000000005, GREEN]
+      - [739, 8.799600000000012, GREEN]
+      - [740, 10.742450000000005, GREEN]
+      - [741, 12.685300000000012, GREEN]
+      - [742, 14.628150000000005, GREEN]
+      - [743, 16.571000000000012, GREEN]
+      - [744, 18.513850000000005, GREEN]
+      - [745, 20.456700000000012, GREEN]
+      - [746, 22.399550000000005, GREEN]
+      - [747, 24.342400000000012, GREEN]
+      - [748, 26.285250000000005, GREEN]
+      - [749, 28.228100000000012, GREEN]
+      TEMP4:
+      - [660, 5.536100000000005, GREEN]
+      - [661, 5.578800000000001, GREEN]
+      - [662, 5.621500000000012, GREEN]
+      - [663, 5.664200000000008, GREEN]
+      - [664, 5.7069000000000045, GREEN]
+      - [665, 5.749600000000001, GREEN]
+      - [666, 5.7923000000000116, GREEN]
+      - [667, 5.835000000000008, GREEN]
+      - [668, 5.877700000000004, GREEN]
+      - [669, 5.920400000000001, GREEN]
+      - [670, 5.963100000000011, GREEN]
+      - [671, 6.005800000000008, GREEN]
+      - [672, 6.048500000000004, GREEN]
+      - [673, 6.091200000000001, GREEN]
+      - [674, 6.133900000000011, GREEN]
+      - [675, 6.176600000000008, GREEN]
+      - [676, 6.219300000000004, GREEN]
+      - [677, 6.2620000000000005, GREEN]
+      - [678, 6.304700000000011, GREEN]
+      - [679, 6.3474000000000075, GREEN]
+      - [680, 6.390100000000004, GREEN]
+      - [681, 6.4328, GREEN]
+      - [682, 6.475500000000011, GREEN]
+      - [683, 6.518200000000007, GREEN]
+      - [684, 6.560900000000004, GREEN]
+      - [685, 6.6036, GREEN]
+      - [686, 6.646300000000011, GREEN]
+      - [687, 6.689000000000007, GREEN]
+      - [688, 6.731700000000004, GREEN]
+      - [689, 6.7744, GREEN]
+      - [690, 6.817100000000011, GREEN]
+      - [691, 6.859800000000007, GREEN]
+      - [692, 6.902500000000003, GREEN]
+      - [693, 6.9452, GREEN]
+      - [694, 6.98790000000001, GREEN]
+      - [695, 7.030600000000007, GREEN]
+      - [696, 7.073300000000003, GREEN]
+      - [697, 7.116000000000014, GREEN]
+      - [698, 7.15870000000001, GREEN]
+      - [699, 7.201400000000007, GREEN]
+      - [700, 7.244100000000003, GREEN]
+      - [701, 7.286800000000014, GREEN]
+      - [702, 7.32950000000001, GREEN]
+      - [703, 7.3722000000000065, GREEN]
+      - [704, 7.414900000000003, GREEN]
+      - [705, 7.4576000000000136, GREEN]
+      - [706, 7.50030000000001, GREEN]
+      - [707, 7.543000000000006, GREEN]
+      - [708, 7.585700000000003, GREEN]
+      - [709, 7.628400000000013, GREEN]
+      - [710, 7.67110000000001, GREEN]
+      - [711, 7.713800000000006, GREEN]
+      - [712, 7.756500000000003, GREEN]
+      - [713, 7.799200000000013, GREEN]
+      - [714, 7.84190000000001, GREEN]
+      - [715, 7.884600000000006, GREEN]
+      - [716, 7.9273000000000025, GREEN]
+      - [717, 7.970000000000013, GREEN]
+      - [718, 8.01270000000001, GREEN]
+      - [719, 8.055400000000006, GREEN]
+      - [720, 8.098100000000002, GREEN]
+      - [721, 8.140800000000013, GREEN]
+      - [722, 8.18350000000001, GREEN]
+      - [723, 8.226200000000006, GREEN]
+      - [724, 8.268900000000002, GREEN]
+      - [725, 8.311600000000013, GREEN]
+      - [726, 8.35430000000001, GREEN]
+      - [727, 8.397000000000006, GREEN]
+      - [728, 8.439700000000002, GREEN]
+      - [729, 8.482400000000013, GREEN]
+      - [730, 8.525100000000009, GREEN]
+      - [731, 8.567800000000005, GREEN]
+      - [732, 8.610500000000002, GREEN]
+      - [733, 8.653200000000012, GREEN]
+      - [734, 8.695900000000009, GREEN]
+      - [735, 8.738600000000005, GREEN]
+      - [736, 8.781300000000002, GREEN]
+      - [737, 8.824000000000012, GREEN]
+      - [738, 8.866700000000009, GREEN]
+      - [739, 8.909400000000005, GREEN]
+      - [740, 8.952100000000002, GREEN]
+      - [741, 8.994800000000012, GREEN]
+      - [742, 9.037500000000009, GREEN]
+      - [743, 9.080200000000005, GREEN]
+      - [744, 9.122900000000001, GREEN]
+      - [745, 9.165600000000012, GREEN]
+      - [746, 9.208300000000008, GREEN]
+      - [747, 9.251000000000005, GREEN]
+      - [748, 9.293700000000001, GREEN]
+      - [749, 9.336400000000012, GREEN]
+    every_item_at_the_window_start_and_end:
+      CMD_ACPT_CNT:
+        start: [660, 38, null]
+        end: [749, 40, null]
+      COLLECTS:
+        start: [660, 21, null]
+        end: [749, 22, null]
+      COLLECT_TYPE:
+        start: [660, NORMAL, null]
+        end: [749, NORMAL, null]
+      DURATION:
+        start: [660, 7.0, null]
+        end: [749, 7.0, null]
+      GROUND1STATUS:
+        start: [660, CONNECTED, GREEN]
+        end: [749, UNAVAILABLE, YELLOW]
+      GROUND2STATUS:
+        start: [660, UNAVAILABLE, YELLOW]
+        end: [749, UNAVAILABLE, YELLOW]
+      TEMP1:
+        start: [660, 49.431700000000006, GREEN_HIGH]
+        end: [749, -11.251099999999994, BLUE]
+      TEMP2:
+        start: [660, 37.83923378906252, RED_HIGH]
+        end: [749, NaN, RED_LOW]
+      TEMP3:
+        start: [660, 70.9708, RED_HIGH]
+        end: [749, 28.228100000000012, GREEN]
+      TEMP4:
+        start: [660, 5.536100000000005, GREEN]
+        end: [749, 9.336400000000012, GREEN]
+  claims:
+  - claim: units
+    question: The units ODIN gives for INST HEALTH_STATUS's items are COSMOS's.
+    mark: null
+  - claim: limit_states
+    question: The limit state ODIN gives for each item is COSMOS's at its time.
+    mark: null
+  - claim: tracked_items
+    question: What ODIN says its two tracked items did over the 60 s is what COSMOS shows.
+    mark: null
+- check_in:
+    met_s: 1200
+    words: ODIN, this is Flight. Name an item that's out of limits, its LIMITS line, and the limit it crossed.
+  answer:
+    met_s: 1245
+    text: 'At met_s 1230 (2026-10-29T11:32:08.196Z, fresh, age 0s): TEMP1 is out of limits: value -85.16785 C, limit_state
+      RED_LOW. Its dictionary LIMITS definition is: red below -80.0, yellow below -70.0, yellow above 60.0, red
+      above 80.0; operational (blue) -20.0 to 20.0. It crossed the red_low limit of -80.0 on the low side (-85.16785
+      <= -80.0). Second violator at same time: TEMP3 = 59.3869 C, limit_state RED_HIGH; definition red below -25.0,
+      yellow below -10.0, yellow above 50.0, red above 55.0; crossed red_high 55.0 on the high side (59.3869 >=
+      55.0). GROUND1STATUS and GROUND2STATUS = UNAVAILABLE, limit_state YELLOW at 1230 by state limits (CONNECTED
+      GREEN, UNAVAILABLE YELLOW).'
+    evidence:
+    - met_s: 1230
+      point: CMD_ACPT_CNT
+      value: 54
+      cosmos: 54
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1230
+      point: COLLECTS
+      value: 29
+      cosmos: 29
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1230
+      point: TEMP1
+      value: -85.16785
+      cosmos: -85.16785
+      units: C
+      limits_state: RED_LOW
+      match: true
+    - met_s: 1230
+      point: TEMP2
+      value: 6.651101367187508
+      cosmos: 6.651101367187508
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 1230
+      point: TEMP3
+      value: 59.3869
+      cosmos: 59.3869
+      units: C
+      limits_state: RED_HIGH
+      match: true
+    - met_s: 1230
+      point: TEMP4
+      value: 4.340500000000006
+      cosmos: 4.340500000000006
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 1230
+      point: DURATION
+      value: 7.0
+      cosmos: 7.0
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1230
+      point: COLLECT_TYPE
+      value: NORMAL
+      cosmos: NORMAL
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1230
+      point: GROUND1STATUS
+      value: UNAVAILABLE
+      cosmos: UNAVAILABLE
+      units: null
+      limits_state: YELLOW
+      match: true
+    - met_s: 1230
+      point: GROUND2STATUS
+      value: UNAVAILABLE
+      cosmos: UNAVAILABLE
+      units: null
+      limits_state: YELLOW
+      match: true
+  cosmos:
+    out_of_limits_at_check_in:
+      GROUND2STATUS:
+        value: UNAVAILABLE
+        units: null
+        limits_state: YELLOW
+        limits_line: null
+        crossed: null
+      TEMP2:
+        value: -Infinity
+        units: C
+        limits_state: RED_LOW
+        limits_line: LIMITS DEFAULT 1 ENABLED -60.0 -60.0 35.0 35.0
+        crossed: red low -60.0
+    out_of_limits_at_answer:
+      GROUND1STATUS:
+        value: UNAVAILABLE
+        units: null
+        limits_state: YELLOW
+        limits_line: null
+        crossed: null
+      TEMP2:
+        value: -Infinity
+        units: C
+        limits_state: RED_LOW
+        limits_line: LIMITS DEFAULT 1 ENABLED -60.0 -60.0 35.0 35.0
+        crossed: red low -60.0
+    items_its_evidence_names:
+      CMD_ACPT_CNT:
+        limits_line: null
+        limits_state: null
+        crossed: null
+      COLLECTS:
+        limits_line: null
+        limits_state: null
+        crossed: null
+      TEMP1:
+        limits_line: LIMITS DEFAULT 1 ENABLED -80.0 -70.0 60.0 80.0 -20.0 20.0
+        limits_state: RED_LOW
+        crossed: red low -80.0
+      TEMP2:
+        limits_line: LIMITS DEFAULT 1 ENABLED -60.0 -60.0 35.0 35.0
+        limits_state: GREEN
+        crossed: null
+      TEMP3:
+        limits_line: LIMITS DEFAULT 1 ENABLED -25.0 -10.0 50.0 55.0
+        limits_state: RED_HIGH
+        crossed: red high 55.0
+      TEMP4:
+        limits_line: LIMITS DEFAULT 1 ENABLED -80.0 -70.0 60.0 80.0
+        limits_state: GREEN
+        crossed: null
+      DURATION:
+        limits_line: null
+        limits_state: null
+        crossed: null
+      COLLECT_TYPE:
+        limits_line: null
+        limits_state: null
+        crossed: null
+      GROUND1STATUS:
+        limits_line: null
+        limits_state: YELLOW
+        crossed: null
+      GROUND2STATUS:
+        limits_line: null
+        limits_state: YELLOW
+        crossed: null
+  claims:
+  - claim: limits_line
+    question: The LIMITS line ODIN gives for the item it names is the demo's definition of it.
+    mark: null
+  - claim: limit_crossed
+    question: The limit ODIN says the item crossed is the one COSMOS's limit state shows.
+    mark: null
+- check_in:
+    met_s: 1620
+    words: ODIN, this is Flight. Write your console notes from this session.
+  answer:
+    met_s: 1662
+    text: 'Console notes - PH1-SHAKEDOWN INST (TYR0-PH1-SHAKEDOWN-v1, run PH1-SHAKEDOWN-SPARK-R2) - written for
+      own use on later passes:
+
+
+      1. How to talk to INST: Commands are INST COLLECT with TYPE NORMAL only, DURATION 0.0-10.0, OPCODE 0-255,
+      TEMP 0.0-25.0; e.g. COLLECT type NORMAL duration 5.0 opcode 0 temp 10.0. Only other command is INST ABORT
+      (C3 protect). Telemetry packet is INST HEALTH_STATUS. Read single items as INST LATEST <ITEM>. All values
+      below at met_s 1642, received 2026-10-29T11:39:00.199Z, age 0s, source COSMOS, link CONNECTED, staleness GREEN.
+
+
+      2. Session 3 - COLLECT proof: S01 baseline met 13: COLLECTS 11 CMD_ACPT 20. S02 sent COLLECT NORMAL. At met
+      981 before retry: COLLECTS 25 CMD_ACPT 46 COLLECT_TYPE NORMAL DURATION 7.0. Retry at met 981 was REFUSED CLOCK_SKEW,
+      not executed. Retried at met 1013 (COLLECTS 25 CMD_ACPT 47), ALLOW at met 1022. History 1343-1642 confirms
+      rise: 1343: 57/31, 1380: 58/31 (accept without collect yet), 1419: 59/32, 1457: 60/32, 1496: 61/33, 1534:
+      62/33, 1573: 63/34, 1611-1642: 64/34. So collect count rose 31->34. Latest at 1642: CMD_ACPT_CNT 64 (no units,
+      no limits), COLLECTS 34 (no units, no limits), COLLECT_TYPE NORMAL (states NORMAL/SPECIAL/ERROR), DURATION
+      7.0 (no units, most recent collect duration).
+
+
+      3. Session 4 - HEALTH_STATUS with units/limit-state at 1642: TEMP1 48.3215 C GREEN_HIGH, TEMP2 16.102050585937505
+      C GREEN, TEMP3 37.94235 C GREEN, TEMP4 12.789 C GREEN, GROUND1STATUS CONNECTED (GREEN), GROUND2STATUS UNAVAILABLE
+      (YELLOW). Tracked two items for 299s (1343-1642, >60s required): CMD_ACPT_CNT 57->64 and COLLECTS 31->34,
+      with step increments at 1380,1419,1457,1496,1534,1573,1611. Use history(points=[CMD_ACPT_CNT,COLLECTS], window)
+      for this.
+
+
+      4. Session 5 - live violation: GROUND2STATUS = UNAVAILABLE, limit_state YELLOW at 1642. Dictionary: GROUND2STATUS
+      states CONNECTED GREEN, UNAVAILABLE YELLOW. So YELLOW state drives limits (state-based limits per ops ref
+      Sec 9), not numeric LIMITS line. Same for GROUND1STATUS (currently CONNECTED GREEN, no violation). Numeric
+      example for future: TEMP1 C LIMITS DEFAULT persistence etc red low -80.0 yellow low -70.0 yellow high 60.0
+      red high 80.0 green -20.0 to 20.0; at 48.32 it is GREEN_HIGH (above green_high 20 but below yellow_high 60)
+      - not a violation. TEMP2 C red -60 yellow -60 yellow high 35 red high 35; TEMP3 C red -25 yellow -10 yellow
+      high 50 red high 55; TEMP4 C same as TEMP1.
+
+
+      5. Ops ref lessons: Units affect display only (UNITS Celsius C). Read RAW vs CONVERTED vs FORMATTED; states
+      return name as converted. Limits persistence requires consecutive samples before state change. Overall state
+      = worst enabled item, so GROUND2 YELLOW keeps system YELLOW. Stored vs realtime: realtime always PROCESS.
+      ABORT is C3 - always open at AI_AUTONOMOUS even without lease. Freshness rule: need frame age <=10s for C1;
+      all sends were age 0s.
+
+
+      6. Watch items: CMD_ACPT rose 7 in 299s but COLLECTS only +3, and DURATION reads 7.0 vs sent 5.0 - indicates
+      other collects (opcode/temp/duration different) from outside own_requests. GROUND2 UNAVAILABLE YELLOW persistent
+      entire pass. No RED at this time.'
+    evidence:
+    - met_s: 1642
+      point: CMD_ACPT_CNT
+      value: 64
+      cosmos: 64
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1642
+      point: COLLECTS
+      value: 34
+      cosmos: 34
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1642
+      point: TEMP1
+      value: 48.321500000000015
+      cosmos: 48.321500000000015
+      units: C
+      limits_state: GREEN_HIGH
+      match: true
+    - met_s: 1642
+      point: TEMP2
+      value: 16.102050585937505
+      cosmos: 16.102050585937505
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 1642
+      point: TEMP3
+      value: 37.942350000000005
+      cosmos: 37.942350000000005
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 1642
+      point: TEMP4
+      value: 12.789000000000001
+      cosmos: 12.789000000000001
+      units: C
+      limits_state: GREEN
+      match: true
+    - met_s: 1642
+      point: DURATION
+      value: 7.0
+      cosmos: 7.0
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1642
+      point: COLLECT_TYPE
+      value: NORMAL
+      cosmos: NORMAL
+      units: null
+      limits_state: null
+      match: true
+    - met_s: 1642
+      point: GROUND1STATUS
+      value: CONNECTED
+      cosmos: CONNECTED
+      units: null
+      limits_state: GREEN
+      match: true
+    - met_s: 1642
+      point: GROUND2STATUS
+      value: UNAVAILABLE
+      cosmos: UNAVAILABLE
+      units: null
+      limits_state: YELLOW
+      match: true
+  cosmos: null
+  claims: []
