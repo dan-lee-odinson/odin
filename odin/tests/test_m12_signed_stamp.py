@@ -152,10 +152,12 @@ def test_proposed_holding_only_nulls_becomes_null_through_spark():
     adapter = SparkAdapter(reasoning_effort="low", max_output_tokens=10,
                            timeout_s=5, api_key="test-only", http_post=fake_post)
     result = adapter.complete(prompt=b"p", bundle=bundle)
-    obj = json.loads(result["raw"])
-    assert "proposed" in obj and obj["proposed"] is None
-    ok, _o, reason, detail = validate_act_text(result["raw"], commands=_inst_commands())
+    # M14: the adapter returns the text exactly; the loop's parse judges it.
+    assert result["raw"] == raw
+    from odin.loop.loop import judge_act_text
+    ok, obj, reason, detail = judge_act_text(result["raw"], commands=_inst_commands())
     assert ok, (reason, detail)
+    assert "proposed" in obj and obj["proposed"] is None
 
 
 def test_real_proposed_is_not_nulled():

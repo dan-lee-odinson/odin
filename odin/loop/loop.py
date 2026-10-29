@@ -31,6 +31,47 @@ def format_utc(moment) -> str:
     return moment.strftime("%Y-%m-%dT%H:%M:%S.") + f"{moment.microsecond // 1000:03d}Z"
 
 
+def put_back_command_call(answer):
+    """M14: put format B's `command_call` back as `command` and
+    `parameters`, in the loop's parse. Anything else in the call is
+    kept, so the frozen schema can refuse it; nothing is repaired."""
+    if not isinstance(answer, dict) or "command_call" not in answer:
+        return answer
+    result = dict(answer)
+    call = result.pop("command_call")
+    if isinstance(call, dict):
+        result["command"] = call.get("command")
+        result["parameters"] = call.get("parameters")
+        for key, value in call.items():
+            if key not in ("command", "parameters"):
+                result[key] = value
+    elif call is None:
+        result["command"] = None
+        result["parameters"] = None
+    else:
+        result["command"] = call
+        result["parameters"] = None
+    return result
+
+
+def judge_act_text(raw, commands=None):
+    """Judge an ACT answer's text (M14): parse it, put `command_call`
+    back, apply M11's null drop (`drop_nulls`, in M11's order), then
+    the frozen schema, the dictionary check and the loop's verdict via
+    `validate_act_text`. The judged form is reproducible from the
+    CANDIDATE text by this same rule."""
+    from odin.adapters.spark import drop_nulls
+
+    try:
+        obj = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        obj = None
+    if not isinstance(obj, dict):
+        return validate_act_text(raw if isinstance(raw, str) else "", commands=commands)
+    judged = drop_nulls(put_back_command_call(obj))
+    return validate_act_text(json.dumps(judged), commands=commands)
+
+
 def utc_now() -> str:
     """Wall-clock now, in the contract's utc form (M12)."""
     return format_utc(datetime.now(timezone.utc))
@@ -217,7 +258,20 @@ class TurnLoop:
         raw = result.get("raw", "")
         self._log("CANDIDATE", {"run_id": run_id, "turn_id": turn_id, "channel": channel, "raw": raw})
 
-        if channel == "TOOL_CALLS":
+        if channel == "MESSAGE":
+            from odin.adapters.spark_open import convert_message
+            try:
+                message = json.loads(raw)
+            except Exception:
+                message = {}
+            if not isinstance(message, dict):
+                message = {}
+            ok, answer, reason, detail = convert_message(
+                message.get("content"), message.get("tool_calls") or [],
+                turn_kind=bundle["turn_kind"], report_kind=bundle.get("report_kind"),
+                reasoning_content=message.get("reasoning_content"),
+                commands=dict_commands)
+        elif channel == "TOOL_CALLS":
             from odin.adapters.spark_open import convert_tool_calls
             try:
                 tool_calls = json.loads(raw)
@@ -229,7 +283,7 @@ class TurnLoop:
         elif bundle["turn_kind"] == "REPORT":
             ok, answer, reason, detail = validate_report_text(raw, bundle.get("report_kind") or "PASS_START")
         else:
-            ok, answer, reason, detail = validate_act_text(raw, commands=dict_commands)
+            ok, answer, reason, detail = judge_act_text(raw, commands=dict_commands)
 
         if not ok:
             self._log("MALFORMED", {"run_id": run_id, "turn_id": turn_id,

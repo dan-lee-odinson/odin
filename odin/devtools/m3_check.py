@@ -28,7 +28,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from odin.adapters.openai_compat import ProviderError, estimate_tokens  # noqa: E402
 from odin.adapters.spark import SparkAdapter  # noqa: E402
-from odin.adapters.spark_open import SparkOpenAdapter, convert_tool_calls  # noqa: E402
+from odin.adapters.spark_open import SparkOpenAdapter, convert_message  # noqa: E402
 from odin.devtools.fake_harness import FakeServices  # noqa: E402
 from odin.devtools.fixtures import bundle_bytes, make_m3_bundle  # noqa: E402
 from odin.loop.loop import TurnLoop  # noqa: E402
@@ -153,10 +153,12 @@ def run_check(*, repo_root, env=None, http_post=None, odin_public_key_path=None,
             result = adapter.complete(prompt=prompt, bundle=bundle, turn_id=1,
                                       meter=meter, model_call_sink=sink)
             if entry["config"] == "spark":
-                ok, _obj, reason, detail = validate_act_text(result["raw"])
+                from odin.loop.loop import judge_act_text
+                ok, _obj, reason, detail = judge_act_text(result["raw"])
             else:
-                ok, _obj, reason, detail = convert_tool_calls(
-                    json.loads(result["raw"]), turn_kind="ACT")
+                message = json.loads(result["raw"])
+                ok, _obj, reason, detail = convert_message(
+                    message.get("content"), message.get("tool_calls") or [], turn_kind="ACT")
             record = sink[-1] if sink else {}
             rows.append({
                 "part": 2, "config": entry["config"], "endpoint": entry["endpoint"],

@@ -6,35 +6,65 @@ No built-in settings: reasoning level (set explicitly on every call,
 never Baseten's xhigh default unless configured), output cap and timeout
 come from configuration; given none, the adapter raises.
 """
+import copy
 import json
 
-from odin.loop.validate import validate_against_schema, validate_act_text, validate_report_text
+from odin.loop.validate import (resolved_schema, validate_against_schema,
+                                validate_act_text, validate_report_text)
 from .openai_compat import ChatAdapter, READONLY_TOOLS
 
 ANSWER_TOOL_NAMES = {"answer_command", "answer_escalation", "answer_none", "answer_report"}
 READONLY_TOOL_NAMES = {"docs_lookup", "history"}
 
-# Tool parameter shapes mirror the model-written fields of each answer form.
-ANSWER_TOOLS = [
-    {"type": "function", "function": {"name": "answer_command", "parameters": {
-        "type": "object", "required": ["command", "parameters"], "additionalProperties": False,
-        "properties": {"command": {"type": "string"}, "parameters": {"type": "object"},
-                       "rationale": {"type": "string"}}}}},
-    {"type": "function", "function": {"name": "answer_escalation", "parameters": {
-        "type": "object", "required": ["escalation_kind", "refs", "proposed", "urgency"],
-        "additionalProperties": False,
-        "properties": {"escalation_kind": {"type": "string"}, "refs": {"type": "array"},
-                       "proposed": {}, "urgency": {"type": "string"}, "rationale": {"type": "string"}}}}},
-    {"type": "function", "function": {"name": "answer_none", "parameters": {
-        "type": "object", "additionalProperties": False,
-        "properties": {"rationale": {"type": "string"}}}}},
-    {"type": "function", "function": {"name": "answer_report", "parameters": {
-        "type": "object", "required": ["timeline", "actions", "condition", "deferred", "open_issues"],
-        "additionalProperties": False,
-        "properties": {"timeline": {"type": "array"}, "actions": {"type": "array"},
-                       "condition": {"type": "object"}, "deferred": {"type": "array"},
-                       "open_issues": {"type": "array"}, "answer": {"type": "string"}}}}},
-]
+
+def _build_answer_tools():
+    """Answer tools typed from the frozen forms (M14): the §7.1 answer
+    schema's definitions and the §7.5 report body, $refs resolved from
+    the frozen files at load. No field list is kept a second time."""
+    answer = resolved_schema("answer.schema.json")
+    definitions = answer.get("definitions") or {}
+    command_enum = (resolved_schema("common.schema.json")
+                    .get("definitions", {}).get("command", {}).get("enum"))
+
+    def form_params(form_name, drop=()):
+        form = definitions[form_name]
+        props = {k: copy.deepcopy(v) for k, v in (form.get("properties") or {}).items()
+                 if k != "kind" and k not in drop}
+        required = [k for k in (form.get("required") or []) if k != "kind" and k not in drop]
+        return {"type": "object", "required": required, "additionalProperties": False,
+                "properties": props}
+
+    command_params = form_params("command")
+    if command_enum:
+        command_params["properties"]["command"] = {"type": "string", "enum": list(command_enum)}
+    command_params["properties"]["parameters"] = {"type": "object"}
+
+    escalation_params = form_params("escalation")
+    if command_enum:
+        proposed = escalation_params["properties"].get("proposed") or {}
+        for branch in proposed.get("anyOf", []):
+            if isinstance(branch, dict) and branch.get("type") == "object":
+                props = branch.setdefault("properties", {})
+                props["command"] = {"type": "string", "enum": list(command_enum)}
+                props["parameters"] = {"type": "object"}
+
+    none_params = form_params("none")
+
+    report = resolved_schema("report_body.schema.json")
+    report_params = {"type": "object", "required": list(report.get("required") or []),
+                     "additionalProperties": False,
+                     "properties": copy.deepcopy(report.get("properties") or {})}
+
+    def tool(name, params):
+        return {"type": "function", "function": {"name": name, "parameters": params}}
+
+    return [tool("answer_command", command_params),
+            tool("answer_escalation", escalation_params),
+            tool("answer_none", none_params),
+            tool("answer_report", report_params)]
+
+
+ANSWER_TOOLS = _build_answer_tools()
 
 ENDPOINT = "https://inference.baseten.co/v1"
 MODEL_ID = "meta-models/muse-spark-open-1026"
@@ -49,11 +79,16 @@ def _parse_args(call) -> dict:
 
 
 def convert_tool_calls(tool_calls, turn_kind="ACT", report_kind=None, reasoning_content=None,
-                       commands=None):
+                       commands=None, content=None):
     """(ok, obj, reason, detail). Exactly one answer-tool call required.
 
-    reasoning_content is accepted only to prove it is ignored.
-    """
+    reasoning_content is accepted only to prove it is ignored. When
+    `content` is given, the amended §11.1 rule applies (see
+    `convert_message`)."""
+    if content is not None:
+        return convert_message(content, tool_calls, turn_kind=turn_kind,
+                               report_kind=report_kind, reasoning_content=reasoning_content,
+                               commands=commands)
     del reasoning_content  # never the answer (§11.1)
     calls = list(tool_calls or [])
     answers = []
@@ -97,6 +132,44 @@ def convert_tool_calls(tool_calls, turn_kind="ACT", report_kind=None, reasoning_
     return ok, validated, reason, detail
 
 
+def convert_message(content, tool_calls, turn_kind="ACT", report_kind=None,
+                    reasoning_content=None, commands=None):
+    """(ok, obj, reason, detail): §11.1 as amended 29 October 2026.
+
+    Exactly one answer-tool call makes that call the answer. With no
+    answer-tool call, `content` trimmed must parse as exactly one JSON
+    object, and that object is the answer. Anything else is MALFORMED.
+    `reasoning_content` is never the answer."""
+    del reasoning_content  # never the answer (§11.1)
+    calls = list(tool_calls or [])
+    answers = []
+    for call in calls:
+        name = (call.get("function", {}) or {}).get("name") if isinstance(call, dict) else None
+        if name in ANSWER_TOOL_NAMES:
+            answers.append(call)
+        elif name in READONLY_TOOL_NAMES:
+            continue
+        else:
+            return False, None, "SCHEMA_VIOLATION", f"unknown tool call {name!r}"
+    if len(answers) > 1:
+        return False, None, "ANSWER_TOOL_CALL_COUNT", f"expected 1 answer-tool call, got {len(answers)}"
+    if len(answers) == 1:
+        return convert_tool_calls(answers, turn_kind=turn_kind, report_kind=report_kind,
+                                  commands=commands)
+    if not isinstance(content, str) or not content.strip():
+        return False, None, "NOT_ONE_JSON_OBJECT", "empty or non-text answer"
+    trimmed = content.strip()
+    try:
+        obj = json.loads(trimmed)
+    except Exception as exc:
+        return False, None, "NOT_ONE_JSON_OBJECT", f"not exactly one JSON value: {exc}"
+    if not isinstance(obj, dict):
+        return False, None, "NOT_ONE_JSON_OBJECT", "answer is not a JSON object"
+    if turn_kind == "REPORT":
+        return validate_report_text(trimmed, report_kind or "PASS_START")
+    return validate_act_text(trimmed, commands=commands)
+
+
 class SparkOpenAdapter(ChatAdapter):
     name = "spark_open"
     provider = "Baseten Model API"
@@ -110,7 +183,7 @@ class SparkOpenAdapter(ChatAdapter):
         tools = list(ANSWER_TOOLS) + (list(READONLY_TOOLS) if tool_handler else [])
         messages = [{"role": "user", "content": prompt.decode("utf-8")}]
         sink = model_call_sink if model_call_sink is not None else []
-        collected, index, total_latency, last_usage, cut_off = [], call_index, 0.0, {}, False
+        final_message, index, total_latency, last_usage, cut_off = {}, call_index, 0.0, {}, False
         while True:
             payload, usage, latency = self._one_call(
                 messages, tools=tools, meter=meter, turn_id=turn_id,
@@ -122,7 +195,7 @@ class SparkOpenAdapter(ChatAdapter):
             cut_off = choice.get("finish_reason") == "length"
             message = choice.get("message") or {}
             tool_calls = message.get("tool_calls") or []
-            collected.extend(tool_calls)
+            final_message = message
             readonly = [c for c in tool_calls
                         if (c.get("function") or {}).get("name") in READONLY_TOOL_NAMES]
             if readonly and tool_handler:
@@ -138,8 +211,14 @@ class SparkOpenAdapter(ChatAdapter):
                                      "content": str(tool_handler(fn["name"], args))})
                 continue
             break
+        # M14 (§16.5): CANDIDATE channel MESSAGE holds the message that
+        # ends the turn: its content and tool calls exactly as returned
+        # (content null when the message has none). reasoning_content
+        # is never part of it.
+        raw = json.dumps({"content": final_message.get("content"),
+                          "tool_calls": final_message.get("tool_calls") or []})
         return {
-            "raw": json.dumps(collected), "channel": "TOOL_CALLS", "status": "OK",
+            "raw": raw, "channel": "MESSAGE", "status": "OK",
             "input_tokens": last_usage.get("prompt_tokens"),
             "cached_input_tokens": (last_usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0),
             "output_tokens": last_usage.get("completion_tokens"),

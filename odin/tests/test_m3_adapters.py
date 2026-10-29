@@ -46,7 +46,7 @@ def test_spark_open_call_uses_configured_cap_timeout_level():
     adapter = SparkOpenAdapter(**{**FULL, "reasoning_effort": "xhigh"},
                                http_post=provider.post, api_key="test-only")
     result = adapter.complete(prompt=b"prompt", bundle={"turn_kind": "ACT", "report_kind": None})
-    assert result["channel"] == "TOOL_CALLS"
+    assert result["channel"] == "MESSAGE"
     call = provider.calls[0]
     assert call["body"]["max_tokens"] == 32000
     assert call["body"]["reasoning_effort"] == "xhigh"

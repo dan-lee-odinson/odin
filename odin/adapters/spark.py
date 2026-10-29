@@ -35,39 +35,46 @@ def _nullable(schema):
     return {"anyOf": [schema, {"type": "null"}]}
 
 
+def _command_call_schema(commands):
+    branches = []
+    for name, cmd in (commands or {}).items():
+        args = list(cmd.get("args") or [])
+        branches.append({
+            "type": "object", "additionalProperties": False,
+            "required": ["command", "parameters"],
+            "properties": {
+                "command": {"type": "string", "enum": [name]},
+                "parameters": {"type": "object", "additionalProperties": False,
+                               "required": [a["name"] for a in args],
+                               "properties": {a["name"]: _arg_schema(a) for a in args}},
+            },
+        })
+    return {"anyOf": [{"anyOf": branches}, {"type": "null"}]}
+
+
 def act_format(commands):
-    """Meta-enforceable ACT format (M11), derived at call time from the
-    dictionary in force. One plain object, no oneOf/allOf/if/then/$ref."""
-    arg_schemas = {}
-    for _mnemonic, cmd in (commands or {}).items():
-        for arg in cmd.get("args") or []:
-            name, schema = arg["name"], _arg_schema(arg)
-            if name in arg_schemas and arg_schemas[name] != schema:
-                raise ValueError(
-                    f"argument {name!r} has conflicting types or ranges across commands; stop and report")
-            arg_schemas.setdefault(name, schema)
-    command_schema = {"type": "string", "enum": list((commands or {}).keys())}
-    parameters = {"type": "object", "additionalProperties": False,
-                  "required": list(arg_schemas),
-                  "properties": {name: _nullable(copy.deepcopy(schema))
-                                 for name, schema in arg_schemas.items()}}
-    proposed = {"type": "object", "additionalProperties": False,
-                "required": ["command", "parameters"],
-                "properties": {"command": copy.deepcopy(command_schema),
-                               "parameters": copy.deepcopy(parameters)}}
+    """Format B (M14), derived at call time from the dictionary in force.
+
+    One plain object; no oneOf/allOf/if/then/$ref. `command`/`parameters`
+    give way to `command_call`: an anyOf with one closed branch per
+    command, each holding only that command's own arguments. An
+    escalation's `proposed` is the same anyOf. Every other field is as
+    in M11's format."""
+    command_call = _command_call_schema(commands)
     return {
-        "type": "object", "additionalProperties": False, "required": list(_FIELDS),
+        "type": "object", "additionalProperties": False,
+        "required": ["kind", "command_call", "escalation_kind", "refs",
+                     "urgency", "rationale", "proposed"],
         "properties": {
             "kind": {"type": "string", "enum": ["command", "escalation", "none"]},
-            "command": _nullable(copy.deepcopy(command_schema)),
-            "parameters": _nullable(copy.deepcopy(parameters)),
+            "command_call": copy.deepcopy(command_call),
             "escalation_kind": _nullable({"type": "string", "enum": [
                 "OFF_COURSE", "MALFUNCTION", "DECISION_NEEDED",
                 "LEASE_NEEDED", "AUTHORITY_NEEDED", "CONFLICT"]}),
             "refs": _nullable({"type": "array", "items": {"type": "string"}}),
-            "proposed": _nullable(proposed),
             "urgency": _nullable({"type": "string", "enum": ["ROUTINE", "URGENT"]}),
             "rationale": _nullable({"type": "string"}),
+            "proposed": copy.deepcopy(command_call),
         },
     }
 
@@ -175,17 +182,10 @@ class SparkAdapter(ChatAdapter):
                     messages.append({"role": "tool", "tool_call_id": call.get("id", ""),
                                      "content": str(result)})
                 continue
+            # M14 (§16.5): hand the loop the model's text exactly as
+            # returned, never re-serialized. Put-back and the null drop
+            # happen in the loop's parse.
             raw = message.get("content") or ""
-            if not plain_text and bundle.get("turn_kind") != "REPORT":
-                # M11: drop nulls after the call, before the loop checks.
-                try:
-                    parsed = json.loads(raw)
-                except Exception:
-                    parsed = None
-                if isinstance(parsed, dict):
-                    dropped = drop_nulls(parsed)
-                    if dropped != parsed:
-                        raw = json.dumps(dropped)
             return {
                 "raw": raw, "channel": "CONTENT", "status": "OK",
                 "input_tokens": last_usage.get("prompt_tokens"),
