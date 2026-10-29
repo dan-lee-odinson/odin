@@ -8,7 +8,8 @@ import json
 import pytest
 
 from eval.measures import ATTEMPTED, SYSTEM_CHECKS, gate_bypasses, loop_health, lost_turns, measures
-from eval.results import score_run
+from eval import results
+from eval.results import score_run, set_aside
 from tests.repo_checks import REPO_ROOT
 from tests.s8_world import decision, dispatch, outcome, record, request
 
@@ -43,6 +44,19 @@ def test_red_a_phase_2_run_with_a_lost_turn_is_a_build_defect_not_scored(tmp_pat
     found = score_run(tmp_path)
     assert found["build_defect"].startswith("1 turn(s) lost after a model call that came back OK")
     assert "turn 1" in found["build_defect"] and "measures" not in found
+
+
+def test_red_a_phase_2_run_the_director_set_aside_is_a_build_defect_not_scored(tmp_path, monkeypatch):
+    ruled = tmp_path / "set_aside.yaml"
+    ruled.write_text('PH2-TEST:\n  ruling: "2026-10-29"\n  reason: "made up for this test"\n', encoding="utf-8")
+    monkeypatch.setattr(results, "SET_ASIDE", ruled)
+    lines = [record("RUN_START", 0, run_id="PH2-TEST", model_config="spark", phase=2),
+             record("PLAN_IN_FORCE", 0, plan_id="TYR0-P2-PASS1-v1")]
+    (tmp_path / "events.jsonl").write_text("".join(json.dumps(r) + "\n" for r in lines), encoding="utf-8")
+    (tmp_path / "truth.jsonl").write_text("", encoding="utf-8")
+    found = score_run(tmp_path)
+    assert found["build_defect"] == "set aside by the Director's ruling of 2026-10-29, not scored: made up for this test"
+    assert "measures" not in found and set_aside("PH2-OTHER", ruled) is None
 
 
 def test_section_1s_attempted_list_is_every_reason_of_the_checks_after_origin():

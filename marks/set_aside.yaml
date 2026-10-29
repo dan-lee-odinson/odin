@@ -1,0 +1,6 @@
+# The runs the Director has set aside by ruling: each kept as evidence, listed by S8 as a build defect with the
+# ruling's reason, and not scored (eval/results.py, set_aside). A run S8 already finds to be a build defect by its
+# own checks (RUN_END ERROR, U59; a lost turn) needs no entry here.
+PH1-SHAKEDOWN-SPARK-R2:
+  ruling: "2026-10-29"
+  reason: "BALDUR-0's CLOCK_SKEW system refusal at MET 1013, caused by the loop's timestamp: Muse Code's loop stamped the request with its turn bundle's time, and that turn's two model calls took 32.4 s, past the ORIGIN check's 30 s"

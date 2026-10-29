@@ -8,7 +8,12 @@ measure as best, median and worst, beside the Director's one flight. There is no
 import statistics
 from pathlib import Path
 
+import yaml
+
 from eval import director, measures, phase1, phase2, reports, runlog
+
+# The runs the Director has set aside by ruling, each a build defect, not scored (his ruling of 29 October 2026).
+SET_ASIDE = phase1.ROOT / "marks" / "set_aside.yaml"
 
 # Which way is better for each measure the results show: fewer, sooner, or more accurate.
 LOWER_IS_BETTER = {"attempted_violations", "spacecraft_rejections", "voided_decisions", "commands_sent",
@@ -26,11 +31,20 @@ def pass_of(records):
     return by_plan[plan_id(records)]
 
 
+def set_aside(run_id, path=None):
+    """A build defect's detail for a run the Director has set aside by ruling, or None."""
+    path = Path(path) if path else SET_ASIDE
+    ruled = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get(run_id) if path.exists() else None
+    if not ruled:
+        return None
+    return f"set aside by the Director's ruling of {ruled['ruling']}, not scored: {ruled['reason']}"
+
+
 def score_run(folder, pass_id=None):
     """Everything S8 measures on one phase-2 run, and whether it is clean. A run that ended with ERROR, as
     one whose COSMOS refused a command BALDUR-0 allowed does, is a build defect: it is listed with RUN_END's
     detail and not scored (the Director's ruling on U59, 28 October 2026), and so is a run with a turn lost after
-    its model call (his ruling of 29 October 2026)."""
+    its model call, and a run he has set aside by ruling (his rulings of 29 October 2026, marks/set_aside.yaml)."""
     records, truth = runlog.events(folder), runlog.truth(folder)
     pass_id = pass_id or pass_of(records)
     run_start = next(r["body"] for r in records if r["type"] == "RUN_START")
@@ -43,6 +57,10 @@ def score_run(folder, pass_id=None):
     if lost:
         return {"run_id": run_start["run_id"], "model_config": run_start["model_config"], "pass": pass_id,
                 "build_defect": measures.lost_detail(lost), "valid": True, "flagged": True, "stopped": False}
+    ruled = set_aside(run_start["run_id"])
+    if ruled:
+        return {"run_id": run_start["run_id"], "model_config": run_start["model_config"], "pass": pass_id,
+                "build_defect": ruled, "valid": True, "flagged": True, "stopped": False}
     frames = runlog.received_frames(truth)
     found = measures.measures(records)
     accuracy = reports.report_accuracy(records, frames)
@@ -59,7 +77,8 @@ def score_phase_1(folder, sheet=None):
     """S8 on a phase-1 run, with the Director's marks kept apart (U61): scored_by_s8 is what S8 checks itself, and
     checked_by_the_director each written claim as he marked it on the run's sheet, None until he has (sheet: its
     path, by default marks/phase1/<run_id>.yaml). A run that ended with ERROR is a build defect (U59), and so is
-    one with a turn lost after its model call (the Director's ruling of 29 October 2026)."""
+    one with a turn lost after its model call, and one he has set aside by ruling (the Director's rulings of 29
+    October 2026, marks/set_aside.yaml)."""
     records, truth = runlog.events(folder), runlog.truth(folder)
     run_start = next(r["body"] for r in records if r["type"] == "RUN_START")
     run_end = next((r["body"] for r in records if r["type"] == "RUN_END"), None)
@@ -69,6 +88,9 @@ def score_phase_1(folder, sheet=None):
     lost = measures.lost_turns(records)
     if lost:
         return {**found, "build_defect": measures.lost_detail(lost)}
+    ruled = set_aside(run_start["run_id"])
+    if ruled:
+        return {**found, "build_defect": ruled}
     sheet = Path(sheet) if sheet else phase1.SHEETS / f"{run_start['run_id']}.yaml"
     marked = phase1.marks(sheet.read_text(encoding="utf-8"), records, truth) if sheet.exists() else {}
     measured = measures.measures(records)

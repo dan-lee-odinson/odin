@@ -712,6 +712,16 @@ CASES = {"s0": [
      change_file("eval/results.py", replace_once(
          b'    lost = measures.lost_turns(records)\n    if lost:\n        return {"run_id"',
          b'    lost = []\n    if lost:\n        return {"run_id"'))),
+    ("R2 scored though the Director set it aside (29 October 2026)",
+     "tests/test_s8_phase1.py::test_red_r2_is_set_aside_by_the_directors_ruling_not_scored",
+     change_file("eval/results.py", replace_once(
+         b'    ruled = set_aside(run_start["run_id"])\n    if ruled:\n        return {**found,',
+         b'    ruled = None\n    if ruled:\n        return {**found,'))),
+    ("a phase-2 run the Director set aside scored (29 October 2026)",
+     "tests/test_s8_measures.py::test_red_a_phase_2_run_the_director_set_aside_is_a_build_defect_not_scored",
+     change_file("eval/results.py", replace_once(
+         b'    ruled = set_aside(run_start["run_id"])\n    if ruled:\n        return {"run_id"',
+         b'    ruled = None\n    if ruled:\n        return {"run_id"'))),
     ("S8 counting a collect ODIN did not dispatch (U62)",
      "tests/test_s8_phase1.py::test_red_a_collect_odin_did_not_dispatch_is_not_counted",
      change_file("eval/phase1.py", replace_once(b'                and o["body"]["request_id"] in sent\n', b""))),

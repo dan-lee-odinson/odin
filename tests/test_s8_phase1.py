@@ -164,6 +164,14 @@ def test_red_r1_is_a_build_defect_for_the_turns_its_loop_lost():
     assert "scored_by_s8" not in found
 
 
+def test_red_r2_is_set_aside_by_the_directors_ruling_not_scored():
+    # The Director's ruling of 29 October 2026: R2 kept as evidence, a build defect (the CLOCK_SKEW system refusal
+    # at MET 1013, caused by the loop's timestamp), not scored.
+    found = score_phase_1(REPO_ROOT / "runs" / "scored" / "PH1-SHAKEDOWN-SPARK-R2")
+    assert (found["build_defect"] or "").startswith("set aside by the Director's ruling of 2026-10-29, not scored: ")
+    assert "CLOCK_SKEW" in found["build_defect"] and "scored_by_s8" not in found
+
+
 def test_red_a_mark_that_is_not_true_or_false_is_refused():
     text = sheet_text(sheet(ANSWERED, TRUTH))
     assert marks(marked(text, "true"), ANSWERED, TRUTH)["units"] is True
