@@ -33,7 +33,7 @@
     "seed": {"type": "integer"},
     "model_config": {
       "description": "The model configuration (§11.1).",
-      "enum": ["spark", "spark_open", "glimmer_local", "stand_in"]
+      "enum": ["spark", "spark_open", "glimmer_local", "glimmer_modal", "stand_in"]
     },
     "provider": {
       "description": "The provider as the run's model's adapter names it, since the adapter's code makes the call (the Director's ruling on U57, 28 October 2026).",
@@ -96,7 +96,7 @@
     {
       "if": {
         "required": ["model_config"],
-        "properties": {"model_config": {"enum": ["spark", "spark_open", "glimmer_local"]}}
+        "properties": {"model_config": {"enum": ["spark", "spark_open", "glimmer_local", "glimmer_modal"]}}
       },
       "then": {
         "properties": {

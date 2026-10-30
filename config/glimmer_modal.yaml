@@ -1,0 +1,13 @@
+# Muse Glimmer on Modal, the onboard seat's fallback (CONTRACT.md §11.1; the Director's rulings of 29 October 2026
+# and his approval of 30 October 2026): the endpoint ODIN's glimmer_modal adapter calls, as Claude Code deployed it
+# (tools/glimmer_modal.py). Its model settings wait for M5's measurements and his ruling; then they go into
+# config/models.yaml's frozen block with this endpoint.
+#
+# Call POST <endpoint>/v1/chat/completions, OpenAI-compatible, with the headers Modal-Key and Modal-Secret holding
+# ODIN_MODAL_PROXY_KEY and ODIN_MODAL_PROXY_SECRET, read from the environment and never written here or anywhere.
+# Claude Code warms the server before a run and lets it scale to zero after: the adapter never starts, warms or
+# stops it.
+endpoint: https://dan-lee-odinson--odin-glimmer-serve-h100.us-east.modal.run
+gpu: H100
+app: odin-glimmer
+function: serve_h100

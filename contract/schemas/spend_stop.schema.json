@@ -24,7 +24,7 @@
       "then": {"properties": {"stop": {"const": "BASETEN"}}}
     },
     {
-      "if": {"required": ["config"], "properties": {"config": {"const": "glimmer_local"}}},
+      "if": {"required": ["config"], "properties": {"config": {"enum": ["glimmer_local", "glimmer_modal"]}}},
       "then": {"properties": {"stop": {"const": "MODAL"}}}
     }
   ]

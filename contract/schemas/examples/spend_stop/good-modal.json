@@ -1,0 +1,9 @@
+{
+  "turn_id": 12,
+  "call_index": 1,
+  "config": "glimmer_modal",
+  "stop": "MODAL",
+  "spent_usd": 124.95,
+  "reserved_usd": 0.0658200,
+  "limit_usd": 125
+}

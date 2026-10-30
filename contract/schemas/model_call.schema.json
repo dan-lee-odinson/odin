@@ -16,7 +16,7 @@
       "description": "Which API call of the turn this is, counting from 1 as turn_id and record_id do (the Director's ruling on U20, 26 October 2026).",
       "$ref": "common.schema.json#/definitions/count_from_1"
     },
-    "config": {"description": "The model configuration (§11.1).", "enum": ["spark", "spark_open", "glimmer_local", "stand_in"]},
+    "config": {"description": "The model configuration (§11.1).", "enum": ["spark", "spark_open", "glimmer_local", "glimmer_modal", "stand_in"]},
     "provider": {"description": "The provider, as the run's configuration names it.", "type": ["string", "null"]},
     "model_id": {"description": "The model ID sent to the provider, exactly.", "type": ["string", "null"]},
     "reasoning_effort": {"description": "The reasoning setting sent with the call, explicitly, never the provider's default (§11.1).", "type": ["string", "null"]},
@@ -39,7 +39,7 @@
     }
   },
   "allOf": [
-    {"if": {"required": ["config"], "properties": {"config": {"enum": ["spark", "spark_open", "glimmer_local"]}}},
+    {"if": {"required": ["config"], "properties": {"config": {"enum": ["spark", "spark_open", "glimmer_local", "glimmer_modal"]}}},
      "then": {"properties": {
        "provider": {"type": "string"},
        "model_id": {"type": "string"},

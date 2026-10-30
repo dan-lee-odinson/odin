@@ -1,0 +1,24 @@
+{
+  "run_id": "dev-run-0001",
+  "turn_id": 3,
+  "call_index": 1,
+  "config": "glimmer_modal",
+  "provider": "Modal (llama.cpp server-cuda-b11977, one H100)",
+  "model_id": "Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf",
+  "reasoning_effort": "medium",
+  "max_output_tokens": 8192,
+  "status": "OK",
+  "input_tokens": 53120,
+  "cached_input_tokens": 0,
+  "output_tokens": 1450,
+  "reasoning_tokens": 1210,
+  "reserved_cost_usd": 0.0658200,
+  "actual_cost_usd": 0.0526560,
+  "pays_from": "MODAL_CREDIT",
+  "latency_s": 48.0,
+  "provider_usage": {
+    "prompt_tokens": 53120,
+    "completion_tokens": 1450,
+    "total_tokens": 54570
+  }
+}

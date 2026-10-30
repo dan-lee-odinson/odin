@@ -142,6 +142,7 @@ RESTORED = "restore_record/good-accepted.json"
 RESTORE_REFUSED = "restore_record/good-already-used.json"
 SPEND = "spend/good-after-call.json"
 SPEND_STOP = "spend_stop/good-baseten.json"
+SPEND_STOP_MODAL = "spend_stop/good-modal.json"
 
 UUID1 = str(uuid.UUID("3f2b8c1e-9a4d-1f6b-8e2a-7c5d1b0e9f34"))
 BARE_HEX = "4e086337f7dfd018dde67cf48b14feb8390b59d741d0c2c4c90bd96dfa0cae1e"
@@ -548,6 +549,8 @@ BAD = [
     ("spend", "call_index counting from 0", SPEND, setting("call_index", to=0)),
     ("spend", "a total left out", SPEND, dropping("modal_credit_usd")),
     ("spend_stop", "spark_open stopped at the Meta stop", SPEND_STOP, setting("stop", to="META")),
+    ("spend_stop", "Glimmer on Modal stopped at the Meta stop (30 October 2026)", SPEND_STOP_MODAL,
+     setting("stop", to="META")),
     ("spend_stop", "a stop U21 does not list", SPEND_STOP, setting("stop", to="OUT_OF_POCKET")),
     ("spend_stop", "a limit of zero", SPEND_STOP, setting("limit_usd", to=0)),
     ("spend_stop", "the reservation missing", SPEND_STOP, dropping("reserved_usd")),

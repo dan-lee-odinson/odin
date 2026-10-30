@@ -1,0 +1,18 @@
+{
+  "run_id": "dev-run-0001",
+  "scenario_id": "DEV-S01",
+  "phase": 3,
+  "mode": "DEVELOPMENT",
+  "seed": 1,
+  "model_config": "glimmer_modal",
+  "provider": "Modal (llama.cpp server-cuda-b11977, one H100)",
+  "model_id": "Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf",
+  "reasoning_effort": "medium",
+  "endpoint": "https://dev-run.example/v1",
+  "answer_method": "STRUCTURED_OUTPUT",
+  "config_sha256": "sha256:53af1538c69ae5ab8a127b5cc3f346b9c4d3665b6487b4cf8114a5a146f4b4df",
+  "instructions_sha256": "sha256:3a91b23fd4a533c04a8821fa01743c7d6e0062b6956a02eae703864220cf9f8c",
+  "prompt_template_sha256": "sha256:63286e9bfd310af6ee5b7e34df867f78a3d483e7e4c192d375bf5c552fd5a282",
+  "plan_chain_sha256": "sha256:d75d24be28a658b069fd0df43e9778785755541b90b31b312cebf7cb0c082a7b",
+  "reference_sha256": "sha256:9159bf99fe60896830132fc452d307736239b0b9f3713fee475f571d7459bd05"
+}
