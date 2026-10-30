@@ -26,8 +26,9 @@ MADE_UP_FEEDS = {
                            "soc_pct": "to the nearest 10 %"}}}
 
 
-def made_up(folder, script=None, feeds=None, extra=None):
-    """A sealed folder of one made-up scenario, H90, with two plans; returns (folder, its seal)."""
+def made_up(folder, script=None, feeds=None, extra=None, seats=None):
+    """A sealed folder of one made-up scenario, H90, with two plans, in the ground seat throughout unless seats
+    says otherwise; returns (folder, its seal)."""
     sealed = folder / "sealed"
     sealed.mkdir(parents=True)
     made = dict(scenario_id="H90", prohibited=[], envelope=[], leases=[],
@@ -47,7 +48,8 @@ def made_up(folder, script=None, feeds=None, extra=None):
                 "geometry": {"campaign_epoch_utc": "2026-07-29T14:00:00Z", "epoch_campaign_t_s": 257303,
                              "contacts": [{"aos_met_s": a, "los_met_s": b} for a, b in windows]},
                 "run": {"start_met_s": 0, "end_met_s": windows[-1][1],
-                        "seats": [{"from_met_s": 0, "to_met_s": windows[-1][1], "seat": "GROUND", "pacing": "REAL_TIME"}],
+                        "seats": seats or [{"from_met_s": 0, "to_met_s": windows[-1][1], "seat": "GROUND",
+                                            "pacing": "REAL_TIME"}],
                         "check_ins": [{"met_s": b - 90} for _, b in windows]},
                 "script": script or {}, "feeds": dict(MADE_UP_FEEDS, **(feeds or {}))}
     (sealed / "H90.scenario.yaml").write_bytes(dump(scenario))

@@ -1,5 +1,7 @@
 """ODIN's process starts with no ODIN_COSMOS_* or OPENC3_* variable (the Director's ruling on U38): ODIN
-holds no ground-system credential (CONTRACT.md §9). The values here are made up for the test."""
+holds no ground-system credential (CONTRACT.md §9). Nor with Modal's own account token, MODAL_TOKEN_*, which the
+phase-3 runner holds to keep Glimmer's endpoint warm; the endpoint's proxy key passes through. The values here are
+made up for the test."""
 
 import json
 import os
@@ -13,10 +15,11 @@ from harness.launch import launch_odin, odin_environment
 # The names are assembled from pieces so that this file does not trip the secret scan.
 PLANTED = {"ODIN_COSMOS_" + "REDIS_PASSWORD": "made-up-1", "ODIN_COSMOS_" + "SERVICE_PASSWORD": "made-up-2",
            "OPENC3_" + "SERVICE_PASSWORD": "made-up-3", "openc3_" + "redis_username": "made-up-4",
-           "Odin_Cosmos_" + "Secret_Key_Base": "made-up-5"}
+           "Odin_Cosmos_" + "Secret_Key_Base": "made-up-5", "MODAL_TOKEN_" + "ID": "made-up-9",
+           "modal_token_" + "secret": "made-up-10"}
 # What Muse Code's start command reads, its signing key's path and the model API keys, passes through (M8).
 KEPT = {"PATH": "C:\\Windows", "ODIN_KEY_PATH": "C:\\keys\\odin", "META_" + "API_KEY": "made-up-6",
-        "BASETEN_" + "API_KEY": "made-up-7",
+        "BASETEN_" + "API_KEY": "made-up-7", "ODIN_MODAL_PROXY_" + "KEY": "made-up-8",
         "ODIN_COSMOSX": "not a credential's prefix", "MY_OPENC3_NOTE": "not a prefix either"}
 
 
@@ -36,7 +39,7 @@ def test_odins_process_starts_without_them():
                         environ=environ, stdout=subprocess.PIPE, text=True)
     names = json.loads(child.communicate(timeout=30)[0])
     assert child.returncode == 0
-    assert not [name for name in names if name.upper().startswith(("ODIN_COSMOS_", "OPENC3_"))]
+    assert not [name for name in names if name.upper().startswith(("ODIN_COSMOS_", "OPENC3_", "MODAL_TOKEN_"))]
 
 
 def test_red_no_caller_can_hand_odin_an_environment_of_its_own():

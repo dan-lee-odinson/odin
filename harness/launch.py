@@ -2,7 +2,9 @@
 
 ODIN holds no ground-system credential (CONTRACT.md §9). COSMOS's credentials are the Director's user
 environment variables, ODIN_COSMOS_*, and COSMOS's own settings are OPENC3_*, so ODIN's process starts
-with this process's environment less every variable under either prefix. Windows compares environment
+with this process's environment less every variable under either prefix. Modal's own account token,
+MODAL_TOKEN_*, is withheld the same way: the phase-3 runner holds it to keep Glimmer's endpoint warm, and
+ODIN's onboard adapter needs only the endpoint's proxy key and secret. Windows compares environment
 variable names without regard to case, so neither does this.
 
 ODIN's process is Muse Code's start command, python -m odin.run_odin <model> (MC-M8-01), given the run's
@@ -22,7 +24,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-WITHHELD_PREFIXES = ("ODIN_COSMOS_", "OPENC3_")
+WITHHELD_PREFIXES = ("ODIN_COSMOS_", "OPENC3_", "MODAL_TOKEN_")
 ODIN_START = ("-m", "odin.run_odin")
 # Muse Code's exit codes (MC-M8-01) other than 0, and how each ends the run.
 EXITS = {2: "refused at start", 3: "the harness was unreachable", 4: "after a spend stop",
@@ -36,7 +38,7 @@ def withheld(name):
 
 def odin_environment(environ=None):
     """The environment ODIN's process starts with: environ, os.environ by default, less every
-    ODIN_COSMOS_* and OPENC3_* variable."""
+    ODIN_COSMOS_*, OPENC3_* and MODAL_TOKEN_* variable."""
     environ = os.environ if environ is None else environ
     return {name: value for name, value in environ.items() if not withheld(name)}
 
