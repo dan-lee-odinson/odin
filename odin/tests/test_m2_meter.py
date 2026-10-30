@@ -53,12 +53,14 @@ def test_baseten_stop_refuses_at_90(tmp_path):
     assert refused is None  # 89 + 2 would pass $90
 
 
-def test_modal_stop_refuses_at_12(tmp_path):
+def test_modal_stop_refuses_at_125(tmp_path):
+    # M5 prep supersedes the $12 figure: the Director set the Modal
+    # stop to $125 (AGENTS section 4.2, glimmer_modal).
     meter = make_meter(tmp_path)
-    spend_to(meter, "glimmer_local", 11.0)
+    spend_to(meter, "glimmer_local", 124.0)
     refused = meter.reserve(config="glimmer_local", input_tokens=0, max_output_tokens=1,
                             turn_id=2, call_index=1, reserved_usd=2.0)
-    assert refused is None  # 11 + 2 would pass $12.00
+    assert refused is None  # 124 + 2 would pass $125
 
 
 def test_call_reaching_exactly_the_stop_is_allowed(tmp_path):

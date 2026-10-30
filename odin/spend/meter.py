@@ -21,13 +21,14 @@ DEFAULT_PRICES = REPO_ROOT / "config" / "prices.yaml"
 
 # The stops (§11.3) and which credit each configuration draws on (§11.2,
 # spend_stop.schema.json). Glimmer's Modal GPU fallback is the modal case.
-STOPS = {"META": 125.0, "BASETEN": 90.0, "MODAL": 12.0}
+STOPS = {"META": 125.0, "BASETEN": 90.0, "MODAL": 125.0}
 CONFIG_STOP = {"spark": "META", "spark_open": "BASETEN", "glimmer_local": "MODAL",
-               "voice_transcribe": "META"}
+               "glimmer_modal": "MODAL", "voice_transcribe": "META"}
 CONFIG_BUCKET = {
     "spark": "META_CREDIT",
     "spark_open": "BASETEN_CREDIT",
     "glimmer_local": "MODAL_CREDIT",
+    "glimmer_modal": "MODAL_CREDIT",
     "voice_transcribe": "META_CREDIT",
     "stand_in": None,
 }
@@ -97,6 +98,14 @@ class SpendMeter:
             + cached_input_tokens * prices["cached_input_per_mtok"]
             + output_tokens * prices["output_per_mtok"]
         ) / 1_000_000
+
+    def gpu_cost(self, config, seconds) -> float:
+        """Cost of `seconds` of GPU wall time at the config's
+        `per_gpu_second` price in config/prices.yaml (glimmer_modal)."""
+        prices = self._prices.get(config)
+        if not prices or prices.get("per_gpu_second") is None:
+            raise ValueError(f"no per_gpu_second price for {config!r}")
+        return float(seconds) * float(prices["per_gpu_second"])
 
     def worst_case(self, config, input_tokens, max_output_tokens) -> float:
         prices = self._prices.get(config)

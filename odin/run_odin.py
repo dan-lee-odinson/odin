@@ -1,6 +1,6 @@
 """ODIN's start command: run ODIN as its own process for one run.
 
-    python -m odin.run_odin <spark|spark_open|glimmer_local|stand_in>
+    python -m odin.run_odin <spark|spark_open|glimmer_local|glimmer_modal|stand_in>
 
 Reads the harness, BALDUR-0 and log addresses from config/ports.yaml and
 runs the turn loop until the harness says the run is complete. The adapter
@@ -10,7 +10,8 @@ inject a fake transport into main()/build_run_adapter() in code, never
 through the command line). Before anything else, every ODIN_COSMOS_*
 variable is removed from this process's environment (U38): ODIN never
 holds COSMOS's credentials. API keys come only from META_API_KEY and
-BASETEN_API_KEY; the signing key only from ODIN_KEY_PATH.
+BASETEN_API_KEY, Modal's proxy values only from ODIN_MODAL_PROXY_KEY
+and ODIN_MODAL_PROXY_SECRET; the signing key only from ODIN_KEY_PATH.
 """
 import hashlib
 import json
@@ -21,8 +22,9 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MODELS = ("spark", "spark_open", "glimmer_local", "stand_in")
+MODELS = ("spark", "spark_open", "glimmer_local", "glimmer_modal", "stand_in")
 KEY_FOR_MODEL = {"spark": "META_API_KEY", "spark_open": "BASETEN_API_KEY"}
+KEYS_FOR_MODEL = {"glimmer_modal": ("ODIN_MODAL_PROXY_KEY", "ODIN_MODAL_PROXY_SECRET")}
 
 
 def strip_cosmos_env(env=None) -> None:
@@ -100,7 +102,7 @@ def main(argv=None, *, transport=None, repo_root=None, private_key_path=None,
     argv = list(sys.argv[1:] if argv is None else argv)
     if len(argv) != 1:
         print("usage: python -m odin.run_odin "
-              "<spark|spark_open|glimmer_local|stand_in>")
+              "<spark|spark_open|glimmer_local|glimmer_modal|stand_in>")
         return 2
     model = argv[0]
     if model not in MODELS:
@@ -114,6 +116,10 @@ def main(argv=None, *, transport=None, repo_root=None, private_key_path=None,
     if key_var and not os.environ.get(key_var):
         print(f"refusing to start: {key_var} is not set")
         return 2
+    for var in KEYS_FOR_MODEL.get(model, ()):
+        if not os.environ.get(var):
+            print(f"refusing to start: {var} is not set")
+            return 2
     if not os.environ.get("ODIN_KEY_PATH"):
         print("refusing to start: ODIN_KEY_PATH is not set")
         return 2
