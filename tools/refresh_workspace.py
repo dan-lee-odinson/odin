@@ -24,9 +24,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKSPACE = Path.home() / "Documents" / "ad-astra-simul" / "odin"
 # contract/m14: format B and spark's answers to it, for Muse Code's M14 (the Director's word of 29 October 2026);
-# contract/m15: the regrouped format and spark's answers to it, for M15 (his word of the same evening).
+# contract/m15: the regrouped format and spark's answers to it, for M15 (his word of the same evening);
+# contract/m16: format G and Glimmer's answers to it, for M16 (his word of 30 October 2026).
 SHARED = (".agents/AGENTS.md", "CONTRACT.md", "config", "keys", "contract/schemas", "checkins", "contract/m14",
-          "contract/m15")
+          "contract/m15", "contract/m16")
 HUGINN_FILE = ("deps/huginn", "defs/tlm_cmd.yaml")
 MUSE_FOLDERS = ("odin", "to-claude-code", "cache", "runs")
 MUSE_FILES = ("keys/odin.pub",)

@@ -1,0 +1,427 @@
+{
+ "anyOf": [
+  {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "kind",
+    "command_call",
+    "escalation",
+    "rationale"
+   ],
+   "properties": {
+    "kind": {
+     "type": "string",
+     "enum": [
+      "command"
+     ]
+    },
+    "command_call": {
+     "anyOf": [
+      {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "command",
+        "parameters"
+       ],
+       "properties": {
+        "command": {
+         "type": "string",
+         "enum": [
+          "CMD_PLD_SET_STATE"
+         ]
+        },
+        "parameters": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "state"
+         ],
+         "properties": {
+          "state": {
+           "type": "string",
+           "enum": [
+            "OFF",
+            "ON"
+           ]
+          }
+         }
+        }
+       }
+      },
+      {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "command",
+        "parameters"
+       ],
+       "properties": {
+        "command": {
+         "type": "string",
+         "enum": [
+          "CMD_PLD_SET_RATE"
+         ]
+        },
+        "parameters": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "rate"
+         ],
+         "properties": {
+          "rate": {
+           "type": "number",
+           "minimum": 0.1,
+           "maximum": 10
+          }
+         }
+        }
+       }
+      },
+      {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "command",
+        "parameters"
+       ],
+       "properties": {
+        "command": {
+         "type": "string",
+         "enum": [
+          "CMD_SAFE_ENTER"
+         ]
+        },
+        "parameters": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [],
+         "properties": {}
+        }
+       }
+      },
+      {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "command",
+        "parameters"
+       ],
+       "properties": {
+        "command": {
+         "type": "string",
+         "enum": [
+          "CMD_SYS_RESET"
+         ]
+        },
+        "parameters": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [],
+         "properties": {}
+        }
+       }
+      },
+      {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "command",
+        "parameters"
+       ],
+       "properties": {
+        "command": {
+         "type": "string",
+         "enum": [
+          "CMD_MODE_SET"
+         ]
+        },
+        "parameters": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "target"
+         ],
+         "properties": {
+          "target": {
+           "type": "string",
+           "enum": [
+            "NOMINAL",
+            "LOW_POWER"
+           ]
+          }
+         }
+        }
+       }
+      }
+     ]
+    },
+    "escalation": {
+     "type": "null"
+    },
+    "rationale": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "kind",
+    "command_call",
+    "escalation",
+    "rationale"
+   ],
+   "properties": {
+    "kind": {
+     "type": "string",
+     "enum": [
+      "escalation"
+     ]
+    },
+    "command_call": {
+     "type": "null"
+    },
+    "escalation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "escalation_kind",
+      "refs",
+      "urgency",
+      "proposed"
+     ],
+     "properties": {
+      "escalation_kind": {
+       "type": "string",
+       "enum": [
+        "OFF_COURSE",
+        "MALFUNCTION",
+        "DECISION_NEEDED",
+        "LEASE_NEEDED",
+        "AUTHORITY_NEEDED",
+        "CONFLICT"
+       ]
+      },
+      "refs": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "urgency": {
+       "type": "string",
+       "enum": [
+        "ROUTINE",
+        "URGENT"
+       ]
+      },
+      "proposed": {
+       "anyOf": [
+        {
+         "anyOf": [
+          {
+           "type": "object",
+           "additionalProperties": false,
+           "required": [
+            "command",
+            "parameters"
+           ],
+           "properties": {
+            "command": {
+             "type": "string",
+             "enum": [
+              "CMD_PLD_SET_STATE"
+             ]
+            },
+            "parameters": {
+             "type": "object",
+             "additionalProperties": false,
+             "required": [
+              "state"
+             ],
+             "properties": {
+              "state": {
+               "type": "string",
+               "enum": [
+                "OFF",
+                "ON"
+               ]
+              }
+             }
+            }
+           }
+          },
+          {
+           "type": "object",
+           "additionalProperties": false,
+           "required": [
+            "command",
+            "parameters"
+           ],
+           "properties": {
+            "command": {
+             "type": "string",
+             "enum": [
+              "CMD_PLD_SET_RATE"
+             ]
+            },
+            "parameters": {
+             "type": "object",
+             "additionalProperties": false,
+             "required": [
+              "rate"
+             ],
+             "properties": {
+              "rate": {
+               "type": "number",
+               "minimum": 0.1,
+               "maximum": 10
+              }
+             }
+            }
+           }
+          },
+          {
+           "type": "object",
+           "additionalProperties": false,
+           "required": [
+            "command",
+            "parameters"
+           ],
+           "properties": {
+            "command": {
+             "type": "string",
+             "enum": [
+              "CMD_SAFE_ENTER"
+             ]
+            },
+            "parameters": {
+             "type": "object",
+             "additionalProperties": false,
+             "required": [],
+             "properties": {}
+            }
+           }
+          },
+          {
+           "type": "object",
+           "additionalProperties": false,
+           "required": [
+            "command",
+            "parameters"
+           ],
+           "properties": {
+            "command": {
+             "type": "string",
+             "enum": [
+              "CMD_SYS_RESET"
+             ]
+            },
+            "parameters": {
+             "type": "object",
+             "additionalProperties": false,
+             "required": [],
+             "properties": {}
+            }
+           }
+          },
+          {
+           "type": "object",
+           "additionalProperties": false,
+           "required": [
+            "command",
+            "parameters"
+           ],
+           "properties": {
+            "command": {
+             "type": "string",
+             "enum": [
+              "CMD_MODE_SET"
+             ]
+            },
+            "parameters": {
+             "type": "object",
+             "additionalProperties": false,
+             "required": [
+              "target"
+             ],
+             "properties": {
+              "target": {
+               "type": "string",
+               "enum": [
+                "NOMINAL",
+                "LOW_POWER"
+               ]
+              }
+             }
+            }
+           }
+          }
+         ]
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     }
+    },
+    "rationale": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "kind",
+    "command_call",
+    "escalation",
+    "rationale"
+   ],
+   "properties": {
+    "kind": {
+     "type": "string",
+     "enum": [
+      "none"
+     ]
+    },
+    "command_call": {
+     "type": "null"
+    },
+    "escalation": {
+     "type": "null"
+    },
+    "rationale": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

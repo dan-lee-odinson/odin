@@ -1,0 +1,202 @@
+[
+ {
+  "case": "an escalation proposing the shed",
+  "format_G": "matches",
+  "loop_judged": "accepted escalation",
+  "answer": {
+   "kind": "escalation",
+   "command_call": null,
+   "escalation": {
+    "escalation_kind": "MALFUNCTION",
+    "refs": [
+     "EPS_LOAD_I",
+     "PROC-002-S04"
+    ],
+    "urgency": "URGENT",
+    "proposed": {
+     "command": "CMD_PLD_SET_STATE",
+     "parameters": {
+      "state": "OFF"
+     }
+    }
+   },
+   "rationale": "Load current stepped up 0.4 A out of contact."
+  }
+ },
+ {
+  "case": "an escalation proposing nothing, refs empty",
+  "format_G": "matches",
+  "loop_judged": "accepted escalation",
+  "answer": {
+   "kind": "escalation",
+   "command_call": null,
+   "escalation": {
+    "escalation_kind": "MALFUNCTION",
+    "refs": [],
+    "urgency": "ROUTINE",
+    "proposed": null
+   },
+   "rationale": null
+  }
+ },
+ {
+  "case": "a command",
+  "format_G": "matches",
+  "loop_judged": "accepted command",
+  "answer": {
+   "kind": "command",
+   "command_call": {
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "escalation": null,
+   "rationale": "Shed per L-SHED."
+  }
+ },
+ {
+  "case": "no action",
+  "format_G": "matches",
+  "loop_judged": "accepted none",
+  "answer": {
+   "kind": "none",
+   "command_call": null,
+   "escalation": null,
+   "rationale": "Envelope holds."
+  }
+ },
+ {
+  "case": "REFUSE: none carrying a leftover command_call (four of 30 October's five refusals)",
+  "format_G": "{'kind': 'none', 'command_call': {'command': 'CMD_PLD_SET_STATE', 'parameters': {'state': 'OFF'}}, 'escalation': None, 'rationale': 'Envelope holds.'} is not valid under any of the given schemas",
+  "loop_judged": "SCHEMA_VIOLATION",
+  "answer": {
+   "kind": "none",
+   "command_call": {
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "escalation": null,
+   "rationale": "Envelope holds."
+  }
+ },
+ {
+  "case": "REFUSE: a command with command_call null (30 October, medium, MET 900)",
+  "format_G": "{'kind': 'command', 'command_call': None, 'escalation': None, 'rationale': 'Shed.'} is not valid under any of the given schemas",
+  "loop_judged": "SCHEMA_VIOLATION",
+  "answer": {
+   "kind": "command",
+   "command_call": null,
+   "escalation": null,
+   "rationale": "Shed."
+  }
+ },
+ {
+  "case": "REFUSE: an escalation carrying a command_call",
+  "format_G": "{'kind': 'escalation', 'command_call': {'command': 'CMD_PLD_SET_STATE', 'parameters': {'state': 'OFF'}}, 'escalation': {'escalation_kind': 'MALFUNCTION', 'refs': ['EPS_LOAD_I', 'PROC-002-S04'], 'urgen",
+  "loop_judged": "SCHEMA_VIOLATION",
+  "answer": {
+   "kind": "escalation",
+   "command_call": {
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "escalation": {
+    "escalation_kind": "MALFUNCTION",
+    "refs": [
+     "EPS_LOAD_I",
+     "PROC-002-S04"
+    ],
+    "urgency": "URGENT",
+    "proposed": {
+     "command": "CMD_PLD_SET_STATE",
+     "parameters": {
+      "state": "OFF"
+     }
+    }
+   },
+   "rationale": null
+  }
+ },
+ {
+  "case": "REFUSE: a command carrying an escalation",
+  "format_G": "{'kind': 'command', 'command_call': {'command': 'CMD_PLD_SET_STATE', 'parameters': {'state': 'OFF'}}, 'escalation': {'escalation_kind': 'MALFUNCTION', 'refs': ['EPS_LOAD_I', 'PROC-002-S04'], 'urgency'",
+  "loop_judged": "SCHEMA_VIOLATION",
+  "answer": {
+   "kind": "command",
+   "command_call": {
+    "command": "CMD_PLD_SET_STATE",
+    "parameters": {
+     "state": "OFF"
+    }
+   },
+   "escalation": {
+    "escalation_kind": "MALFUNCTION",
+    "refs": [
+     "EPS_LOAD_I",
+     "PROC-002-S04"
+    ],
+    "urgency": "URGENT",
+    "proposed": {
+     "command": "CMD_PLD_SET_STATE",
+     "parameters": {
+      "state": "OFF"
+     }
+    }
+   },
+   "rationale": null
+  }
+ },
+ {
+  "case": "REFUSE: none carrying an escalation",
+  "format_G": "{'kind': 'none', 'command_call': None, 'escalation': {'escalation_kind': 'MALFUNCTION', 'refs': ['EPS_LOAD_I', 'PROC-002-S04'], 'urgency': 'URGENT', 'proposed': {'command': 'CMD_PLD_SET_STATE', 'param",
+  "loop_judged": "SCHEMA_VIOLATION",
+  "answer": {
+   "kind": "none",
+   "command_call": null,
+   "escalation": {
+    "escalation_kind": "MALFUNCTION",
+    "refs": [
+     "EPS_LOAD_I",
+     "PROC-002-S04"
+    ],
+    "urgency": "URGENT",
+    "proposed": {
+     "command": "CMD_PLD_SET_STATE",
+     "parameters": {
+      "state": "OFF"
+     }
+    }
+   },
+   "rationale": null
+  }
+ },
+ {
+  "case": "REFUSE: an escalation with urgency null",
+  "format_G": "{'kind': 'escalation', 'command_call': None, 'escalation': {'escalation_kind': 'MALFUNCTION', 'refs': ['EPS_LOAD_I', 'PROC-002-S04'], 'urgency': None, 'proposed': {'command': 'CMD_PLD_SET_STATE', 'par",
+  "loop_judged": "SCHEMA_VIOLATION",
+  "answer": {
+   "kind": "escalation",
+   "command_call": null,
+   "escalation": {
+    "escalation_kind": "MALFUNCTION",
+    "refs": [
+     "EPS_LOAD_I",
+     "PROC-002-S04"
+    ],
+    "urgency": null,
+    "proposed": {
+     "command": "CMD_PLD_SET_STATE",
+     "parameters": {
+      "state": "OFF"
+     }
+    }
+   },
+   "rationale": null
+  }
+ }
+]
