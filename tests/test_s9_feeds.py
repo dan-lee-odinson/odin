@@ -74,3 +74,66 @@ def test_the_beacon_keeps_sending_through_a_housekeeping_halt():
     feed.tick(839, UTC, state())
     halted = feed.tick(840, UTC, state(frame_generated=False))
     assert [r["feed"] for r in halted] == ["station_receiver", "beacon"]
+
+
+# -- the feeds in the harness (S9, piece 2, wired after phase 2's last scored run) ---------------------------------
+
+class Scripted:
+    """Feed reports at the METs given, as the harness asks for them each tick."""
+
+    def __init__(self, at):
+        self.at = at
+
+    def tick(self, met_s, utc, state):
+        return [{"feed": feed, "met_s": met_s, "utc": utc, "content": {"status": "LOCKED", "signal_level_dbm": -84.0}}
+                for feed in self.at.get(met_s, ())]
+
+
+def test_red_each_feed_report_is_a_turn_trigger_and_the_turn_that_merges_it_carries_it(tmp_path):
+    from tests.harness_world import HarnessWorld, records, turns
+    run = HarnessWorld(tmp_path).run(phase=3, feeds=Scripted({800: ["station_receiver", "beacon"],
+                                                                860: ["station_receiver"]}))
+    try:
+        assert run.start()
+        served = turns(run, 3)
+    finally:
+        run.stop()
+    for bundle in served:
+        assert check("turn_bundle", bundle) == []
+        wanted = [(t["detail"]["feed"], t["met_s"]) for t in bundle["triggers"] if t["type"] == "FEED_REPORT"]
+        assert [(r["feed"], r["met_s"]) for r in bundle["feeds"]] == wanted
+    shown = [(r["feed"], r["met_s"]) for bundle in served for r in bundle["feeds"]]
+    assert shown == [("station_receiver", 800), ("beacon", 800), ("station_receiver", 860)]   # each once
+    assert [b["turn_kind"] for b in served] == ["ACT", "REPORT", "ACT"]   # the pass start's report waits its turn
+    logged = [t for r in records(run, "TRIGGER") for t in r["body"]["triggers"] if t["type"] == "FEED_REPORT"]
+    assert len(logged) == 3
+
+
+def test_red_outside_feeds_are_phase_3s_only(tmp_path):
+    from tests.harness_world import HarnessWorld, turns
+    harness = HarnessWorld(tmp_path)
+    with pytest.raises(ValueError, match="phase 3's only"):
+        harness.run(feeds=Scripted({}))
+    run = harness.run()
+    try:
+        assert run.start()
+        assert turns(run, 1)[0]["feeds"] is None   # null outside phase 3
+    finally:
+        run.stop()
+
+
+def test_a_sealed_scenarios_core_feeds_read_huginns_orbit_at_its_place_in_the_campaign_week(tmp_path):
+    # The made-up sealed scenario sits where P3 does, a public phase-2 place: contact 9, MET 800 at campaign time
+    # 257303 from the campaign epoch.
+    import wrapper.huginn
+    from harness.phase3 import HeldOut
+    from sim.orbit import Orbit
+    from tests.test_s9_phase3_setup import made_up
+    folder, seal = made_up(tmp_path)
+    feed = HeldOut(folder, seal=seal).scenario("H90").core_feeds()
+    orbit = Orbit(wrapper.huginn.HUGINN / "defs" / "orbit", "2026-07-29T14:00:00Z")
+    assert feed.tick(799, UTC, state()) == []                                    # before acquisition
+    [receiver, beacon] = feed.tick(840, UTC, state())
+    assert receiver["content"] == {"status": "LOCKED",
+                                   "signal_level_dbm": signal_level_dbm(orbit.look_angles_at(840 + 257303)[2])}
+    assert beacon["content"]["callsign"] == "HUGINN"

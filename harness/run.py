@@ -92,7 +92,7 @@ class Run:
     def __init__(self, *, run_id, scenario, scenario_id, phase, mode, plan_paths, act_path, root, procedures,
                  config, seat="ONBOARD", pacing="CHARGED", rate=1.0, check_ins=(), pass_transcript=None,
                  revoke_at=None, restore=None, docs_folder=docs.CACHE, keys_dir=KEYS_DIR, addresses=None,
-                 utc_clock=utc_now, endpoint=None, cosmos=None, link_at=None):
+                 utc_clock=utc_now, endpoint=None, cosmos=None, link_at=None, feeds=None):
         """config: what whoever starts the run names, RUN_START_CONFIG but for the DERIVED settings, which come
         from the model's frozen block (U56) and its adapter (U57); a config carrying any of them is refused.
         endpoint: the base URL a development run's adapter calls instead of its built-in one; refused in a
@@ -104,7 +104,10 @@ class Run:
         (met_s, restore act path). addresses: {harness, baldur0, log} to serve on, each (host, port);
         config/ports.yaml's by default. cosmos: the ground seat's COSMOS, a connector.api.CosmosApi by
         default. link_at: the (host, port) the ground seat's link listens on, config/ports.yaml's by
-        default."""
+        default. feeds: phase 3's outside feeds (CONTRACT.md §6.5; S9), whose tick(met_s, utc, state) gives the
+        reports due at met_s from the simulator's true state (wrapper/feeds.py); refused outside phase 3."""
+        if feeds is not None and phase != 3:
+            raise ValueError("outside feeds are phase 3's only (CONTRACT.md §6.5)")
         if seat not in SEATS:
             raise ValueError(f"seat {seat!r} is not one of {SEATS}")
         if seat == "GROUND" and pacing != "REAL_TIME":
@@ -118,6 +121,8 @@ class Run:
         self.check_ins = recorded(check_ins)
         self.pass_transcript = pass_transcript
         self.revoke_at, self.restore = revoke_at, restore
+        self.feeds = feeds
+        self._feed_reports = {}   # id(FEED_REPORT trigger): (that trigger, its report), until a turn serves it
         self.docs_folder, self.keys_dir, self.addresses = docs_folder, keys_dir, addresses or {}
         self._utc = utc_clock
         self.folder = Path(root) / "runs" / run_id
@@ -431,6 +436,12 @@ class Run:
                 self.restore = None
                 self.gateway.restore(act_path)
                 found.append(trigger("RESTORE", met))
+            # Every feed report is a turn trigger, merged as usual with any others waiting (§6.1, §6.5); the turn
+            # that merges its trigger carries the report in its bundle's feeds.
+            for report in self.feeds.tick(met, self._utc(), self.simulator.true_state()) if self.feeds else ():
+                one = trigger("FEED_REPORT", met, feed=report["feed"])
+                self._feed_reports[id(one)] = (one, report)
+                found.append(one)
             with self.queue.together():   # one tick's triggers arrive together (§6.1, U47)
                 if not found and not check_ins and self.queue.periodic_due(met):
                     found.append(trigger("PERIODIC", met))
@@ -485,13 +496,17 @@ class Run:
             return self._complete()
         with self._lock:
             met = self.met_s()
+            served = [id(t) for t in turn.triggers if t["type"] == "FEED_REPORT"]
             bundle = build_bundle(run_id=self.run_id, turn_id=self.turn_id + 1, turn=turn, met_s=met, utc=self._utc(),
                                   contact_state=self.contact(), seat=self.seat, gateway=self.gateway,
                                   store=self.store, procedures=self.procedures, records=read_records(self.events.path),
-                                  ground_link=self.cosmos.ground_link() if self.seat == "GROUND" else None)
+                                  ground_link=self.cosmos.ground_link() if self.seat == "GROUND" else None,
+                                  feeds=[self._feed_reports[key][1] for key in served] if self.phase == 3 else None)
             if abandoned():
                 self.queue.put_back()
                 return None
+            for key in served:
+                del self._feed_reports[key]
             self.turn_id += 1
             data = bundle_bytes(bundle)
             self.events.append("TRIGGER", {"turn_id": self.turn_id, "turn_kind": turn.turn_kind,

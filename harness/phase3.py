@@ -18,7 +18,9 @@ from pathlib import Path
 
 import yaml
 
-from wrapper.huginn import Scenario
+from wrapper.feeds import CoreFeeds
+from wrapper.huginn import HUGINN, Scenario
+from wrapper.link import in_window
 
 ROOT = Path(__file__).resolve().parent.parent
 SEAL = ROOT / "phase3" / "SEAL.md"
@@ -62,6 +64,16 @@ class HeldOutScenario:
     def windows(self):
         """[(aos_met_s, los_met_s)] of the scenario's contacts, in order."""
         return sorted((c["aos_met_s"], c["los_met_s"]) for c in self.geometry["contacts"])
+
+    def core_feeds(self):
+        """The run's station_receiver and beacon (S9, piece 2): in contact by its windows, the slant range from
+        HUGINN's pinned orbit at the scenario's place in the campaign week (campaign time = MET +
+        epoch_campaign_t_s, from the campaign epoch), the own receiver working throughout."""
+        from sim.orbit import Orbit
+        orbit = Orbit(HUGINN / "defs" / "orbit", self.geometry["campaign_epoch_utc"])
+        offset_s = self.geometry["epoch_campaign_t_s"]
+        return CoreFeeds(in_contact=lambda met_s: in_window(met_s, self.windows), receiver_up=lambda met_s: True,
+                         slant_range_km=lambda met_s: orbit.look_angles_at(met_s + offset_s)[2])
 
 
 class HeldOut:

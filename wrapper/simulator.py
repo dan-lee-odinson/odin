@@ -160,10 +160,13 @@ class Simulator:
             "before_start": before_start})
 
     def _true_state(self, generated, downlink):
+        self.truth.append("TRUE_STATE", {"frame_generated": generated, "downlink": downlink, **self.true_state()})
+
+    def true_state(self):
+        """The model's values now, as TRUE_STATE holds them: what phase 3's feeds are built from (S9)."""
         craft = self.spacecraft
         eps, cdh, state = craft.eps, craft.cdh, craft.eps.state
-        self.truth.append("TRUE_STATE", {
-            "frame_generated": generated, "downlink": downlink,
+        return {
             "eps": {"soc_pct": eps.soc_pct, "energy_wh": state.energy_wh, "battery_v": eps.battery_voltage_v,
                     "battery_i": state.battery_current_a, "bus_v": eps.bus_v, "load_i": state.load_current_a,
                     "string_i": list(state.string_currents_a), "mode": state.mode,
@@ -171,4 +174,4 @@ class Simulator:
                     "pld_rate_hz": state.pld_rate_hz},
             "cdh": {"hk_halted": cdh.hk_halted, "frame_count": cdh.frame_count, "acc_count": cdh.acc_count,
                     "rej_count": cdh.rej_count, "rej_reason": cdh.rej_reason},
-            "faults_active": [f["fault"] for f in craft.scenario.faults_active_at(craft.t_s - craft.dt)]})
+            "faults_active": [f["fault"] for f in craft.scenario.faults_active_at(craft.t_s - craft.dt)]}

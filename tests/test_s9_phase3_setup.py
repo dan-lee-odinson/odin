@@ -34,7 +34,8 @@ def made_up(folder):
     windows = [(d["contact_window"]["aos_met_s"], d["contact_window"]["los_met_s"]) for d in plans.values()]
     scenario = {"label": "H90", "plans": [f"{p}.yaml" for p in plans],
                 "huginn": yaml.safe_load(HUGINN.read_text(encoding="utf-8")),
-                "geometry": {"contacts": [{"aos_met_s": a, "los_met_s": b} for a, b in windows]},
+                "geometry": {"campaign_epoch_utc": "2026-07-29T14:00:00Z", "epoch_campaign_t_s": 257303,
+                             "contacts": [{"aos_met_s": a, "los_met_s": b} for a, b in windows]},
                 "run": {"start_met_s": 0, "end_met_s": windows[-1][1],
                         "seats": [{"from_met_s": 0, "to_met_s": windows[-1][1], "seat": "GROUND", "pacing": "REAL_TIME"}],
                         "check_ins": [{"met_s": b - 90} for _, b in windows]},
