@@ -49,9 +49,10 @@ def launch_odin(command, *, environ=None, **popen):
     return subprocess.Popen(command, env=odin_environment(environ), **popen)
 
 
-def odin_command(model_config):
-    """Muse Code's start command for the run's model."""
-    return [sys.executable, *ODIN_START, model_config]
+def odin_command(model_config, onboard=None):
+    """Muse Code's start command for the run's model, and the model that flies the onboard seat beside it when
+    the run names one (M17: run_odin <model> --onboard <model>)."""
+    return [sys.executable, *ODIN_START, model_config, *(("--onboard", onboard) if onboard else ())]
 
 
 def keep_output(folder, output, errors):
@@ -72,7 +73,7 @@ def fly(run, *, environ=None, command=None, timeout_s=None, output_dir=None):
     error, whatever its exit."""
     if not run.start():
         return None
-    process = launch_odin(command or odin_command(run.config["model_config"]), environ=environ, cwd=ROOT,
+    process = launch_odin(command or odin_command(run.config["model_config"], run.onboard), environ=environ, cwd=ROOT,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         output, errors = process.communicate(timeout=timeout_s)

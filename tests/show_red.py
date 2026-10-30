@@ -1090,6 +1090,10 @@ CASES = {"s0": [
      change_file("eval/set_aside.py", replace_once(
          b'if start is not None and start["body"].get("phase") == 3 and "onboard" not in start["body"]:',
          b"if False:"))),
+    ("ODIN started without the run's onboard model (M17, 30 October 2026)",
+     "tests/test_s6_odin_process.py::test_red_a_run_with_an_onboard_model_starts_odin_with_both",
+     change_file("harness/launch.py", replace_once(b'odin_command(run.config["model_config"], run.onboard)',
+                                                   b'odin_command(run.config["model_config"])'))),
     ("a run's seat schedule never followed (S9, 30 October 2026)",
      "tests/test_s9_seats.py::test_red_the_run_switches_seat_and_pacing_at_each_boundary_of_its_schedule",
      change_file("harness/run.py", replace_once(b"            if self.seats:\n                self._follow_seats(met)\n",

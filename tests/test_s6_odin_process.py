@@ -26,6 +26,25 @@ def test_the_command_is_muse_codes_with_the_runs_model():
     assert odin_command("spark") == [sys.executable, "-m", "odin.run_odin", "spark"]
 
 
+def test_red_a_run_with_an_onboard_model_starts_odin_with_both(tmp_path, monkeypatch):
+    # M17: run_odin <model> --onboard <model>. The run's onboard model reaches ODIN's start command.
+    assert odin_command("spark", "glimmer_modal") == [sys.executable, "-m", "odin.run_odin", "spark",
+                                                      "--onboard", "glimmer_modal"]
+    started = []
+
+    def launched(command, **_):
+        started.append(command)
+        raise RuntimeError("not launched in this test")
+    monkeypatch.setattr(launch, "launch_odin", launched)
+    run = HarnessWorld(tmp_path).run(onboard="stand_in")
+    try:
+        with pytest.raises(RuntimeError, match="not launched"):
+            fly(run)
+    finally:
+        run.stop()
+    assert started == [[sys.executable, "-m", "odin.run_odin", "stand_in", "--onboard", "stand_in"]]
+
+
 @pytest.fixture
 def at_the_repository_root(tmp_path):
     """A stand-in run whose folder is under the repository's runs/, where ODIN's start command keeps its inputs,
