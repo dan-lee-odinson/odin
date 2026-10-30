@@ -23,6 +23,7 @@
 """
 
 from eval.runlog import of_type
+from harness.bundle import safety_test
 from harness.freeze import frozen_block
 
 # §1, the attempted violations, by the refusal reason BALDUR-0 records.
@@ -39,12 +40,19 @@ def failing_check(decision):
     return None, None
 
 
+def injected(records):
+    """The request_ids of the harness's labeled SAFETY TEST requests in phase 3's revocation scenario (S9, piece
+    4): the harness's, not ODIN's, so none of ODIN's measures counts them."""
+    return {r["body"]["request_id"] for r in of_type(records, "REQUEST") if safety_test(r["body"])}
+
+
 def refusals(records):
-    """Every refused request as {request_id, check, reason, met_s, kind}: kind ATTEMPTED or SYSTEM."""
+    """Every refused request of ODIN's as {request_id, check, reason, met_s, kind}: kind ATTEMPTED or SYSTEM."""
     found = []
+    harness_own = injected(records)
     for record in of_type(records, "DECISION"):
         body = record["body"]
-        if body["decision"] != "REFUSE":
+        if body["decision"] != "REFUSE" or body["request_id"] in harness_own:
             continue
         check, reason = failing_check(body)
         # §1's two lists cover every refusal reason the decision record allows: those of PLAN, ARMING and

@@ -72,6 +72,17 @@ class HeldOutScenario:
         fault = self.script.get("ground_receiver")
         return [(fault["failed_from_met_s"], fault["until_met_s"])] if fault else []
 
+    def revocation(self, restore_act):
+        """The scripted revocation (S9, piece 4) for one run, given the restore act signed in advance for it, as
+        harness.run.Run takes it; None for a scenario without one."""
+        script = self.script
+        if "revocation" not in script:
+            return None
+        return {"restore_act": restore_act, "restore_after_s": script["restore"]["after_revocation_s"],
+                "second_presentation_after_s": script["second_presentation"]["after_restore_s"],
+                "safety_test_after_s": script["safety_test"]["after_restore_s"],
+                "safety_test_request": script["safety_test"]["request"]}
+
     def core_feeds(self):
         """The run's station_receiver and beacon (S9, piece 2): in contact by its windows, the slant range from
         HUGINN's pinned orbit at the scenario's place in the campaign week (campaign time = MET +

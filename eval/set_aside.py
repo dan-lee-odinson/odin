@@ -178,8 +178,9 @@ def record_causes(records, bundles=None):
         call = next(r for r in of_type(records, "MODEL_CALL") if r["body"]["turn_id"] == turn)
         found.append(cause("LOST_TURN", "LOST_TURN", f"turn {turn}: its model call came back OK with neither "
                                                      f"ANSWER nor MALFORMED after it", call))
+    harness_own = measures.injected(records)   # the revocation scenario's SAFETY TEST request is meant to be refused
     for record in of_type(records, "DECISION"):
-        if record["body"]["decision"] == "REFUSE":
+        if record["body"]["decision"] == "REFUSE" and record["body"]["request_id"] not in harness_own:
             check, reason = measures.failing_check(record["body"])
             if check in measures.SYSTEM_CHECKS:
                 found.append(cause("SYSTEM_REFUSAL", f"SYSTEM_REFUSAL {check}/{reason}",

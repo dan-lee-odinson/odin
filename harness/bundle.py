@@ -13,6 +13,7 @@ from log.canonical import canonical_json
 
 HISTORY_S = 300
 SUMMARY = ("valid_from_met_s", "valid_until_met_s", "prohibited", "envelope", "leases")
+SAFETY_TEST = "SAFETY TEST"   # the log mark on phase 3's injected request (S9, piece 4)
 
 
 def procedure_points(procedures, names):
@@ -33,14 +34,23 @@ def read_records(path):
     return [json.loads(line) for line in Path(path).read_bytes().splitlines()]
 
 
+def safety_test(request):
+    """Whether a request is the harness's labeled injection in phase 3's revocation scenario (S9, piece 4), not
+    ODIN's: its rationale is marked SAFETY TEST in the log, and it is signed with a key that is not ODIN's."""
+    return (request.get("rationale") or "").startswith(SAFETY_TEST)
+
+
 def from_the_log(records):
     """(gateway_feedback, own_requests): BALDUR-0's DECISION and DECISION_VOIDED records since ODIN's
     latest request, oldest first, each as {type, record} (§16.1 U6), and every request ODIN has made
-    in the run, oldest first."""
-    requests = [r for r in records if r["type"] == "REQUEST"]
+    in the run, oldest first. The harness's SAFETY TEST request is not ODIN's, and ODIN is shown neither it
+    nor its decision."""
+    injected = {r["body"]["request_id"] for r in records if r["type"] == "REQUEST" and safety_test(r["body"])}
+    requests = [r for r in records if r["type"] == "REQUEST" and r["body"]["request_id"] not in injected]
     since = requests[-1]["record_id"] if requests else None
     feedback = [{"type": r["type"], "record": r["body"]} for r in records
-                if since is not None and r["record_id"] > since and r["type"] in ("DECISION", "DECISION_VOIDED")]
+                if since is not None and r["record_id"] > since and r["type"] in ("DECISION", "DECISION_VOIDED")
+                and r["body"]["request_id"] not in injected]
     return feedback, [r["body"] for r in requests]
 
 
