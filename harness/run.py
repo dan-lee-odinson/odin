@@ -100,7 +100,7 @@ class Run:
                  config, seat="ONBOARD", pacing="CHARGED", rate=1.0, check_ins=(), pass_transcript=None,
                  revoke_at=None, restore=None, docs_folder=docs.CACHE, keys_dir=KEYS_DIR, addresses=None,
                  utc_clock=utc_now, endpoint=None, cosmos=None, link_at=None, feeds=None, receiver_down=(),
-                 revocation=None, onboard=None, seats=None):
+                 revocation=None, onboard=None, seats=None, latch_up=None):
         """config: what whoever starts the run names, RUN_START_CONFIG but for the DERIVED settings, which come
         from the model's frozen block (U56) and its adapter (U57); a config carrying any of them is refused.
         endpoint: the base URL a development run's adapter calls instead of its built-in one; refused in a
@@ -122,7 +122,8 @@ class Run:
         onboard: the model that flies the onboard seat when it is not the run's own (M17): one of ONBOARD_MODELS.
         seats: phase 3's seat schedule (S9, piece 5), [(from_met_s, to_met_s, seat, pacing)], each half-open, as
         harness/phase3.py's HeldOutScenario.seats gives it: the seat and its pacing follow the MET, switching at each
-        boundary (_follow_seats), and seat and pacing are the first span's."""
+        boundary (_follow_seats), and seat and pacing are the first span's. latch_up: phase 3's scripted latch-up,
+        {onset_met_s, damage_after_s}, which the simulator carries out (wrapper/simulator.py; S9, piece 6)."""
         if onboard is not None and onboard not in ONBOARD_MODELS:
             raise ValueError(f"the onboard model {onboard!r} is not one of {ONBOARD_MODELS} (M17)")
         if feeds is not None and phase != 3:
@@ -150,7 +151,7 @@ class Run:
         self.pass_transcript = pass_transcript
         self.revoke_at, self.restore = revoke_at, restore
         self.revocation, self._again, self._safety_test = revocation, None, None
-        self.onboard = onboard
+        self.onboard, self.latch_up = onboard, latch_up
         self.feeds, self.receiver_down = feeds, tuple(receiver_down)
         self._feed_reports = {}   # id(FEED_REPORT trigger): (that trigger, its report), until a turn serves it
         self.docs_folder, self.keys_dir, self.addresses = docs_folder, keys_dir, addresses or {}
@@ -391,7 +392,7 @@ class Run:
             self.simulator = Shakedown(start_at=self.start_met_s)
         else:
             self.simulator = Simulator(self.scenario, windows=self._windows, link=self.link, truth=self.truth,
-                                       start_at=max(self.start_met_s, first_aos))
+                                       start_at=max(self.start_met_s, first_aos), latch_up=self.latch_up)
         if self.phase in PHASES:
             self.check_ins = sorted(self.check_ins + pass_check_ins(self._windows, self.pass_transcript),
                                     key=lambda item: item[0])

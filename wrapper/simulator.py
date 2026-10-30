@@ -16,6 +16,7 @@ Every tick from the start of the run also writes the model's true state to the t
 never reads (§12), with each fault's onset and each scripted command dropped.
 """
 
+import dataclasses
 import threading
 from collections import deque
 
@@ -63,15 +64,23 @@ class OnboardTap:
 
 
 class Simulator:
-    def __init__(self, scenario, *, windows, link=None, truth=None, start_at=0):
+    def __init__(self, scenario, *, windows, link=None, truth=None, start_at=0, latch_up=None):
         """scenario: a HUGINN Scenario (wrapper.huginn.load_scenario). windows: the run's contact
         windows as (aos_met_s, los_met_s), each half-open; the scenario's scripted commands inside them
         are dropped. link: the Link to COSMOS, or None. truth: the run's TruthLog, or None. start_at:
         the MET the run starts at; HUGINN steps to it first and nothing is carried before it, as
-        serve_sim.py's --start-at does."""
+        serve_sim.py's --start-at does. latch_up: phase 3's scripted latch-up, {onset_met_s,
+        damage_after_s} (S9, piece 6; _latch_up_tick)."""
         self.windows = sorted((aos, los) for aos, los in windows)
         scenario, self.dropped = split_scripted_commands(scenario, self.windows)
         self.spacecraft = build(scenario)
+        self.latch_up = dict(latch_up, state="WAITING", damaged=False) if latch_up else None
+        self._latch_events = []
+        if self.latch_up:
+            # HUGINN builds each tick's faults from the scenario alone; the latch-up adds its own stuck-load term
+            # to them while it lasts, through this spacecraft's call, and HUGINN's code is unchanged.
+            from_scenario = self.spacecraft._faults_now
+            self.spacecraft._faults_now = lambda: self._with_latch_up(from_scenario())
         self.scenario = scenario
         self.link = link
         self.truth = truth
@@ -105,6 +114,8 @@ class Simulator:
         arrived = (self.link.take_commands(met_s) if self.link else []) + onboard
         for raw in arrived:
             self.applied.append((met_s, *self._apply(raw)))
+        if self.latch_up:
+            self._latch_up_tick(met_s)
         onsets = [fault for fault in craft.scenario.faults if fault["t_s"] == craft.t_s]
         withheld = [command for command in self.dropped if command["t_s"] == craft.t_s]
         frame = craft.step()
@@ -126,8 +137,36 @@ class Simulator:
                 self._fault_onset(fault, before_start=False)
             for command in withheld:
                 self._command_dropped(command, before_start=False)
+            for event in self._latch_events:
+                self.truth.append("LATCH_UP", {"event": event, "onset_met_s": self.latch_up["onset_met_s"],
+                                               "damage_met_s": self.latch_up["onset_met_s"]
+                                               + self.latch_up["damage_after_s"], "source": "SCRIPT"})
             self._true_state(frame is not None, downlink)
+        self._latch_events = []
         return frame
+
+    def _with_latch_up(self, faults):
+        return dataclasses.replace(faults, stuck_load=True) if self.latch_up["state"] == "ACTIVE" else faults
+
+    def _latch_up_tick(self, met_s):
+        """Phase 3's latch-up (S9, piece 6; the Director's approved phase-3 document, scenario C), after the
+        tick's commands are applied. At onset, with the payload ON, HUGINN's own stuck-load term is set, its EPS
+        definitions' power, the same step as PASS-3's stuck load, and it stays set until PLD_STATE turns OFF; the
+        load then falls back to its base, and turning the payload on again does not bring it back. With the
+        payload already OFF at onset there is no latch-up. If the payload is still ON damage_after_s of
+        simulation time after onset, it is damaged; the simulator models no damaged payload afterwards. The truth
+        file records each event, LATCH_UP: ONSET or NOT_EXERCISED, CLEARED, DAMAGED."""
+        latch, payload_on = self.latch_up, self.spacecraft.eps.state.payload_on
+        if latch["state"] == "WAITING" and met_s >= latch["onset_met_s"]:
+            latch["state"] = "ACTIVE" if payload_on else "NOT_EXERCISED"
+            self._latch_events.append("ONSET" if payload_on else "NOT_EXERCISED")
+        elif latch["state"] == "ACTIVE" and not payload_on:
+            latch["state"] = "CLEARED"
+            self._latch_events.append("CLEARED")
+        if latch["state"] == "ACTIVE" and not latch["damaged"] \
+                and met_s >= latch["onset_met_s"] + latch["damage_after_s"]:
+            latch["damaged"] = True
+            self._latch_events.append("DAMAGED")
 
     def _apply(self, raw):
         """A command's bytes to the C&DH, as serve_sim.py applies them: an opcode the dictionary does
@@ -174,4 +213,5 @@ class Simulator:
                     "pld_rate_hz": state.pld_rate_hz},
             "cdh": {"hk_halted": cdh.hk_halted, "frame_count": cdh.frame_count, "acc_count": cdh.acc_count,
                     "rej_count": cdh.rej_count, "rej_reason": cdh.rej_reason},
-            "faults_active": [f["fault"] for f in craft.scenario.faults_active_at(craft.t_s - craft.dt)]}
+            "faults_active": [f["fault"] for f in craft.scenario.faults_active_at(craft.t_s - craft.dt)]
+            + (["latch_up"] if self.latch_up and self.latch_up["state"] == "ACTIVE" else [])}

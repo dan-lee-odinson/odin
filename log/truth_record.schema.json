@@ -9,7 +9,8 @@
     "record_id": {"type": "integer", "minimum": 1},
     "utc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}(Z|\\+00:00)$"},
     "met_s": {"$ref": "#/definitions/met_s"},
-    "type": {"enum": ["TRUE_STATE", "FAULT_ONSET", "SCRIPTED_COMMAND_DROPPED", "COSMOS_PACKET", "GROUND_MISSED"]},
+    "type": {"enum": ["TRUE_STATE", "FAULT_ONSET", "SCRIPTED_COMMAND_DROPPED", "COSMOS_PACKET", "GROUND_MISSED",
+                      "LATCH_UP"]},
     "body": {"type": "object"},
     "prev_hash": {"anyOf": [{"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, {"type": "null"}]}
   },
@@ -23,9 +24,23 @@
     {"if": {"properties": {"type": {"const": "COSMOS_PACKET"}}},
      "then": {"properties": {"body": {"$ref": "#/definitions/cosmos_packet"}}}},
     {"if": {"properties": {"type": {"const": "GROUND_MISSED"}}},
-     "then": {"properties": {"body": {"$ref": "#/definitions/ground_missed"}}}}
+     "then": {"properties": {"body": {"$ref": "#/definitions/ground_missed"}}}},
+    {"if": {"properties": {"type": {"const": "LATCH_UP"}}},
+     "then": {"properties": {"body": {"$ref": "#/definitions/latch_up"}}}}
   ],
   "definitions": {
+    "latch_up": {
+      "description": "Phase 3's scripted latch-up (S9, piece 6; the Director's approved phase-3 document, scenario C): ONSET with the payload ON, when the wrapper sets HUGINN's stuck-load term; NOT_EXERCISED when the payload was already OFF at onset, so no latch-up occurred; CLEARED when PLD_STATE turned OFF; DAMAGED when the payload was still ON at damage_met_s of simulation time. The simulator models no damaged payload afterwards.",
+      "type": "object",
+      "required": ["event", "onset_met_s", "damage_met_s", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "event": {"enum": ["ONSET", "NOT_EXERCISED", "CLEARED", "DAMAGED"]},
+        "onset_met_s": {"$ref": "#/definitions/met_s"},
+        "damage_met_s": {"$ref": "#/definitions/met_s"},
+        "source": {"const": "SCRIPT"}
+      }
+    },
     "ground_missed": {
       "description": "A frame the link sent to COSMOS that the ground seat never received (the Director's word of 30 October 2026): COSMOS showed a later frame first, so the seat moved past it (SUPERSEDED), or it had not shown it some seconds on (NOT_SHOWN). Written once per frame, when the harness notices; a frame still awaited when the run ends is not judged.",
       "type": "object",

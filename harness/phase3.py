@@ -72,6 +72,13 @@ class HeldOutScenario:
         fault = self.script.get("ground_receiver")
         return [(fault["failed_from_met_s"], fault["until_met_s"])] if fault else []
 
+    @property
+    def latch_up(self):
+        """The scripted latch-up (S9, piece 6), {onset_met_s, damage_after_s}, as the simulator takes it; None for a
+        scenario without one."""
+        latch = self.script.get("latch_up")
+        return {"onset_met_s": latch["onset_met_s"], "damage_after_s": latch["damage"]["after_s"]} if latch else None
+
     def revocation(self, restore_act):
         """The scripted revocation (S9, piece 4) for one run, given the restore act signed in advance for it, as
         harness.run.Run takes it; None for a scenario without one."""
