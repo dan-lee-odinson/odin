@@ -1054,7 +1054,7 @@ CASES = {"s0": [
      change_file("harness/run.py", replace_once(b'        self.gateway.revoke()\n        revoked = trigger("REVOKE", met)\n',
                                                 b'        revoked = trigger("REVOKE", met)\n'))),
     ("the restore act never presented a second time (S9, 30 October 2026)",
-     "tests/test_s9_revocation.py::test_red_the_restore_is_accepted_once_60_s_on_and_the_same_act_presented_again_is_refused",
+     "tests/test_s9_revocation.py::test_red_the_restore_is_accepted_once_and_the_same_act_presented_again_is_refused",
      change_file("harness/run.py", replace_once(b"                self._again = None\n                self.gateway.restore(act_path)\n",
                                                 b"                self._again = None\n"))),
     ("the injected request not marked SAFETY TEST in the log (S9, 30 October 2026)",
