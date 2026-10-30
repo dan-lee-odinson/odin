@@ -1,0 +1,22 @@
+{
+  "made_up": true,
+  "note": "Made up for tests only: no real run in inputs carries an eclipse entry or a feed, so the eclipse, safe-mode, deny and space-weather drawings are exercised here and never drawn over a real run (the brief, rules 2 and 3; the Director's A2 note).",
+  "id": "made-up-fixture",
+  "title": "made up fixture, not a run",
+  "met_range": [800, 1000],
+  "series": {
+    "truth:ADM_ECLIPSE": {"units": "n/a", "samples": [[800, "SUNLIT", "NONE", "truth"], [900, "ECLIPSE", "NONE", "truth"], [960, "SUNLIT", "NONE", "truth"]]},
+    "truth:EPS_MODE": {"units": "n/a", "samples": [[800, "NOMINAL", "GREEN", "truth"], [930, "SAFE", "RED_HIGH", "truth"], [980, "NOMINAL", "GREEN", "truth"]]},
+    "truth:PLD_STATE": {"units": "n/a", "samples": [[800, "ON", "NONE", "truth"], [880, "OFF", "NONE", "truth"]]},
+    "truth:EPS_LOAD_I": {"units": "A", "samples": [[800, 1.1, "GREEN", "truth"], [910, 2.2, "RED_HIGH", "truth"], [950, 1.1, "GREEN", "truth"]]},
+    "truth:EPS_SA1_I": {"units": "A", "samples": [[800, 1.7, "NONE", "truth"], [900, 0.0, "NONE", "truth"], [960, 1.7, "NONE", "truth"]]},
+    "truth:EPS_SA2_I": {"units": "A", "samples": [[800, 1.7, "NONE", "truth"], [900, 0.0, "NONE", "truth"], [960, 1.7, "NONE", "truth"]]}
+  },
+  "spans": [
+    {"lane": "contact", "label": "In contact", "severity": "good", "start": 820, "end": 980, "refs": ["log:1"]},
+    {"lane": "contact", "label": "Plan window", "severity": "planned", "start": 800, "end": 1000, "refs": []}
+  ],
+  "requests": [
+    {"command": "MADE_UP_CMD", "met_s": 940, "decision": "DENY", "decision_met_s": 941, "dispatch_met_s": null}
+  ]
+}
