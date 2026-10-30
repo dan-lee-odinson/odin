@@ -54,8 +54,36 @@ def put_back_command_call(answer):
     return result
 
 
+_ESCALATION_FIELDS = ("escalation_kind", "refs", "urgency", "proposed")
+
+
+def put_back_escalation(answer):
+    """M15: put the regrouped `escalation` object's fields back at the
+    root. A null `escalation` puts back nulls; an `escalation` holding
+    values is kept as those root fields, so the frozen schema can
+    refuse it where the answer's form has no place for them. Anything
+    else (a non-object `escalation`, extra keys) is kept, so it too is
+    refused rather than dropped. Returns a new dict."""
+    if not isinstance(answer, dict) or "escalation" not in answer:
+        return answer
+    result = dict(answer)
+    escalation = result.pop("escalation")
+    if escalation is None:
+        for field in _ESCALATION_FIELDS:
+            if field not in result:
+                result[field] = None
+    elif isinstance(escalation, dict):
+        for key, value in escalation.items():
+            if key not in result:
+                result[key] = value
+    else:
+        result["escalation"] = escalation
+    return result
+
+
 def judge_act_text(raw, commands=None):
-    """Judge an ACT answer's text (M14): parse it, put `command_call`
+    """Judge an ACT answer's text (M15): parse it, put the regrouped
+    `escalation` object's fields back at the root, put `command_call`
     back, apply M11's null drop (`drop_nulls`, in M11's order), then
     the frozen schema, the dictionary check and the loop's verdict via
     `validate_act_text`. The judged form is reproducible from the
@@ -68,7 +96,7 @@ def judge_act_text(raw, commands=None):
         obj = None
     if not isinstance(obj, dict):
         return validate_act_text(raw if isinstance(raw, str) else "", commands=commands)
-    judged = drop_nulls(put_back_command_call(obj))
+    judged = drop_nulls(put_back_command_call(put_back_escalation(obj)))
     return validate_act_text(json.dumps(judged), commands=commands)
 
 

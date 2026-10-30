@@ -93,8 +93,7 @@ def test_no_strict_flag_and_no_banned_keys_in_what_spark_sends():
 
 def test_kind_required_enum_and_every_other_field_required_but_nullable():
     fmt = act_format(_commands(INST_REF))
-    assert set(fmt["required"]) == {"kind", "command_call", "escalation_kind",
-                                    "refs", "urgency", "rationale", "proposed"}
+    assert set(fmt["required"]) == {"kind", "command_call", "escalation", "rationale"}
     assert fmt["properties"]["kind"] == {"type": "string", "enum": ["command", "escalation", "none"]}
     for name, prop in fmt["properties"].items():
         if name == "kind":
@@ -140,12 +139,13 @@ def test_command_enum_follows_the_dictionary_in_force_not_another():
 
 def test_proposed_is_the_same_anyof_and_escalation_fields_from_frozen():
     fmt = act_format(_commands(INST_REF))
-    assert fmt["properties"]["proposed"] == fmt["properties"]["command_call"]
-    assert fmt["properties"]["escalation_kind"]["anyOf"][0] == {
+    esc = fmt["properties"]["escalation"]["anyOf"][0]["properties"]
+    assert esc["proposed"] == fmt["properties"]["command_call"]
+    assert esc["escalation_kind"]["anyOf"][0] == {
         "type": "string", "enum": ["OFF_COURSE", "MALFUNCTION", "DECISION_NEEDED",
                                    "LEASE_NEEDED", "AUTHORITY_NEEDED", "CONFLICT"]}
-    assert fmt["properties"]["urgency"]["anyOf"][0] == {"type": "string", "enum": ["ROUTINE", "URGENT"]}
-    assert fmt["properties"]["refs"]["anyOf"][0] == {"type": "array", "items": {"type": "string"}}
+    assert esc["urgency"]["anyOf"][0] == {"type": "string", "enum": ["ROUTINE", "URGENT"]}
+    assert esc["refs"]["anyOf"][0] == {"type": "array", "items": {"type": "string"}}
     assert fmt["properties"]["rationale"]["anyOf"][0] == {"type": "string"}
 
 

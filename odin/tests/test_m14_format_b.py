@@ -67,12 +67,13 @@ def _inst_bundle():
 # -- format B -----------------------------------------------------------------
 
 def test_format_b_equals_huginn_file_as_parsed_json():
-    expected = json.loads((REPO_ROOT / "contract" / "m14" / "format-B-HUGINN.json").read_text(encoding="utf-8"))
+    # M15 supersedes format B: the sent format is the regrouped one.
+    expected = json.loads((REPO_ROOT / "contract" / "m15" / "format-R-HUGINN.json").read_text(encoding="utf-8"))
     assert act_format(_commands()) == expected
 
 
 def test_format_b_equals_inst_file_as_parsed_json():
-    expected = json.loads((REPO_ROOT / "contract" / "m14" / "format-B-INST.json").read_text(encoding="utf-8"))
+    expected = json.loads((REPO_ROOT / "contract" / "m15" / "format-R-INST.json").read_text(encoding="utf-8"))
     assert act_format(_commands(INST_REF)) == expected
 
 
@@ -86,7 +87,8 @@ def test_format_b_has_no_banned_keys_and_anyof_per_command():
     assert branches[0]["properties"]["parameters"]["required"] == ["state"]
     assert branches[2]["properties"]["parameters"] == {
         "type": "object", "additionalProperties": False, "required": [], "properties": {}}
-    assert fmt["properties"]["proposed"] == fmt["properties"]["command_call"]
+    assert fmt["properties"]["escalation"]["anyOf"][0]["properties"]["proposed"] == \
+        fmt["properties"]["command_call"]
 
 
 def test_spark_sends_format_b_not_m11_shared_format():
@@ -101,11 +103,13 @@ def test_format_b_built_from_dictionary_in_force_not_another():
     captured = {}
     _spark('{"kind":"none"}', captured, bundle=_inst_bundle())
     fmt = captured["response_format"]["json_schema"]["schema"]
-    expected = json.loads((REPO_ROOT / "contract" / "m14" / "format-B-INST.json").read_text(encoding="utf-8"))
+    expected = json.loads((REPO_ROOT / "contract" / "m15" / "format-R-INST.json").read_text(encoding="utf-8"))
     assert fmt == expected
     captured2 = {}
     _spark('{"kind":"none"}', captured2)
-    assert captured2["response_format"]["json_schema"]["schema"] != expected
+    # M15 point 5: exact check restored for the HUGINN bundle too.
+    huginn = json.loads((REPO_ROOT / "contract" / "m15" / "format-R-HUGINN.json").read_text(encoding="utf-8"))
+    assert captured2["response_format"]["json_schema"]["schema"] == huginn
 
 
 def test_cmd_pld_set_state_with_rate_fails_format_b():

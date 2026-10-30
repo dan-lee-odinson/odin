@@ -53,28 +53,36 @@ def _command_call_schema(commands):
 
 
 def act_format(commands):
-    """Format B (M14), derived at call time from the dictionary in force.
+    """Regrouped format (M15): format B with the escalation-only fields
+    moved into one nullable `escalation` object, derived at call time
+    from the dictionary in force.
 
     One plain object; no oneOf/allOf/if/then/$ref. `command`/`parameters`
     give way to `command_call`: an anyOf with one closed branch per
     command, each holding only that command's own arguments. An
-    escalation's `proposed` is the same anyOf. Every other field is as
-    in M11's format."""
+    escalation's `proposed` is the same anyOf. Root fields, in order:
+    `kind`, `command_call`, `escalation`, `rationale`."""
     command_call = _command_call_schema(commands)
-    return {
+    escalation = {"anyOf": [{
         "type": "object", "additionalProperties": False,
-        "required": ["kind", "command_call", "escalation_kind", "refs",
-                     "urgency", "rationale", "proposed"],
+        "required": ["escalation_kind", "refs", "urgency", "proposed"],
         "properties": {
-            "kind": {"type": "string", "enum": ["command", "escalation", "none"]},
-            "command_call": copy.deepcopy(command_call),
             "escalation_kind": _nullable({"type": "string", "enum": [
                 "OFF_COURSE", "MALFUNCTION", "DECISION_NEEDED",
                 "LEASE_NEEDED", "AUTHORITY_NEEDED", "CONFLICT"]}),
             "refs": _nullable({"type": "array", "items": {"type": "string"}}),
             "urgency": _nullable({"type": "string", "enum": ["ROUTINE", "URGENT"]}),
-            "rationale": _nullable({"type": "string"}),
             "proposed": copy.deepcopy(command_call),
+        },
+    }, {"type": "null"}]}
+    return {
+        "type": "object", "additionalProperties": False,
+        "required": ["kind", "command_call", "escalation", "rationale"],
+        "properties": {
+            "kind": {"type": "string", "enum": ["command", "escalation", "none"]},
+            "command_call": copy.deepcopy(command_call),
+            "escalation": escalation,
+            "rationale": _nullable({"type": "string"}),
         },
     }
 
@@ -146,7 +154,7 @@ class SparkAdapter(ChatAdapter):
                 "name": "odin_answer", "schema": resolved_schema("report_body.schema.json")}}
             tools = READONLY_TOOLS if tool_handler else None
         else:
-            # M11 ACT turns: one plain object derived at call time from
+            # M15 ACT turns: one plain object derived at call time from
             # the dictionary in force, read through the registry exactly
             # as the checker reads it. No strict flag.
             _entry, commands = dictionary_for_plan(bundle.get("plan") or {})
