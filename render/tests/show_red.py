@@ -193,7 +193,52 @@ CASES += [
                 'return sync["first_frame_met_s"] + (frame_index - 1) * sync["met_step_s"]',
                 'return sync["first_frame_met_s"] + frame_index * sync["met_step_s"]',
                 pattern="test_a3.py"),
+    source_case("a4_command_drops_samples", "test_render_clip_command",
+                ROOT / "render_clip.py",
+                '"--engine", args.engine, "--samples", str(args.samples)]',
+                '"--engine", args.engine]',
+                pattern="test_a4.py"),
 ]
+
+
+def a4_sync_case():
+    def run():
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp)
+            source = ROOT / "out" / "a4"
+            for name in ("a2_report.json",):
+                shutil.copy2(source / name, staged / name)
+            sync_path = sorted(source.glob("*.sync.json"))[-1]
+            sync = json.loads(sync_path.read_text(encoding="utf-8"))
+            sync["met_step_s"] = sync["met_step_s"] * 2
+            (staged / sync_path.name).write_text(json.dumps(sync),
+                                                 encoding="utf-8")
+            report = json.loads((source / "a2_report.json").read_text())
+            shutil.copy2(source / report["preview"],
+                         staged / report["preview"])
+            return run_one_test("test_a4_short_clip_sync",
+                                {"ANIM_A4_DIR": str(staged)},
+                                pattern="test_a4.py")
+    return "a4_sync_step_doubled", run
+
+
+def a4_eclipse_case():
+    def run():
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp)
+            source = ROOT / "out" / "a2"
+            # The sunlit still planted under the eclipse still's name.
+            shutil.copy2(source / "fixture_890_sunlit.png",
+                         staged / "fixture_890_sunlit.png")
+            shutil.copy2(source / "fixture_890_sunlit.png",
+                         staged / "fixture_920_eclipse_red.png")
+            return run_one_test("test_eclipse_is_darker",
+                                {"ANIM_FIXTURE_DIR": str(staged)},
+                                pattern="test_a4.py")
+    return "a4_eclipse_still_swapped", run
+
+
+CASES += [a4_sync_case(), a4_eclipse_case()]
 
 
 def main(argv):

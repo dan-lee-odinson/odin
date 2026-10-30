@@ -11,7 +11,11 @@ Build record (for each deposit's DEPOSIT.md): A1 was built on Muse Wonder
 Full at high effort; A2 on Muse Wonder Full at medium effort, economically,
 after the Director's ruling put ODIN's work first; A3 also on Muse Wonder
 Full at medium. A1 and A2 as first built are deposited as ANIM-01
-(SHA-256 985c1b5d03edcf3c25ce699d77fd05f431199e93d1a75bbdd3ddd176ff051f7e).
+(SHA-256 985c1b5d03edcf3c25ce699d77fd05f431199e93d1a75bbdd3ddd176ff051f7e;
+held, not committed — its scene file stored a user-profile path). A1 to
+A3 are deposited as ANIM-02 without a scene file (SHA-256
+a8030f3474e796035e35c954e80016408329d8f0184dd7ff58d558a2aeb4d661); A4 was
+built after that deposit, also on Muse Wonder Full at medium.
 
 ## Run it
 
@@ -165,6 +169,25 @@ Earth), the follow camera pulled back with the horizon kept level, the
 eclipse craft kept readable on stronger earthshine, and space weather
 drawn as fine streaks scaled by flux. Earth now uses the 21600 x 10800
 input texture for close shots.
+
+## A4: the render script
+
+`render_clip.py` is the headless entry point for a cloud run. It takes
+everything as arguments — `--timeline`, `--inputs`, `--output`,
+`--width`, `--height`, `--met-start`, `--met-end`, `--met-step`, `--fps`,
+`--engine` (`BLENDER_EEVEE` or `CYCLES`), `--samples`, `--feed`,
+`--blender` — builds the scene from these scripts (no `.blend` needed),
+renders, and leaves the clip with its sync file and frame report in the
+output folder. `--dry-run` prints the Blender command. It holds no key.
+Verified locally at preview size: a 9-frame clip over MET 890-930 of
+`dev-ph2-p3-open-01` in `out/a4/`.
+
+Eclipse readability (Director's A4 fix): in eclipse the craft's own sun
+drops to near nothing, the earthshine fill stays faint, and an
+eclipse-only rim light keeps the outline — every part darker than in
+sunlight. A test decodes the fixture stills (MET 890 sunlit, MET 920
+eclipse) and fails when the eclipse spacecraft region is not darker; it
+caught the A3 cut, where eclipse measured brighter (75.0 vs 74.1).
 
 ## License
 

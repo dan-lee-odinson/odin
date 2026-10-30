@@ -1,8 +1,8 @@
 # License
 
 The scripts and tests in this folder (`build_a1.py`, `build_a2.py`,
-`scene_spec.py`, `timeline.py`, `solar.py`, `sync.py`, and everything
-under `tests/`) are free software: you can redistribute them
+`scene_spec.py`, `timeline.py`, `solar.py`, `sync.py`, `render_clip.py`,
+and everything under `tests/`) are free software: you can redistribute them
 and/or modify them under the terms of the GNU General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version (SPDX: GPL-3.0-or-later).

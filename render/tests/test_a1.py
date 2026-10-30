@@ -53,8 +53,9 @@ class TestInputsManifest(unittest.TestCase):
             digest = hashlib.sha256(target.read_bytes()).hexdigest()
             self.assertEqual(digest, expected.lower(), "hash mismatch: %s" % rel)
             seen += 1
-        # 12 at A1; epochs.json and the high-resolution texture joined in A3.
-        self.assertEqual(seen, 14, "expected 14 manifest entries, saw %d" % seen)
+        # 12 at A1; +2 in A3 (epochs, high-resolution texture); +3 more
+        # imagery files placed during A4 (night lights, clouds, sources).
+        self.assertEqual(seen, 17, "expected 17 manifest entries, saw %d" % seen)
 
 
 class TestLatLonMath(unittest.TestCase):

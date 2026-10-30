@@ -97,6 +97,7 @@ class Rig:
         self.sun_craft = bpy.data.objects.get("SunCraftLight")
         self.sun_earth = bpy.data.objects.get("SunLight")
         self.fill = bpy.data.objects.get("EarthshineFill")
+        self.rim = bpy.data.objects.get("EclipseRim")
         self.link = self.make_link()
         self.odin_cue = self.make_cue("OdinCue", mats["cue_odin"], -0.09)
         self.baldur_cue = self.make_cue("BaldurCue", mats["cue_baldur"], 0.09)
@@ -192,14 +193,20 @@ def apply_state(rig, state, position, sun_dir, frame=None, cue_kinds=()):
             A1.look_at(light, (0.0, 0.0, 0.0))
             key(light, "location")
             key(light, "rotation_euler")
-    # Earthshine fills harder in eclipse, so the craft stays readable.
+    # Earthshine is a faint readability fill only; in eclipse the total
+    # light on the craft must stay well under sunlight (Director, A4),
+    # with a faint rim light in eclipse alone keeping the outline.
     if rig.fill is not None:
-        rig.fill.data.energy = 40.0 if state["sunlit"] else 120.0
+        rig.fill.data.energy = 25.0 if state["sunlit"] else 12.0
         if frame is not None:
             rig.fill.data.keyframe_insert("energy", frame=frame)
+    if rig.rim is not None:
+        rig.rim.data.energy = 0.0 if state["sunlit"] else 5.0
+        if frame is not None:
+            rig.rim.data.keyframe_insert("energy", frame=frame)
     # Sunlight on the craft only; Earth keeps its own sun.
     if rig.sun_craft is not None:
-        energy = 4.5 if state["sunlit"] else 0.12
+        energy = 4.5 if state["sunlit"] else 0.04
         if state["sunlit"] is None:
             energy = 4.5
         rig.sun_craft.data.energy = energy
@@ -247,7 +254,8 @@ def apply_state(rig, state, position, sun_dir, frame=None, cue_kinds=()):
         key(rig.weather, "scale")
 
 
-def build_scene(rows, station, with_weather):
+def build_scene(rows, station, with_weather, settings=None):
+    settings = settings or {}
     scene = A1.reset_scene()
     mats = A1.make_materials()
     first_pos = S.orbit_xyz(S.orbit_row_at(rows, 800.0))
@@ -283,21 +291,37 @@ def build_scene(rows, station, with_weather):
     # An area light emits along its local -Z; flip it to shine up at the
     # craft from below (A2's first cut had it shining away into Earth).
     fill.rotation_euler = (math.pi, 0.0, 0.0)
+    # Faint rim light, eclipse only, sunward and above the craft.
+    rim_data = bpy.data.lights.new("EclipseRimData", "POINT")
+    rim_data.energy = 0.0
+    rim_data.color = (0.65, 0.8, 1.0)
+    rim_data.use_shadow = False
+    rim = bpy.data.objects.new("EclipseRim", rim_data)
+    bpy.context.scene.collection.objects.link(rim)
+    rim.parent = empty
+    rim.location = (0.0, 0.9, 0.5)
     cameras = A1.build_cameras(first_pos, station)
     A1.set_render(scene)
-    scene.render.resolution_x = 640
-    scene.render.resolution_y = 360
+    scene.render.resolution_x = settings.get("width", 640)
+    scene.render.resolution_y = settings.get("height", 360)
     scene.render.resolution_percentage = 100
-    scene.render.fps = FPS
+    scene.render.fps = settings.get("fps", FPS)
+    engine = settings.get("engine", "BLENDER_EEVEE")
+    if engine == "CYCLES":
+        scene.render.engine = "CYCLES"
+        scene.cycles.samples = settings.get("samples", 32)
+        scene.cycles.use_denoising = True
+    else:
+        scene.eevee.taa_render_samples = settings.get("samples", 32)
     scene.camera = cameras["CameraHero"]
     return scene, Rig(mats, station, with_weather)
 
 
-def cue_frames(cues, start_met, frame_count):
+def cue_frames(cues, start_met, frame_count, step=MET_STEP_S):
     """Map frame number -> cue kinds flashing there (two frames each)."""
     active = {}
     for cue in cues:
-        frame = int(round((cue["met_s"] - start_met) / MET_STEP_S)) + 1
+        frame = int(round((cue["met_s"] - start_met) / step)) + 1
         for f in (frame, frame + 1):
             if 1 <= f <= frame_count:
                 active.setdefault(f, set()).add(cue["kind"])
@@ -306,18 +330,32 @@ def cue_frames(cues, start_met, frame_count):
     return active
 
 
-def run_preview(timeline, timeline_path, rows, station, feed_reports):
-    epoch = solar.read_epoch(timeline["id"])
+def run_preview(timeline, timeline_path, rows, station, feed_reports,
+                settings=None):
+    settings = settings or {}
+    # Resolve: Blender treats a relative render path against the blend
+    # file's folder, not the caller's, and a headless run has none.
+    out_dir = Path(settings.get("output_dir", OUT)).resolve()
+    step = settings.get("step", MET_STEP_S)
+    fps = settings.get("fps", FPS)
+    epochs_path = settings.get("epochs_path", solar.EPOCHS_JSON)
+    epoch = solar.read_epoch(timeline["id"], path=epochs_path)
     if epoch is None:
         raise SystemExit("run %s has no UTC epoch in inputs/epochs.json"
                          % timeline["id"])
-    scene, rig = build_scene(rows, station, bool(feed_reports))
-    start_met, end_met = 800, 1230
-    mets = list(range(start_met, end_met + 1, MET_STEP_S))
+    scene, rig = build_scene(rows, station, bool(feed_reports), settings)
+    first_sample, _last = T.telemetry_span(timeline)
+    start_met = settings.get("met_start")
+    if start_met is None:
+        start_met = int(first_sample) if first_sample is not None else 800
+    end_met = settings.get("met_end")
+    if end_met is None:
+        end_met = int(rows[-1]["met_s"])
+    mets = list(range(start_met, end_met + 1, step))
     scene.frame_start, scene.frame_end = 1, len(mets)
     bpy.context.preferences.edit.keyframe_new_interpolation_type = "LINEAR"
     cues = T.request_cues(timeline)
-    active = cue_frames(cues, start_met, len(mets))
+    active = cue_frames(cues, start_met, len(mets), step)
     frames = []
     for index, met in enumerate(mets, start=1):
         state = T.state_at(timeline, met, feed_reports)
@@ -343,36 +381,40 @@ def run_preview(timeline, timeline_path, rows, station, feed_reports):
             "weather": None if state["weather"] is None
             else state["weather"].get("proton_flux_pfu"),
             "xyz": [round(v, 5) for v in position]})
-    OUT.mkdir(parents=True, exist_ok=True)
-    preview = "dev-ph2-p3-open-01_preview.mp4"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    preview = settings.get("clip") or (timeline["id"] + "_preview.mp4")
     try:
         scene.render.image_settings.file_format = "FFMPEG"
     except TypeError:  # Blender 5 wants the media type switched first
         scene.render.image_settings.media_type = "VIDEO"
         scene.render.image_settings.file_format = "FFMPEG"
     scene.render.ffmpeg.format = "MPEG4"
-    scene.render.filepath = str(OUT / preview)
+    scene.render.filepath = str(out_dir / preview)
     bpy.ops.render.render(animation=True)
     # A3: the sync file beside the clip, for VERDA's pane.
     sync_name = preview.replace(".mp4", ".sync.json")
-    Y.write_sync(OUT / sync_name,
+    Y.write_sync(out_dir / sync_name,
                  Y.make_sync(timeline["id"], timeline_path,
-                             start_met, MET_STEP_S, FPS))
+                             start_met, step, fps))
     report = {
         "milestone": "A2", "run_id": timeline["id"],
-        "met_step_s": MET_STEP_S, "fps": FPS,
+        "met_step_s": step, "fps": fps,
         "met_range": [start_met, end_met], "frames": frames,
         "cues": {
             "odin": [{"met_s": c["met_s"]} for c in cues if c["kind"] == "odin"],
             "baldur": [{"met_s": c["met_s"], "decision": c["decision"]}
                        for c in cues if c["kind"] == "baldur"]},
-        "preview": preview, "sync": sync_name, "resolution": [640, 360],
+        "preview": preview, "sync": sync_name,
+        "resolution": [settings.get("width", 640),
+                       settings.get("height", 360)],
+        "engine": settings.get("engine", "BLENDER_EEVEE"),
+        "samples": settings.get("samples", 32),
         "sun": "derived from inputs/epochs.json epoch + MET (solar.py)",
         "note": "Telemetry starts at contact (MET 800); before that the "
                 "record holds no spacecraft state, so the preview starts "
                 "there. Spacecraft state reads the truth source."}
-    (OUT / "a2_report.json").write_text(json.dumps(report, indent=2) + "\n",
-                                        encoding="utf-8")
+    (out_dir / "a2_report.json").write_text(json.dumps(report, indent=2) + "\n",
+                                            encoding="utf-8")
     print("A2 PREVIEW OK", preview, len(frames), "frames")
 
 
@@ -401,21 +443,57 @@ def run_fixture(station):
     print("A2 FIXTURE OK (made up; never drawn over a real run)")
 
 
+def int_arg(flag):
+    value = arg_value(flag)
+    return int(value) if value is not None else None
+
+
+def apply_inputs(inputs_dir):
+    """Point every input path at an inputs folder given on the command line
+    (A4: on a cloud run the folder need not sit beside the scripts)."""
+    inputs = Path(inputs_dir)
+    S.INPUTS = inputs
+    S.ORBIT_CSV = inputs / "orbit" / "P3-orbit.csv"
+    S.STATION_JSON = inputs / "orbit" / "station.json"
+    S.EARTH_TEXTURE = inputs / "imagery" / S.EARTH_TEXTURE_NAME
+    T.P3_ORBIT_CSV = S.ORBIT_CSV
+    return inputs
+
+
 def main():
-    station = S.read_station()
+    inputs = None
+    if arg_value("--inputs"):
+        inputs = apply_inputs(arg_value("--inputs"))
+    station = S.read_station(S.STATION_JSON)
     if FIXTURE:
         run_fixture(station)
         return
-    default_timeline = S.ROOT / "inputs" / "timelines" / "dev-ph2-p3-open-01.js"
+    default_timeline = (inputs or S.INPUTS) / "timelines" / "dev-ph2-p3-open-01.js"
     timeline_path = arg_value("--timeline", default_timeline)
     timeline = T.load_timeline(timeline_path)
     orbit_path = T.orbit_path_for(timeline["id"])
     if orbit_path is None:
         raise SystemExit("run %s has no orbit on record; no orbit animation"
                          % timeline["id"])
+    epochs_path = (inputs / "epochs.json") if inputs else solar.EPOCHS_JSON
+    # Seed scene_spec's cached epoch so its Sun uses this inputs folder.
+    S._EPOCH = solar.read_epoch(S.DEFAULT_RUN_ID, path=epochs_path)
+    settings = {
+        "output_dir": arg_value("--output-dir", OUT),
+        "width": int_arg("--width") or 640,
+        "height": int_arg("--height") or 360,
+        "step": int_arg("--step") or MET_STEP_S,
+        "fps": int_arg("--fps") or FPS,
+        "met_start": int_arg("--met-start"),
+        "met_end": int_arg("--met-end"),
+        "engine": arg_value("--engine", "BLENDER_EEVEE"),
+        "samples": int_arg("--samples") or 32,
+        "clip": arg_value("--clip"),
+        "epochs_path": epochs_path,
+    }
     feed_reports = T.load_feed(arg_value("--feed"))
     run_preview(timeline, timeline_path, S.read_orbit(orbit_path), station,
-                feed_reports)
+                feed_reports, settings)
 
 
 if __name__ == "__main__":
