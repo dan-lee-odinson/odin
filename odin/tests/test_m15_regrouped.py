@@ -303,5 +303,8 @@ def test_frozen_files_six_schemas_and_models_unchanged():
     assert len(frozen["schemas"]) == 6
     for rel, expected in frozen["schemas"].items():
         assert "sha256:" + hashlib.sha256((REPO_ROOT / rel).read_bytes()).hexdigest() == expected, rel
-    assert hashlib.sha256((REPO_ROOT / "config" / "models.yaml").read_bytes()).hexdigest() == \
-        "dc7464c58c196698b62a9d05d5ed4511e406b79a54ec755120d0305eeb651dc9"
+    # M17: each model's block checked against its frozen.json entry,
+    # so a model can be added with its entry without breaking this.
+    from freeze_guard import assert_model_blocks_match_frozen
+    assert_model_blocks_match_frozen(REPO_ROOT / "config" / "models.yaml",
+                                     REPO_ROOT / "config" / "frozen.json")

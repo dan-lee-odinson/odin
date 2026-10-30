@@ -125,11 +125,12 @@ def _http_json(method, url, payload=None, timeout=30, transport=None):
 class TurnLoop:
     def __init__(self, *, harness_url, baldur_url, log_url, adapter, repo_root,
                  private_key_path=None, instructions="", frozen_reference="", transport=None,
-                 meter=None, registry_path=None, clock=None):
+                 meter=None, registry_path=None, clock=None, onboard_adapter=None):
         self.harness_url = harness_url.rstrip("/")
         self.baldur_url = baldur_url.rstrip("/")
         self.log_url = log_url.rstrip("/")
         self.adapter = adapter
+        self.onboard_adapter = onboard_adapter
         self.repo_root = Path(repo_root)
         self.private_key_path = private_key_path
         self.instructions = instructions
@@ -201,11 +202,21 @@ class TurnLoop:
         self.errors.append({"turn_id": turn_id, "service": service, "status": status})
         return {"turn_id": turn_id, "outcome": "error", "service": service, "status": status}
 
-    def _model_call_record(self, bundle, call_index, result, status=None):
+    def adapter_for(self, bundle):
+        """The adapter a turn goes to (M17): an ONBOARD turn picks the
+        onboard adapter when the run has one; anything else picks the
+        run's adapter. The pick is made fresh for every turn, so a
+        change of seat between turns switches adapter at once."""
+        if bundle.get("seat") == "ONBOARD" and self.onboard_adapter is not None:
+            return self.onboard_adapter
+        return self.adapter
+
+    def _model_call_record(self, bundle, call_index, result, status=None, adapter=None):
+        adapter = adapter if adapter is not None else self.adapter
         return {
             "run_id": bundle["run_id"], "turn_id": bundle["turn_id"],
             "call_index": call_index,
-            "config": getattr(self.adapter, "name", "stand_in"),
+            "config": getattr(adapter, "name", "stand_in"),
             "provider": result.get("provider") if result else None,
             "model_id": result.get("model_id") if result else None,
             "reasoning_effort": result.get("reasoning_effort") if result else None,
@@ -255,9 +266,10 @@ class TurnLoop:
                                 "detail": str(exc)})
             return {"turn_id": turn_id, "outcome": "error",
                     "service": "dictionary", "detail": str(exc)}
+        adapter = self.adapter_for(bundle)
         sink = []
         try:
-            result = self.adapter.complete(
+            result = adapter.complete(
                 prompt=prompt_bytes, bundle=bundle, call_index=1, meter=self.meter,
                 turn_id=turn_id, model_call_sink=sink, tool_handler=self._tool_handler)
         except SpendStop as exc:
@@ -267,21 +279,22 @@ class TurnLoop:
                 self._log("MODEL_CALL", record)
             if not sink:
                 self._log("MODEL_CALL", self._model_call_record(
-                    bundle, 1, None, status="SPEND_STOP"))
+                    bundle, 1, None, status="SPEND_STOP", adapter=adapter))
             return {"turn_id": turn_id, "outcome": "spend_stop", "detail": str(exc)}
         except Exception as exc:  # timeout/error: no request, logged (§9.5)
             for record in sink:
                 record["run_id"] = run_id
                 self._log("MODEL_CALL", record)
             if not sink:
-                self._log("MODEL_CALL", self._model_call_record(bundle, 1, None, status="ERROR"))
+                self._log("MODEL_CALL", self._model_call_record(
+                    bundle, 1, None, status="ERROR", adapter=adapter))
             return {"turn_id": turn_id, "outcome": "error", "detail": str(exc)}
         if sink:
             for record in sink:
                 record["run_id"] = run_id
                 self._log("MODEL_CALL", record)
         else:
-            self._log("MODEL_CALL", self._model_call_record(bundle, 1, result))
+            self._log("MODEL_CALL", self._model_call_record(bundle, 1, result, adapter=adapter))
         channel = result.get("channel", "CONTENT")
         raw = result.get("raw", "")
         self._log("CANDIDATE", {"run_id": run_id, "turn_id": turn_id, "channel": channel, "raw": raw})

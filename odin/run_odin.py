@@ -1,6 +1,7 @@
 """ODIN's start command: run ODIN as its own process for one run.
 
     python -m odin.run_odin <spark|spark_open|glimmer_local|glimmer_modal|stand_in>
+        [--onboard <glimmer_local|glimmer_modal|stand_in>]
 
 Reads the harness, BALDUR-0 and log addresses from config/ports.yaml and
 runs the turn loop until the harness says the run is complete. The adapter
@@ -23,8 +24,21 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODELS = ("spark", "spark_open", "glimmer_local", "glimmer_modal", "stand_in")
+ONBOARD_MODELS = ("glimmer_local", "glimmer_modal", "stand_in")
 KEY_FOR_MODEL = {"spark": "META_API_KEY", "spark_open": "BASETEN_API_KEY"}
 KEYS_FOR_MODEL = {"glimmer_modal": ("ODIN_MODAL_PROXY_KEY", "ODIN_MODAL_PROXY_SECRET")}
+
+
+def _missing_key_var(model):
+    """The first key variable `model` needs that is not set, or None.
+    Only the variable's name is ever reported, never a value."""
+    var = KEY_FOR_MODEL.get(model)
+    if var and not os.environ.get(var):
+        return var
+    for name in KEYS_FOR_MODEL.get(model, ()):
+        if not os.environ.get(name):
+            return name
+    return None
 
 
 def strip_cosmos_env(env=None) -> None:
@@ -100,25 +114,36 @@ def main(argv=None, *, transport=None, repo_root=None, private_key_path=None,
     strip_cosmos_env()  # before anything else (U38)
     repo_root = Path(repo_root or REPO_ROOT)
     argv = list(sys.argv[1:] if argv is None else argv)
-    if len(argv) != 1:
-        print("usage: python -m odin.run_odin "
-              "<spark|spark_open|glimmer_local|glimmer_modal|stand_in>")
+    usage = ("usage: python -m odin.run_odin "
+             "<spark|spark_open|glimmer_local|glimmer_modal|stand_in> "
+             "[--onboard <glimmer_local|glimmer_modal|stand_in>]")
+    onboard_model = None
+    if len(argv) == 3 and argv[1] == "--onboard":
+        model, onboard_model = argv[0], argv[2]
+    elif len(argv) == 1:
+        model = argv[0]
+    else:
+        print(usage)
         return 2
-    model = argv[0]
     if model not in MODELS:
         print(f"unknown model {model!r}: choose one of {', '.join(MODELS)}")
+        return 2
+    if onboard_model is not None and onboard_model not in ONBOARD_MODELS:
+        print(f"unknown onboard model {onboard_model!r}: "
+              f"choose one of {', '.join(ONBOARD_MODELS)}")
         return 2
     if not verify_frozen(repo_root):
         print("refusing to start: odin/instructions/system_prompt.md or "
               "odin/loop/prompt.py differs from the frozen record")
         return 2
-    key_var = KEY_FOR_MODEL.get(model)
-    if key_var and not os.environ.get(key_var):
-        print(f"refusing to start: {key_var} is not set")
-        return 2
-    for var in KEYS_FOR_MODEL.get(model, ()):
-        if not os.environ.get(var):
-            print(f"refusing to start: {var} is not set")
+    # With --onboard, both models' keys must be set before either
+    # adapter is built (M17); without it, only the run's model's.
+    for which in (model, onboard_model):
+        if which is None:
+            continue
+        missing = _missing_key_var(which)
+        if missing:
+            print(f"refusing to start: {missing} is not set")
             return 2
     if not os.environ.get("ODIN_KEY_PATH"):
         print("refusing to start: ODIN_KEY_PATH is not set")
@@ -126,6 +151,11 @@ def main(argv=None, *, transport=None, repo_root=None, private_key_path=None,
     try:
         adapter = (adapter_factory(model) if adapter_factory is not None
                    else build_run_adapter(model, http_post=http_post))
+        onboard_adapter = None
+        if onboard_model is not None:
+            onboard_adapter = (adapter_factory(onboard_model)
+                               if adapter_factory is not None
+                               else build_run_adapter(onboard_model, http_post=http_post))
     except (RuntimeError, ValueError) as exc:
         print(f"refusing to start: {exc}")
         return 2
@@ -150,7 +180,7 @@ def main(argv=None, *, transport=None, repo_root=None, private_key_path=None,
         harness_url=harness_url, baldur_url=baldur_url, log_url=log_url,
         adapter=adapter, repo_root=repo_root, transport=transport,
         private_key_path=private_key_path, instructions=instructions,
-        meter=meter)
+        meter=meter, onboard_adapter=onboard_adapter)
     try:
         results = loop.run(max_turns=max_turns)  # no cap unless a test sets one
     except (ConnectionError, OSError) as exc:
