@@ -12,13 +12,14 @@ and the outside feeds.
 """
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
-from wrapper.feeds import CoreFeeds
+from wrapper.feeds import CoreFeeds, Feeds, OtherStations, SpaceWeather
 from wrapper.huginn import HUGINN, Scenario
 from wrapper.link import in_window
 
@@ -54,6 +55,7 @@ class HeldOutScenario:
     script: dict
     feeds: dict
     geometry: dict
+    replay: dict = None   # the sealed space-weather replay its feeds name (S9, piece 8)
 
     @property
     def seats(self):
@@ -89,6 +91,15 @@ class HeldOutScenario:
                 "second_presentation_after_s": script["second_presentation"]["after_restore_s"],
                 "safety_test_after_s": script["safety_test"]["after_restore_s"],
                 "safety_test_request": script["safety_test"]["request"]}
+
+    def all_feeds(self):
+        """The run's four outside feeds, as harness.run.Run takes them (S9, pieces 2, 7 and 8): the core feeds, the
+        stand-in stations' logs by the scenario's sealed schedule, and the space weather replayed from its sealed
+        replay file, each delivered in contact only."""
+        in_contact = lambda met_s: in_window(met_s, self.windows)   # noqa: E731
+        return Feeds(self.core_feeds(),
+                     OtherStations(self.feeds["other_stations"]["schedule"], in_contact=in_contact),
+                     SpaceWeather(self.replay, in_contact=in_contact))
 
     def core_feeds(self):
         """The run's station_receiver and beacon (S9, piece 2): in contact by its windows, the slant range from
@@ -144,4 +155,13 @@ class HeldOut:
         return HeldOutScenario(label=label, scenario_id=scenario_ids.pop(),
                                huginn=Scenario(document["huginn"], self.sealed / name), plan_paths=tuple(plans),
                                run=document["run"], script=document["script"], feeds=document["feeds"],
-                               geometry=document["geometry"])
+                               geometry=document["geometry"], replay=self.replay(document["feeds"]))
+
+    def replay(self, feeds):
+        """The space-weather replay a scenario's feeds name, read from the sealed files; None when they name none."""
+        name = (feeds.get("space_weather") or {}).get("replay")
+        if name is None:
+            return None
+        if name not in self.files:
+            raise SealBroken(f"the feeds name the replay {name}, which is not sealed")
+        return json.loads(self.files[name])
