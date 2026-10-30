@@ -344,7 +344,7 @@ def test_arm_ph1_r4_is_arm_ph1_r3_with_only_its_id_and_run_changed():
 # -- INST's NaN and infinities in the report format (the Director's ruling of 29 October 2026, after R3) ------------
 
 R3 = REPO_ROOT / "runs" / "scored" / "PH1-SHAKEDOWN-SPARK-R3"
-COMMON_BEFORE = "sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378716eb9dc"   # at 313b839
+COMMON_BEFORE = "sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378716eb9dc"   # at 592e694
 
 
 def r3_turn_58(point=None, value=None):
@@ -377,7 +377,7 @@ def test_red_r3s_turn_58_answer_passes_the_report_format_the_old_one_refused_it(
     assert not report(r3_turn_58("TEMP2", "nan"))[0]   # COSMOS's spelling only
     before = tmp_path / "schemas"
     shutil.copytree(REPO_ROOT / "contract" / "schemas", before)
-    old = subprocess.run(["git", "-C", str(REPO_ROOT), "show", "313b839:contract/schemas/common.schema.json"],
+    old = subprocess.run(["git", "-C", str(REPO_ROOT), "show", "592e694:contract/schemas/common.schema.json"],
                          capture_output=True, check=True).stdout
     assert sha256_tag(old) == COMMON_BEFORE
     (before / "common.schema.json").write_bytes(old)

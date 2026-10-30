@@ -10,7 +10,7 @@ The seal in force, of 29 October 2026, made when ODIN's phase-1 notes were froze
 sha256:bc8ae4ace8a100486cc9b11bad17a4e818893e9d1363e3fc9eb4db4fabf6350e
 ```
 
-The first seal, of 28 October 2026 (a20ad3f), kept beside it:
+The first seal, of 28 October 2026 (554aa09), kept beside it:
 
 ```
 sha256:5d92af90e06031d9f6db889779e27c598766c0074cc1b635692c42431b9ea330
