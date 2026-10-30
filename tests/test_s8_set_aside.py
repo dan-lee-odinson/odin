@@ -218,6 +218,34 @@ def test_a_models_own_malformed_answer_does_not_set_the_run_aside(candidate, rea
     assert keys(clean() + malformed_turn(candidate, reason) + [end()], BUNDLES) == []
 
 
+# The Director's ruling of 30 October 2026, after M5: Glimmer's adapter is spark's but for the ACT turn's format,
+# format G (M16), so cause 13 judges a turn Glimmer answered against format G, and its report turns against the same
+# report body as spark's.
+MET_G = {"channel": "CONTENT", "raw": json.dumps({"kind": "command", "command_call": SHED, "escalation": None,
+                                                  "rationale": "made up"})}
+
+
+def glimmer_malformed(candidate, kind="ACT"):
+    return [trigger(3, 960, kind), call(3, 960), record("CANDIDATE", 969, turn_id=3, **candidate),
+            record("MALFORMED", 969, turn_id=3, reason="SCHEMA_VIOLATION", detail="made up")]
+
+
+def test_red_13_a_turn_glimmer_answered_is_judged_against_format_g(glimmer_frozen):
+    # MET_CONTENT meets spark's format B but not format G, where a command's escalation must be null: on Glimmer's
+    # turn it broke the format it was given, and the malformed answer is the model's own.
+    assert keys(glimmer_run(*glimmer_malformed(MET_CONTENT)), BUNDLES) == []
+    assert keys(glimmer_run(*glimmer_malformed(MET_G)), BUNDLES) == ["FORMAT_MET_BUT_REFUSED SCHEMA_VIOLATION"]
+    # On a turn spark answered, MET_CONTENT met format B and stays ours: test_red_13_a_malformed_answer_whose_...
+
+
+def test_red_13_a_report_glimmer_wrote_as_its_format_allowed_and_odin_refused_is_ours(glimmer_frozen):
+    # M5's PASS-2B: an empty answer on a pass-start report, which the report body admits and the report refuses.
+    report = {"channel": "CONTENT", "raw": json.dumps({"timeline": [], "actions": [], "condition": {
+        "summary": "made up", "evidence": []}, "deferred": [], "open_issues": [], "answer": ""})}
+    assert keys(glimmer_run(*glimmer_malformed(report, "REPORT")), {3: {"turn_kind": "REPORT", "plan": P3_PLAN}}) == [
+        "FORMAT_MET_BUT_REFUSED SCHEMA_VIOLATION"]
+
+
 def test_an_argument_outside_the_dictionary_stays_the_models_though_the_format_allowed_it():
     # spark_open's answer_command takes any parameters object, so this met the format; U58 counts it against ODIN.
     candidate = {"channel": "MESSAGE", "raw": json.dumps({"content": None, "tool_calls": [{"type": "function", "function": {

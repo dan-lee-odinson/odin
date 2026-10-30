@@ -92,13 +92,15 @@ def _meets(schema, value):
     return not any(Draft7Validator(schema).iter_errors(value))
 
 
-def format_met(candidate, turn_kind, commands):
+def format_met(candidate, turn_kind, commands, config=None):
     """Whether a CANDIDATE met the answer format the run gave the model for its turn, built as ODIN's adapter built
-    it (so a run is scored with the code that flew it). spark (CONTENT): its structured output, format B from the
-    dictionary in force on an ACT turn, the frozen report body on a REPORT turn. spark_open (MESSAGE): one call to an
-    answer tool for the turn's kind of answer, or one JSON object in the message content, against that tool's
-    parameters. Anything else did not meet it."""
-    from odin.adapters.spark import act_format
+    it (so a run is scored with the code that flew it). config: the configuration whose model answered the turn, from
+    the turn's MODEL_CALL. spark (CONTENT): its structured output, format B from the dictionary in force on an ACT
+    turn, the frozen report body on a REPORT turn. Glimmer (CONTENT): its adapter is spark's but for the ACT turn's
+    format, format G from the dictionary in force (M16), so it is judged against that (the Director's ruling of 30
+    October 2026). spark_open (MESSAGE): one call to an answer tool for the turn's kind of answer, or one JSON object
+    in the message content, against that tool's parameters. Anything else did not meet it."""
+    from odin.adapters.spark import act_format, act_format_g
     from odin.adapters.spark_open import ANSWER_TOOLS
     from odin.loop.validate import resolved_schema
 
@@ -108,7 +110,10 @@ def format_met(candidate, turn_kind, commands):
             value = json.loads(raw)
         except (TypeError, ValueError):
             return False
-        schema = resolved_schema("report_body.schema.json") if turn_kind == "REPORT" else act_format(commands)
+        if turn_kind == "REPORT":
+            schema = resolved_schema("report_body.schema.json")
+        else:
+            schema = (act_format_g if config in GLIMMER else act_format)(commands)
         return _meets(schema, value)
     if channel != "MESSAGE":
         return False
@@ -150,9 +155,11 @@ def _turn_commands(bundle):
 def refused_though_met(records, bundles):
     """Each MALFORMED, other than NOT_IN_DICTIONARY, whose turn's CANDIDATE met the format given: cause 13.
     bundles: {turn_id: the bundle served for it}; a turn without one cannot be shown to have met it."""
-    found, candidates = [], {}
+    found, candidates, configs = [], {}, {}
     for record in records:
         body = record.get("body") or {}
+        if record["type"] == "MODEL_CALL":
+            configs[body["turn_id"]] = body.get("config")
         if record["type"] == "CANDIDATE":
             candidates[body["turn_id"]] = body
         if record["type"] != "MALFORMED" or body["reason"] == "NOT_IN_DICTIONARY":
@@ -161,7 +168,7 @@ def refused_though_met(records, bundles):
         bundle = bundles.get(body["turn_id"])
         if candidate is None or bundle is None:
             continue
-        if format_met(candidate, bundle.get("turn_kind"), _turn_commands(bundle)):
+        if format_met(candidate, bundle.get("turn_kind"), _turn_commands(bundle), configs.get(body["turn_id"])):
             found.append(cause("FORMAT_MET_BUT_REFUSED", f"FORMAT_MET_BUT_REFUSED {body['reason']}",
                                f"turn {body['turn_id']}: its CANDIDATE met the format given, and it was filed "
                                f"MALFORMED {body['reason']}: {body['detail']}", record))

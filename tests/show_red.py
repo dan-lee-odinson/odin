@@ -944,11 +944,20 @@ CASES = {"s0": [
     ("set-aside cause 13, a MALFORMED whose candidate met the format, not found",
      "tests/test_s8_set_aside.py::test_red_13_a_malformed_answer_whose_candidate_met_the_format_given",
      change_file("eval/set_aside.py", replace_once(
-         b'if format_met(candidate, bundle.get("turn_kind"), _turn_commands(bundle)):', b"if False:"))),
+         b'if format_met(candidate, bundle.get("turn_kind"), _turn_commands(bundle), configs.get(body["turn_id"])):', b"if False:"))),
     ("the model's own MALFORMED setting its run aside",
      "tests/test_s8_set_aside.py::test_a_models_own_malformed_answer_does_not_set_the_run_aside",
      change_file("eval/set_aside.py", replace_once(
-         b'if format_met(candidate, bundle.get("turn_kind"), _turn_commands(bundle)):', b"if True:"))),
+         b'if format_met(candidate, bundle.get("turn_kind"), _turn_commands(bundle), configs.get(body["turn_id"])):', b"if True:"))),
+    ("a turn Glimmer answered judged against spark's format B, not its own format G (30 October 2026)",
+     "tests/test_s8_set_aside.py::test_red_13_a_turn_glimmer_answered_is_judged_against_format_g",
+     change_file("eval/set_aside.py", replace_once(
+         b"            schema = (act_format_g if config in GLIMMER else act_format)(commands)",
+         b"            schema = act_format(commands)"))),
+    ("the turn's model left out when its format is judged (30 October 2026)",
+     "tests/test_s8_set_aside.py::test_red_13_a_turn_glimmer_answered_is_judged_against_format_g",
+     change_file("eval/set_aside.py", replace_once(
+         b'_turn_commands(bundle), configs.get(body["turn_id"])):', b"_turn_commands(bundle), None):"))),
     ("an argument outside the dictionary made ours because the format allowed it (U58)",
      "tests/test_s8_set_aside.py::test_an_argument_outside_the_dictionary_stays_the_models_though_the_format_allowed_it",
      change_file("eval/set_aside.py", replace_once(b' or body["reason"] == "NOT_IN_DICTIONARY":', b":"))),
