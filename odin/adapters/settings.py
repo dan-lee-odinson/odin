@@ -28,7 +28,7 @@ def load_model_settings(path=None) -> dict:
             continue
         if not isinstance(entry, dict):
             raise RuntimeError(f"model settings incomplete: no {config} entry")
-        required = REQUIRED_KEYS if config != "glimmer_modal" else \
+        required = REQUIRED_KEYS if config not in ("glimmer_modal", "glimmer_local") else \
             tuple(k for k in REQUIRED_KEYS if k != "model")
         missing = [key for key in required if entry.get(key) is None]
         if missing:
@@ -54,14 +54,17 @@ def build_adapter(config, settings_path=None, **kwargs):
     entry = load_model_settings(settings_path).get(config)
     if not isinstance(entry, dict):
         raise RuntimeError(f"model settings incomplete: no {config} entry")
-    required = REQUIRED_KEYS if config != "glimmer_modal" else \
+    required = REQUIRED_KEYS if config not in ("glimmer_modal", "glimmer_local") else \
         tuple(k for k in REQUIRED_KEYS if k != "model")
     missing = [key for key in required if entry.get(key) is None]
     if missing:
         raise RuntimeError(
             f"model settings incomplete: {config} missing {', '.join(missing)}")
-    if config == "glimmer_modal" and entry.get("model") and "model_id" not in kwargs:
-        kwargs["model_id"] = entry["model"]
+    if config in ("glimmer_modal", "glimmer_local"):
+        if entry.get("model") and "model_id" not in kwargs:
+            kwargs["model_id"] = entry["model"]
+        if entry.get("endpoint") and "endpoint" not in kwargs:
+            kwargs["endpoint"] = entry["endpoint"]
     return classes[config](
         reasoning_effort=entry["reasoning_effort"],
         max_output_tokens=entry["max_output_tokens"],

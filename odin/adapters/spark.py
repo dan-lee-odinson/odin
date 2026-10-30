@@ -35,7 +35,7 @@ def _nullable(schema):
     return {"anyOf": [schema, {"type": "null"}]}
 
 
-def _command_call_schema(commands):
+def _command_branches(commands):
     branches = []
     for name, cmd in (commands or {}).items():
         args = list(cmd.get("args") or [])
@@ -49,7 +49,11 @@ def _command_call_schema(commands):
                                "properties": {a["name"]: _arg_schema(a) for a in args}},
             },
         })
-    return {"anyOf": [{"anyOf": branches}, {"type": "null"}]}
+    return branches
+
+
+def _command_call_schema(commands):
+    return {"anyOf": [{"anyOf": _command_branches(commands)}, {"type": "null"}]}
 
 
 def act_format(commands):
@@ -85,6 +89,46 @@ def act_format(commands):
             "rationale": _nullable({"type": "string"}),
         },
     }
+
+
+def act_format_g(commands):
+    """Format G (M16), Glimmer's own: three closed objects under one
+    anyOf, one per kind, derived from the dictionary in force. Each
+    branch keeps R's four fields in R's order; a field the kind does
+    not allow must be null. An escalation's own fields are never null
+    (proposed is a command or null), as the frozen schema requires."""
+    branches = _command_branches(commands)
+    proposed = {"anyOf": [{"anyOf": copy.deepcopy(branches)}, {"type": "null"}]}
+    escalation = {
+        "type": "object", "additionalProperties": False,
+        "required": ["escalation_kind", "refs", "urgency", "proposed"],
+        "properties": {
+            "escalation_kind": {"type": "string", "enum": [
+                "OFF_COURSE", "MALFUNCTION", "DECISION_NEEDED",
+                "LEASE_NEEDED", "AUTHORITY_NEEDED", "CONFLICT"]},
+            "refs": {"type": "array", "items": {"type": "string"}},
+            "urgency": {"type": "string", "enum": ["ROUTINE", "URGENT"]},
+            "proposed": proposed,
+        },
+    }
+
+    def branch(kind, command_call, esc):
+        return {
+            "type": "object", "additionalProperties": False,
+            "required": ["kind", "command_call", "escalation", "rationale"],
+            "properties": {
+                "kind": {"type": "string", "enum": [kind]},
+                "command_call": command_call,
+                "escalation": esc,
+                "rationale": _nullable({"type": "string"}),
+            },
+        }
+
+    return {"anyOf": [
+        branch("command", {"anyOf": branches}, {"type": "null"}),
+        branch("escalation", {"type": "null"}, escalation),
+        branch("none", {"type": "null"}, {"type": "null"}),
+    ]}
 
 
 # Back-compatible aliases for callers using the longer names.
@@ -140,6 +184,11 @@ class SparkAdapter(ChatAdapter):
     endpoint = "https://api.meta.ai/v1"
     env_var = "META_API_KEY"
 
+    def _act_format(self, commands):
+        """The ACT-turn schema this adapter sends: spark sends format R
+        (M15); the Glimmer adapters override this with format G (M16)."""
+        return act_format(commands)
+
     def complete(self, *, prompt: bytes, bundle: dict, call_index: int = 1,
                  meter=None, turn_id=None, model_call_sink=None, tool_handler=None,
                  plain_text: bool = False) -> dict:
@@ -159,7 +208,7 @@ class SparkAdapter(ChatAdapter):
             # as the checker reads it. No strict flag.
             _entry, commands = dictionary_for_plan(bundle.get("plan") or {})
             response_format = {"type": "json_schema", "json_schema": {
-                "name": "odin_answer", "schema": act_format(commands)}}
+                "name": "odin_answer", "schema": self._act_format(commands)}}
             tools = READONLY_TOOLS if tool_handler else None
         messages = [{"role": "user", "content": prompt.decode("utf-8")}]
         sink = model_call_sink if model_call_sink is not None else []

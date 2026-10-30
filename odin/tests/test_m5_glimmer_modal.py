@@ -14,7 +14,7 @@ import yaml
 
 from odin.adapters.glimmer_modal import GlimmerModalAdapter, load_glimmer_endpoint
 from odin.adapters.settings import build_adapter
-from odin.adapters.spark import act_format
+from odin.adapters.spark import act_format_g
 from odin.devtools.fake_harness import FakeServices
 from odin.loop.loop import TurnLoop
 from odin.loop.validate import dictionary_for_plan
@@ -82,7 +82,8 @@ def test_request_to_configured_endpoint_with_headers_and_json_schema(proxy_env):
     assert rec["headers"].get("Modal-Secret") == SECRET_CANARY
     body = rec["body"]
     assert body["response_format"]["type"] == "json_schema"
-    assert body["response_format"]["json_schema"]["schema"] == act_format(_commands())
+    # M16 supersedes: Glimmer sends format G, not spark's format R.
+    assert body["response_format"]["json_schema"]["schema"] == act_format_g(_commands())
     assert body["max_tokens"] == 123 and body["reasoning_effort"] == "low"
 
 
@@ -94,11 +95,17 @@ def test_report_turn_uses_report_json_schema(proxy_env):
     assert fmt["type"] == "json_schema" and "timeline" in fmt["json_schema"]["schema"]["properties"]
 
 
-def test_endpoint_defaults_to_config_glimmer_modal_yaml(proxy_env):
-    expected = yaml.safe_load(
-        (REPO_ROOT / "config" / "glimmer_modal.yaml").read_text(encoding="utf-8"))["endpoint"]
-    assert load_glimmer_endpoint() == expected
-    assert _adapter(None).base_url == expected
+def test_endpoint_comes_from_model_block_not_old_file(tmp_path, proxy_env):
+    # M16 supersedes the M5-prep endpoint file: the endpoint comes from
+    # glimmer_modal's model block in configuration.
+    path = tmp_path / "models.yaml"
+    path.write_text(yaml.safe_dump({
+        "glimmer_modal": {"model": "m", "reasoning_effort": "low",
+                          "max_output_tokens": 1, "timeout_s": 60,
+                          "endpoint": "http://127.0.0.1:9"}}), encoding="utf-8")
+    assert load_glimmer_endpoint(path) == "http://127.0.0.1:9"
+    with pytest.raises(RuntimeError):
+        _adapter(None)
 
 
 def test_adapter_given_no_settings_raises():

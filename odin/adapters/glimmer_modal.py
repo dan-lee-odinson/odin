@@ -1,57 +1,65 @@
-"""glimmer_modal adapter (CONTRACT section 11.1; M5 prep).
+"""glimmer_modal adapter (CONTRACT section 11.1; M5 prep, M16).
 
 Muse Glimmer 30B on Modal, the onboard seat's fallback: the same
 weights as glimmer_local, served by llama.cpp behind Modal's proxy
-auth. OpenAI-compatible: POST <endpoint>/v1/chat/completions, where
-<endpoint> comes from config/glimmer_modal.yaml. Every request carries
-the Modal-Key and Modal-Secret headers, whose values are read from the
-ODIN_MODAL_PROXY_KEY and ODIN_MODAL_PROXY_SECRET environment variables
-at call time; they are never logged, printed or written anywhere, and
-a missing variable is refused naming the variable, never its value.
+auth. OpenAI-compatible: POST <endpoint>/v1/chat/completions. The
+endpoint comes from glimmer_modal's model block in configuration
+(config/models.yaml, as approved for after M16; tests use a test
+configuration), never from the old endpoint file of M5's prep.
 
-Answers with structured output (a response_format of type json_schema),
-as spark does: this adapter is spark's call sequence with Modal's
-headers, endpoint and charging. The loop judges the answer through the
-same validator and logs CANDIDATE exactly as for spark.
+On an ACT turn it answers in format G, Glimmer's own (M16), with a
+response_format of type json_schema, and the loop judges it through
+the same put-backs and validator as spark and logs CANDIDATE exactly.
+
+Every request carries the Modal-Key and Modal-Secret headers, whose
+values are read from the ODIN_MODAL_PROXY_KEY and
+ODIN_MODAL_PROXY_SECRET environment variables at call time; they are
+never logged, printed or written anywhere, and a missing variable is
+refused naming the variable, never its value. The /slots probe of a
+timed-out call (see glimmer_common) goes to the same server with the
+same headers, and only its processing flag is kept.
 
 Charging is per GPU-second of each call's wall time, at the
 per_gpu_second price in config/prices.yaml, against the Modal stop:
-the reservation is the call's timeout in GPU-seconds (the worst case),
-and the settled charge is the measured wall time in GPU-seconds.
+the reservation is the call's timeout in GPU-seconds (the worst
+case), and the settled charge is the measured wall time in
+GPU-seconds.
 
 Server lifecycle is Claude Code's side of the build: this adapter only
-ever sends the chat request above. It imports no Modal library.
+ever sends the requests above. It imports no Modal library.
 
 No built-in settings: reasoning level, output cap and timeout come
 from configuration, as for every model; given none, it raises.
 """
 import os
-import time
 from pathlib import Path
 
 import yaml
 
-from odin.spend.meter import SpendStop
-
-from .openai_compat import ProviderError, model_call_body, require_settings
-from .spark import SparkAdapter
+from .glimmer_common import GlimmerAdapter
+from .openai_compat import require_settings
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = REPO_ROOT / "config" / "glimmer_modal.yaml"
+DEFAULT_SETTINGS = REPO_ROOT / "config" / "models.yaml"
 PROXY_KEY_VAR = "ODIN_MODAL_PROXY_KEY"
 PROXY_SECRET_VAR = "ODIN_MODAL_PROXY_SECRET"
 
 
-def load_glimmer_endpoint(config_path=None) -> str:
-    """The endpoint in config/glimmer_modal.yaml, or a refusal."""
-    path = Path(config_path) if config_path else DEFAULT_CONFIG
+def load_glimmer_endpoint(settings_path=None) -> str:
+    """The endpoint in glimmer_modal's model block in a settings file
+    (config/models.yaml by default), or a refusal naming what is
+    missing. The old M5-prep endpoint file is never read."""
+    path = Path(settings_path) if settings_path else DEFAULT_SETTINGS
     try:
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except OSError as exc:
-        raise RuntimeError(f"glimmer_modal config missing: {path}") from exc
-    endpoint = doc.get("endpoint")
+        raise RuntimeError(f"model settings file missing: {path}") from exc
+    entry = doc.get("glimmer_modal")
+    endpoint = entry.get("endpoint") if isinstance(entry, dict) else None
     if not isinstance(endpoint, str) or not endpoint.strip():
-        raise RuntimeError(f"glimmer_modal config {path} has no endpoint")
+        raise RuntimeError(
+            "glimmer_modal endpoint must come from configuration: "
+            f"no endpoint in the glimmer_modal model block in {path}")
     return endpoint.rstrip("/")
 
 
@@ -69,96 +77,37 @@ def proxy_headers(env=None) -> dict:
     return {"Modal-Key": key, "Modal-Secret": secret}
 
 
-class GlimmerModalAdapter(SparkAdapter):
+class GlimmerModalAdapter(GlimmerAdapter):
     name = "glimmer_modal"
     provider = "Modal (llama.cpp), proxy auth"
     model_id = "Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf"
     env_var = None
 
     def __init__(self, *, reasoning_effort, max_output_tokens, timeout_s,
-                 endpoint=None, config_path=None, model_id=None,
-                 http_post=None, monotonic=None):
+                 endpoint=None, model_id=None,
+                 http_post=None, http_get=None, monotonic=None):
         require_settings(reasoning_effort, max_output_tokens, timeout_s)
-        resolved = (endpoint.rstrip("/") if endpoint
-                    else load_glimmer_endpoint(config_path))
+        if not endpoint:
+            raise RuntimeError(
+                "glimmer_modal endpoint must come from configuration: "
+                "no endpoint in its model block")
+        resolved = endpoint.rstrip("/")
         super().__init__(reasoning_effort=reasoning_effort,
                          max_output_tokens=max_output_tokens,
                          timeout_s=timeout_s, base_url=resolved,
-                         http_post=http_post)
+                         http_post=http_post, http_get=http_get,
+                         monotonic=monotonic)
         self.endpoint = resolved
         if model_id:
             self.model_id = model_id
-        self._monotonic = monotonic or time.monotonic
 
-    def _url(self) -> str:
-        base = self.base_url
-        if base.endswith("/v1"):
-            return f"{base}/chat/completions"
-        return f"{base}/v1/chat/completions"
+    def _headers(self):
+        return proxy_headers()
 
-    def _one_call(self, messages, *, tools, meter, turn_id, call_index, sink,
-                  response_format=None):
-        body = {
-            "model": self.model_id, "messages": messages,
-            "max_tokens": self.max_output_tokens,
-            "reasoning_effort": self.reasoning_effort,
-        }
-        if tools:
-            body["tools"] = tools
-        if response_format is not None:
-            body["response_format"] = response_format
-        headers = proxy_headers()
-        reservation = None
-        if meter is not None:
-            # Worst case: the whole timeout, in GPU-seconds.
-            reserved_usd = meter.gpu_cost(self.name, self.timeout_s)
-            reservation = meter.reserve(
-                config=self.name, input_tokens=0,
-                max_output_tokens=self.max_output_tokens,
-                turn_id=turn_id, call_index=call_index,
-                reserved_usd=reserved_usd)
-            if reservation is None:
-                if sink is not None:
-                    sink.append(model_call_body(
-                        config=self.name, provider=self.provider,
-                        model_id=self.model_id,
-                        reasoning_effort=self.reasoning_effort,
-                        max_output_tokens=self.max_output_tokens,
-                        turn_id=turn_id, call_index=call_index,
-                        status="SPEND_STOP", usage=None,
-                        reserved=0.0, actual=None, latency=None))
-                raise SpendStop("spend meter refused the call")
-        t0 = self._monotonic()
-        status, payload = self.http_post(self._url(), headers, body, self.timeout_s)
-        latency = self._monotonic() - t0
-        if status >= 400:
-            message = ""
-            if isinstance(payload, dict):
-                message = str((payload.get("error") or {}).get("message") or payload)
-            if sink is not None:
-                sink.append(model_call_body(
-                    config=self.name, provider=self.provider,
-                    model_id=self.model_id,
-                    reasoning_effort=self.reasoning_effort,
-                    max_output_tokens=self.max_output_tokens,
-                    turn_id=turn_id, call_index=call_index, status="ERROR",
-                    usage=None,
-                    reserved=reservation.reserved_usd if reservation else 0.0,
-                    actual=None, latency=latency))
-            raise ProviderError(status, message or f"provider returned {status}")
-        usage = payload.get("usage") or {}
-        actual = None
-        if reservation is not None:
-            actual = reservation.settle(
-                actual_usd=meter.gpu_cost(self.name, latency))
-        if sink is not None:
-            sink.append(model_call_body(
-                config=self.name, provider=self.provider,
-                model_id=self.model_id,
-                reasoning_effort=self.reasoning_effort,
-                max_output_tokens=self.max_output_tokens,
-                turn_id=turn_id, call_index=call_index, status="OK",
-                usage=usage,
-                reserved=reservation.reserved_usd if reservation else 0.0,
-                actual=actual, latency=latency))
-        return payload, usage, latency
+    def _worst_case_usd(self, meter):
+        return meter.gpu_cost(self.name, self.timeout_s)
+
+    def _settle(self, reservation, meter, latency):
+        if reservation is None:
+            return None
+        return reservation.settle(actual_usd=meter.gpu_cost(self.name, latency))
