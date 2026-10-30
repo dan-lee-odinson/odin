@@ -58,8 +58,8 @@ class Ground:
 def world():
     made = []
 
-    def make(windows, scenario="P1_nominal", start_at=0):
-        link = Link(windows, address=("127.0.0.1", 0)).start()
+    def make(windows, scenario="P1_nominal", start_at=0, receiver_down=()):
+        link = Link(windows, address=("127.0.0.1", 0), receiver_down=receiver_down).start()
         simulator = Simulator(bare(scenario), windows=link.windows, link=link, start_at=start_at)
         made.append(link)
         return link, simulator
@@ -181,6 +181,15 @@ def test_dropping_frames_at_the_receiver_leaves_cosmos_connected(world):
     after = ground.frames()
     assert [f["CDH_MET"] for f in after] == list(range(50, 55))
     assert after[0]["PLD_STATE"] == "ON" and after[0]["CDH_CMD_ACC_CNT"] == 1
+
+
+def test_red_a_scripted_receiver_fault_withholds_the_frames_of_its_span_and_only_those(world):
+    # S9, piece 3: a scenario's ground-receiver fault, by the span its sealed script gives. COSMOS stays connected.
+    link, simulator = world([(0, 200)], receiver_down=[(10, 50)])
+    ground = Ground(link)
+    run(simulator, 60, ground)
+    assert link.clients == 1 and link.counts["RECEIVER_DOWN"] == 40
+    assert [f["CDH_MET"] for f in ground.frames()] == list(range(10)) + list(range(50, 60))
 
 
 def test_red_a_receiver_that_closed_the_connection_would_be_caught(world):

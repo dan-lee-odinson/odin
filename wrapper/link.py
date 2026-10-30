@@ -56,9 +56,11 @@ def split_commands(buffer):
 
 
 class Link:
-    def __init__(self, contact_windows, address=None):
-        """contact_windows: the run's contacts as (aos_met_s, los_met_s), each half-open."""
+    def __init__(self, contact_windows, address=None, receiver_down=()):
+        """contact_windows: the run's contacts as (aos_met_s, los_met_s), each half-open. receiver_down: a
+        scenario's scripted ground-receiver fault, as (from_met_s, until_met_s) spans, each half-open (S9, piece 3)."""
         self.windows = sorted((float(aos), float(los)) for aos, los in contact_windows)
+        self.receiver_down = sorted((float(start), float(end)) for start, end in receiver_down)
         self.receiver_up = True
         self._address = address or link_address()
         self._lock = threading.Lock()
@@ -136,7 +138,7 @@ class Link:
         OUT_OF_CONTACT, RECEIVER_DOWN, or NO_GROUND when COSMOS is not connected."""
         if not self.in_contact(met_s):
             outcome = "OUT_OF_CONTACT"
-        elif not self.receiver_up:
+        elif not self.receiver_up or in_window(met_s, self.receiver_down):
             outcome = "RECEIVER_DOWN"
         else:
             with self._lock:

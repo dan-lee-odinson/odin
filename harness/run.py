@@ -92,7 +92,7 @@ class Run:
     def __init__(self, *, run_id, scenario, scenario_id, phase, mode, plan_paths, act_path, root, procedures,
                  config, seat="ONBOARD", pacing="CHARGED", rate=1.0, check_ins=(), pass_transcript=None,
                  revoke_at=None, restore=None, docs_folder=docs.CACHE, keys_dir=KEYS_DIR, addresses=None,
-                 utc_clock=utc_now, endpoint=None, cosmos=None, link_at=None, feeds=None):
+                 utc_clock=utc_now, endpoint=None, cosmos=None, link_at=None, feeds=None, receiver_down=()):
         """config: what whoever starts the run names, RUN_START_CONFIG but for the DERIVED settings, which come
         from the model's frozen block (U56) and its adapter (U57); a config carrying any of them is refused.
         endpoint: the base URL a development run's adapter calls instead of its built-in one; refused in a
@@ -105,7 +105,10 @@ class Run:
         config/ports.yaml's by default. cosmos: the ground seat's COSMOS, a connector.api.CosmosApi by
         default. link_at: the (host, port) the ground seat's link listens on, config/ports.yaml's by
         default. feeds: phase 3's outside feeds (CONTRACT.md §6.5; S9), whose tick(met_s, utc, state) gives the
-        reports due at met_s from the simulator's true state (wrapper/feeds.py); refused outside phase 3."""
+        reports due at met_s from the simulator's true state (wrapper/feeds.py); refused outside phase 3.
+        receiver_down: a scenario's scripted ground-receiver fault, as (from_met_s, until_met_s) spans: the ground
+        seat's link withholds each frame stamped in one, RECEIVER_DOWN, while COSMOS stays connected and commands
+        still go up (S9, piece 3)."""
         if feeds is not None and phase != 3:
             raise ValueError("outside feeds are phase 3's only (CONTRACT.md §6.5)")
         if seat not in SEATS:
@@ -121,7 +124,7 @@ class Run:
         self.check_ins = recorded(check_ins)
         self.pass_transcript = pass_transcript
         self.revoke_at, self.restore = revoke_at, restore
-        self.feeds = feeds
+        self.feeds, self.receiver_down = feeds, tuple(receiver_down)
         self._feed_reports = {}   # id(FEED_REPORT trigger): (that trigger, its report), until a turn serves it
         self.docs_folder, self.keys_dir, self.addresses = docs_folder, keys_dir, addresses or {}
         self._utc = utc_clock
@@ -259,7 +262,7 @@ class Run:
         2026), and a frame sent then reaches the ground seat late."""
         self.cosmos = self.cosmos or CosmosApi()
         self._ground_count = self.cosmos.packet()["received_count"]
-        self.link = Link(self._windows, address=self._link_at).start()
+        self.link = Link(self._windows, address=self._link_at, receiver_down=self.receiver_down).start()
         deadline = time.monotonic() + DIAL_S
         while time.monotonic() < deadline:
             if self.link.clients >= 1 and self.cosmos.ground_link()["state"] == "CONNECTED":

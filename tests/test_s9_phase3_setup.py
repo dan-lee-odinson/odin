@@ -16,7 +16,7 @@ from tests.test_phase3_seal import IN_FORCE
 HUGINN = REPO_ROOT / "deps" / "huginn" / "sim" / "scenarios" / "P1_nominal.yaml"   # HUGINN's own, public
 
 
-def made_up(folder):
+def made_up(folder, script=None):
     """A sealed folder of one made-up scenario, H90, with two plans; returns (folder, its seal)."""
     sealed = folder / "sealed"
     sealed.mkdir(parents=True)
@@ -39,7 +39,7 @@ def made_up(folder):
                 "run": {"start_met_s": 0, "end_met_s": windows[-1][1],
                         "seats": [{"from_met_s": 0, "to_met_s": windows[-1][1], "seat": "GROUND", "pacing": "REAL_TIME"}],
                         "check_ins": [{"met_s": b - 90} for _, b in windows]},
-                "script": {}, "feeds": {}}
+                "script": script or {}, "feeds": {}}
     (sealed / "H90.scenario.yaml").write_bytes(dump(scenario))
     manifest = "".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n" for p in sorted(sealed.iterdir()))
     (sealed / "MANIFEST.sha256").write_text(manifest, encoding="utf-8", newline="\n")

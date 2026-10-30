@@ -69,6 +69,14 @@ def test_red_frames_a_scripted_receiver_fault_withholds_are_the_scenarios_not_li
     assert not set(runlog.received_frames(truth)) & set(withheld)
 
 
+def test_red_a_runs_scripted_receiver_fault_reaches_the_ground_seats_link(tmp_path, monkeypatch, cosmos):
+    # S9, piece 3: the run gives its scenario's ground-receiver fault to the link, which withholds those frames only.
+    run = fly(tmp_path, monkeypatch, cosmos, scripted_answers(), run_options={"receiver_down": [OUTAGE]})
+    ticks = truth_of(run, "TRUE_STATE")
+    assert [r["met_s"] for r in ticks if r["body"]["downlink"] == "RECEIVER_DOWN"] == list(range(*OUTAGE))
+    assert aside.link_causes(runlog.read_jsonl(run.final / runlog.TRUTH)) == []
+
+
 def awaiting(*mets):
     written = []
     seat = SimpleNamespace(_awaited=set(mets), truth=SimpleNamespace(append=lambda t, b: written.append((t, b))))

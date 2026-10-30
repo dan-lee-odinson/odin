@@ -137,3 +137,17 @@ def test_a_sealed_scenarios_core_feeds_read_huginns_orbit_at_its_place_in_the_ca
     assert receiver["content"] == {"status": "LOCKED",
                                    "signal_level_dbm": signal_level_dbm(orbit.look_angles_at(840 + 257303)[2])}
     assert beacon["content"]["callsign"] == "HUGINN"
+
+
+def test_red_a_sealed_scenarios_receiver_fault_downs_its_receiver_for_its_span(tmp_path):
+    # S9, piece 3: the own receiver chain failed from before acquisition (a made-up span covering the first contact).
+    from harness.phase3 import HeldOut
+    from tests.test_s9_phase3_setup import made_up
+    folder, seal = made_up(tmp_path, script={"ground_receiver": {"failed_from_met_s": 0, "until_met_s": 1230}})
+    scenario = HeldOut(folder, seal=seal).scenario("H90")
+    assert scenario.receiver_down == [(0, 1230)]
+    feed = scenario.core_feeds()
+    reports = [r for met in range(800, 1230) for r in feed.tick(met, UTC, state())]
+    assert {r["feed"] for r in reports} == {"station_receiver"}   # no beacon heard
+    assert {(r["content"]["status"], r["content"]["signal_level_dbm"]) for r in reports} == {("NO_SIGNAL",
+                                                                                            NOISE_FLOOR_DBM)}

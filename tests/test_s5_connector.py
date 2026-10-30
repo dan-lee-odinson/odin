@@ -119,7 +119,7 @@ def scripted(*commands, seen=None):
     return answer
 
 
-def fly(tmp_path, monkeypatch, cosmos, answer, **plan):
+def fly(tmp_path, monkeypatch, cosmos, answer, run_options=None, **plan):
     from odin.adapters.stand_in import StandInAdapter
     from odin.loop import signing
     from odin.loop.loop import TurnLoop
@@ -127,7 +127,8 @@ def fly(tmp_path, monkeypatch, cosmos, answer, **plan):
     _, api, link_at = cosmos
     harness = HarnessWorld(tmp_path)
     plans = harness.world.plans([harness.plan(**SHORT, **plan)], signer="dev")
-    run = harness.run(plans=plans, seat="GROUND", pacing="REAL_TIME", rate=RATE, cosmos=api, link_at=link_at)
+    run = harness.run(plans=plans, seat="GROUND", pacing="REAL_TIME", rate=RATE, cosmos=api, link_at=link_at,
+                      **(run_options or {}))
     monkeypatch.setattr(signing, "load_private_key", lambda private_key_path=None: harness.world.odin)
     assert run.start()
     loop = TurnLoop(harness_url=run.url("harness"), baldur_url=run.url("baldur0"), log_url=run.url("log"),
