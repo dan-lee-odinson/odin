@@ -3,7 +3,7 @@ the held-out phase-3 runs. Phase 1's rulings stand.
 
 Any failure of our code, our setup or the provider's service sets a run aside, and it is flown again. Anything the
 model itself does always counts. S8 decides from the run's folder alone, its event log, truth file and inputs, by the
-thirteen causes below, and writes what it found into marks/set_aside.yaml. A second set-aside for the same cause, the
+fourteen causes below, and writes what it found into marks/set_aside.yaml. A second set-aside for the same cause, the
 cause with its reason code, stops the series until the Director lifts the stop once the fix is committed. A set-aside
 run's own model events are listed beside its pass's results and not counted (his rulings of the same night).
 
@@ -23,6 +23,9 @@ run's own model events are listed beside its pass's results and not counted (his
 12. SPEND_STOP: a meter's stop was reached.
 13. FORMAT_MET_BUT_REFUSED: a MALFORMED whose CANDIDATE met the answer format the run gave the model for that turn,
     so the model obeyed its format and our check refused the result. NOT_IN_DICTIONARY stays the model's (U58).
+14. LINK_LOST: a frame the ground seat did not get for a reason the scenario did not script, from the first one (the
+    Director's word of 30 October 2026): sent in contact while COSMOS was not connected to the link (NO_GROUND), or
+    sent and never shown by COSMOS (GROUND_MISSED). RECEIVER_DOWN and OUT_OF_CONTACT are the scenario's.
 """
 
 import json
@@ -32,7 +35,7 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft7Validator
 
-from eval import measures
+from eval import measures, runlog
 from eval.runlog import EVENTS, TRUTH, TRUTH_COMPRESSED, of_type
 from log.event_log import verify_event_log, verify_truth
 
@@ -244,10 +247,28 @@ def bundles_of(folder, records, turns):
     return found
 
 
+def link_causes(truth_records):
+    """Cause 14: the frames the ground seat lost to our link or COSMOS, from its truth file. One cause for each way,
+    with how many frames and the first one's MET."""
+    lost = {"NO_GROUND": [r["met_s"] for r in truth_records if r["type"] == "TRUE_STATE"
+                          and r["body"].get("downlink") == "NO_GROUND"],
+            "NOT_SHOWN": [r["body"]["frame_met_s"] for r in truth_records if r["type"] == "GROUND_MISSED"]}
+    why = {"NO_GROUND": "sent in contact while COSMOS was not connected to the link",
+           "NOT_SHOWN": "sent and never shown by COSMOS to the ground seat"}
+    return [cause("LINK_LOST", f"LINK_LOST {how}", f"{len(mets)} frame(s) {why[how]}, the first at MET {min(mets)}")
+            for how, mets in lost.items() if mets]
+
+
 def causes(folder, records):
-    """Every cause of ours the run's folder shows: its files first, then its records in order."""
+    """Every cause of ours the run's folder shows: its files first, then its records in order, then its truth
+    file's lost frames."""
     malformed = {r["body"]["turn_id"] for r in of_type(records, "MALFORMED")}
-    return file_causes(folder) + record_causes(records, bundles_of(folder, records, malformed))
+    found = file_causes(folder) + record_causes(records, bundles_of(folder, records, malformed))
+    try:
+        truth = runlog.truth(folder)
+    except (OSError, ValueError, KeyError):
+        truth = []   # an unreadable truth file is cause 5 already
+    return found + link_causes(truth)
 
 
 def model_events(records, found=(), frames=None):

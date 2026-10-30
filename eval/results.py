@@ -51,7 +51,7 @@ def found_detail(found):
 
 def score_run(folder, pass_id=None):
     """Everything S8 measures on one run of phase 2 (or of phase 3, held out), and whether it is clean. A run in
-    which S8 finds a defect of ours, by the thirteen causes of eval/set_aside.py, is set aside: it is listed with
+    which S8 finds a defect of ours, by the fourteen causes of eval/set_aside.py, is set aside: it is listed with
     what S8 found and with its own model events, which are not counted, and is not scored (the Director's rulings
     of 29 October 2026). So is a run he has set aside by ruling (marks/set_aside.yaml)."""
     records = runlog.events(folder)

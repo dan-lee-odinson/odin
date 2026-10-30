@@ -396,6 +396,15 @@ CASES = {"s0": [
      change_file("eval/set_aside.py", replace_once(
          b'        if reason == "ERROR":\n            found.append(cause("RUN_END_ERROR"',
          b'        if False:\n            found.append(cause("RUN_END_ERROR"'))),
+    # A frame the ground seat never received (the Director's word of 30 October 2026).
+    ("a frame COSMOS never showed left out of the truth file",
+     "tests/test_s5_ground_missed.py::test_red_frames_cosmos_never_shows_are_written_as_missed_and_set_the_run_aside",
+     change_file("harness/run.py", replace_once(b"if superseded or met - frame_met >= MISSED_AFTER_S:",
+                                                b"if False:"))),
+    ("a frame the seat moved past never written as missed",
+     "tests/test_s5_ground_missed.py::test_red_a_frame_the_seat_moved_past_is_missed_as_superseded",
+     change_file("harness/run.py", replace_once(
+         b"superseded = received_met is not None and frame_met < received_met", b"superseded = False"))),
 ], "s6": [
     ("ODIN's launcher passing it COSMOS's OPENC3_* settings (U38)",
      "tests/test_s6_launch.py::test_red_each_credential_prefix_is_withheld_whatever_its_case",
@@ -888,6 +897,14 @@ CASES = {"s0": [
      change_file("eval/results.py", replace_once(
          b'"set_aside_model_events": {r["run_id"]: r["model_events"] for r in group if r.get("model_events")},',
          b'"set_aside_model_events": {},'))),
+    ("S8 counting a frame the ground seat never received (30 October 2026)",
+     "tests/test_s5_ground_missed.py::test_s8_does_not_count_a_missed_frame_as_received",
+     change_file("eval/runlog.py", replace_once(b'        if record["type"] == "GROUND_MISSED":',
+                                                b"        if False:"))),
+    ("set-aside cause 14, a frame lost to our link or COSMOS, not found",
+     "tests/test_s5_ground_missed.py::test_red_14_a_frame_lost_to_our_link_or_cosmos_sets_the_run_aside_from_the_first",
+     change_file("eval/set_aside.py", replace_once(b"for how, mets in lost.items() if mets]",
+                                                   b"for how, mets in lost.items() if False]"))),
     ("S8 counting a collect ODIN did not dispatch (U62)",
      "tests/test_s8_phase1.py::test_red_a_collect_odin_did_not_dispatch_is_not_counted",
      change_file("eval/phase1.py", replace_once(b'                and o["body"]["request_id"] in sent\n', b""))),

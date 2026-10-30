@@ -60,6 +60,9 @@ SEATS = ("ONBOARD", "GROUND")
 # link before the run's first contact.
 GROUND_WAIT_S = 0.5
 DIAL_S = 30
+# A frame the link sent that COSMOS has not shown this many seconds of MET on is missed (the Director's word of
+# 30 October 2026): the truth file then says so, GROUND_MISSED, and S8 does not count it as received.
+MISSED_AFTER_S = 5
 RUN_START_CONFIG = ("seed", "model_config", "provider", "model_id", "reasoning_effort", "endpoint", "answer_method",
                     "reference_sha256")
 # Whoever starts a run names only the model. RUN_START's model ID and reasoning level come from the model's
@@ -125,6 +128,7 @@ class Run:
         self.cosmos, self._link_at = cosmos, link_at
         self.link = None
         self._ground_count = self._sent_seen = 0
+        self._awaited = set()   # the METs of frames the link sent that the ground seat has not yet received
         self.simulator = None
         self.clock = None
         self.turn_id = 0
@@ -173,16 +177,33 @@ class Run:
         counted after the run started are its own; COSMOS keeps its counts from earlier runs."""
         sent = self.link.counts["SENT"] > self._sent_seen
         self._sent_seen = self.link.counts["SENT"]
+        if sent:
+            self._awaited.add(met)
         deadline = time.monotonic() + (GROUND_WAIT_S if sent else 0)
         while True:
             packet = self.cosmos.packet()
             if packet["received_count"] > self._ground_count:
                 self._ground_count = packet["received_count"]
                 self.store.receive(packet["frame"], packet["received_utc"], met)
+                self._missed(met, packet["frame"].get("CDH_MET"))
                 return packet["frame"]
             if time.monotonic() >= deadline:
+                self._missed(met, None)
                 return None
             time.sleep(0.02)
+
+    def _missed(self, met, received_met):
+        """GROUND_MISSED in the truth file, once, for each frame the link sent that the ground seat will never
+        have (the Director's word of 30 October 2026): COSMOS showed a later frame, received_met, first, so the
+        seat has moved past it; or it is still not shown MISSED_AFTER_S on. Those still awaited at the end of the
+        run are not judged."""
+        self._awaited.discard(received_met)
+        for frame_met in sorted(self._awaited):
+            superseded = received_met is not None and frame_met < received_met
+            if superseded or met - frame_met >= MISSED_AFTER_S:
+                self._awaited.discard(frame_met)
+                self.truth.append("GROUND_MISSED", {"frame_met_s": frame_met, "noticed_met_s": met,
+                                                    "how": "SUPERSEDED" if superseded else "NOT_SHOWN"})
 
     def _start_shakedown(self, plans):
         """Phase 1 (the Director's ruling on U58, 28 October 2026): the plan flies INST's dictionary, and the

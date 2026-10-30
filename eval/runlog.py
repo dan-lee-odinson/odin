@@ -69,7 +69,8 @@ def frame_of(met_s, state):
 
 def received_frames(truth_records):
     """{CDH_MET: frame} for every frame the seat received: generated, and sent down the link in the ground
-    seat (downlink SENT) or read beside the simulator in the onboard seat (downlink null)."""
+    seat (downlink SENT) or read beside the simulator in the onboard seat (downlink null), less those the
+    truth file says the ground seat never received, GROUND_MISSED (the Director's word of 30 October 2026)."""
     frames = {}
     for record in truth_records:
         if record["type"] != "TRUE_STATE":
@@ -77,6 +78,9 @@ def received_frames(truth_records):
         state = record["body"]
         if state["frame_generated"] and state["downlink"] in ("SENT", None):
             frames[record["met_s"]] = frame_of(record["met_s"], state)
+    for record in truth_records:
+        if record["type"] == "GROUND_MISSED":
+            frames.pop(record["body"]["frame_met_s"], None)
     return frames
 
 

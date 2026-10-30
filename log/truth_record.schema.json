@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Truth record",
-  "description": "One line of a run's truth file, runs/<run_id>/truth.jsonl (CONTRACT.md v0.6 §12), which ODIN never reads. The writer stamps record_id, utc, met_s and prev_hash as it does the event log's. What it holds, by the Director's rulings on U35 and U36 (27 October 2026): one TRUE_STATE per tick from the start of the run, the model's values whether or not a frame was generated; one FAULT_ONSET per fault, those the pre-roll passed through included; and one SCRIPTED_COMMAND_DROPPED per command a HUGINN scenario scripts inside one of the run's contact windows. Scored runs commit the file gzip-compressed; development runs keep it plain (U36). This schema lives beside its writer, not in contract/schemas/, because no contract field table defines the truth file.",
+  "description": "One line of a run's truth file, runs/<run_id>/truth.jsonl (CONTRACT.md v0.6 §12), which ODIN never reads. The writer stamps record_id, utc, met_s and prev_hash as it does the event log's. What it holds, by the Director's rulings on U35 and U36 (27 October 2026): one TRUE_STATE per tick from the start of the run, the model's values whether or not a frame was generated; one FAULT_ONSET per fault, those the pre-roll passed through included; and one SCRIPTED_COMMAND_DROPPED per command a HUGINN scenario scripts inside one of the run's contact windows; and, by his word of 30 October 2026 under U35 and U36, one GROUND_MISSED per frame the link sent to COSMOS that the ground seat never received. Scored runs commit the file gzip-compressed; development runs keep it plain (U36). This schema lives beside its writer, not in contract/schemas/, because no contract field table defines the truth file.",
   "type": "object",
   "required": ["record_id", "utc", "met_s", "type", "body", "prev_hash"],
   "additionalProperties": false,
@@ -9,7 +9,7 @@
     "record_id": {"type": "integer", "minimum": 1},
     "utc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}(Z|\\+00:00)$"},
     "met_s": {"$ref": "#/definitions/met_s"},
-    "type": {"enum": ["TRUE_STATE", "FAULT_ONSET", "SCRIPTED_COMMAND_DROPPED", "COSMOS_PACKET"]},
+    "type": {"enum": ["TRUE_STATE", "FAULT_ONSET", "SCRIPTED_COMMAND_DROPPED", "COSMOS_PACKET", "GROUND_MISSED"]},
     "body": {"type": "object"},
     "prev_hash": {"anyOf": [{"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, {"type": "null"}]}
   },
@@ -21,9 +21,22 @@
     {"if": {"properties": {"type": {"const": "SCRIPTED_COMMAND_DROPPED"}}},
      "then": {"properties": {"body": {"$ref": "#/definitions/scripted_command_dropped"}}}},
     {"if": {"properties": {"type": {"const": "COSMOS_PACKET"}}},
-     "then": {"properties": {"body": {"$ref": "#/definitions/cosmos_packet"}}}}
+     "then": {"properties": {"body": {"$ref": "#/definitions/cosmos_packet"}}}},
+    {"if": {"properties": {"type": {"const": "GROUND_MISSED"}}},
+     "then": {"properties": {"body": {"$ref": "#/definitions/ground_missed"}}}}
   ],
   "definitions": {
+    "ground_missed": {
+      "description": "A frame the link sent to COSMOS that the ground seat never received (the Director's word of 30 October 2026): COSMOS showed a later frame first, so the seat moved past it (SUPERSEDED), or it had not shown it some seconds on (NOT_SHOWN). Written once per frame, when the harness notices; a frame still awaited when the run ends is not judged.",
+      "type": "object",
+      "required": ["frame_met_s", "noticed_met_s", "how"],
+      "additionalProperties": false,
+      "properties": {
+        "frame_met_s": {"$ref": "#/definitions/met_s"},
+        "noticed_met_s": {"$ref": "#/definitions/met_s"},
+        "how": {"enum": ["SUPERSEDED", "NOT_SHOWN"]}
+      }
+    },
     "cosmos_packet": {
       "description": "Phase 1's truth: each INST HEALTH_STATUS packet the harness read from COSMOS, as COSMOS decommutated it, with its time and COSMOS's count, so S8 checks ODIN's answers against COSMOS at the time it gives (the Director's ruling on U58 and his scoring ruling of 28 October 2026), and COSMOS's count of the commands others than ODIN sent INST, read from COSMOS's command history after the packet (U62). COSMOS's demo spacecraft simulates itself, so phase 1 has no TRUE_STATE.",
       "type": "object",
