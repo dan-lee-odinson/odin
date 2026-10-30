@@ -141,6 +141,10 @@ CASES = {"s0": [
      "tests/test_tools_scored_run.py::test_red_the_launcher_refuses_to_start_while_a_stop_stands",
      change_file("tools/scored_run.py", replace_once(b'    if stopped:\n        print(f"refused',
                                                      b'    if False:\n        print(f"refused'))),
+    ("phase 2's launcher flying each arm on the other arm's model (30 October 2026)",
+     "tests/test_tools_scored_run.py::test_red_phase_2s_runs_are_exactly_those_each_signed_act_names_on_its_arm",
+     change_file("tools/scored_run.py", replace_once(b'ARMS = {"SPARK": "spark", "OPEN": "spark_open"}',
+                                                     b'ARMS = {"SPARK": "spark_open", "OPEN": "spark"}'))),
 ], "s1": [
     ("a good answer example with the payload state set to STANDBY",
      "tests/test_s1_schemas.py::test_good_example_validates[answer/good-command-payload.json]",
