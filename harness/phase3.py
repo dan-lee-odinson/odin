@@ -8,7 +8,8 @@ the sealed manifest, or a file in the sealed folder that the manifest does not l
 
 Each sealed scenario file carries HUGINN's own scenario under `huginn`, which HUGINN builds unchanged, beside what
 the harness and the wrapper read: the plans it names, the run's span and seats, its check-ins, the scripted faults
-and the outside feeds.
+and the outside feeds. Every feed rule is read from its sealed feed details here (the Director's ruling of 30 October
+2026): each detail must state its rule once, in the words read below, or the scenario is refused.
 """
 
 import hashlib
@@ -19,7 +20,7 @@ from pathlib import Path
 
 import yaml
 
-from wrapper.feeds import CoreFeeds, Feeds, OtherStations, SpaceWeather
+from wrapper.feeds import CoreFeeds, CoreRules, Feeds, OtherStations, SpaceWeather
 from wrapper.huginn import HUGINN, Scenario
 from wrapper.link import in_window
 
@@ -35,6 +36,60 @@ class SealBroken(Exception):
 
 def sha(data):
     return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def _stated(pattern, text, what):
+    """The one match of pattern in a sealed feed detail's text; SealBroken unless the detail states it exactly once."""
+    found = re.findall(pattern, text) if isinstance(text, str) else []
+    if len(found) != 1:
+        raise SealBroken(f"the sealed feed details do not state {what} as the harness reads it")
+    return found.pop()
+
+
+def _decimals(step):
+    """The decimals of a rounding step written as 0.1, 0.01 and so on."""
+    return len(step.split(".")[1])
+
+
+def core_rules(feeds):
+    """The core feeds' rules, CoreRules, read from a scenario's sealed feed details: the receiver's and the beacon's
+    cadence (one, stated for each), the signal model and its rounding, the noise floor, the callsign, and the
+    beacon's rounding of battery voltage and state of charge."""
+    receiver, beacon = feeds["station_receiver"], feeds["beacon"]
+    every_s = int(_stated(r"\ba multiple of (\d+)\b", receiver["reports"], "the receiver's cadence"))
+    if int(_stated(r"\ba multiple of (\d+)\b", beacon["at"], "the beacon's cadence")) != every_s:
+        raise SealBroken("the sealed feed details give the receiver and the beacon different cadences")
+    reference_dbm, db_per_decade, reference_km = _stated(
+        r"^(-?\d+\.\d+) \+ (\d+(?:\.\d+)?) log10\((\d+(?:\.\d+)?) km / slant range\)",
+        receiver["signal_level_dbm"], "the signal model")
+    return CoreRules(
+        every_s=every_s, reference_dbm=float(reference_dbm), reference_km=float(reference_km),
+        db_per_decade=float(db_per_decade),
+        level_decimals=_decimals(_stated(r"^a number, to (0\.0*1) dB$", receiver["content"]["signal_level_dbm"],
+                                         "the signal level's rounding")),
+        noise_floor_dbm=float(_stated(r"(-?\d+\.\d+), the noise floor", receiver["signal_level_dbm"],
+                                      "the noise floor")),
+        callsign=beacon["content"]["callsign"],
+        battery_v_decimals=_decimals(_stated(r"^to (0\.0*1) V$", beacon["content"]["battery_v"],
+                                             "the battery voltage's rounding")),
+        soc_pct_step=int(_stated(r"^to the nearest (\d+) %$", beacon["content"]["soc_pct"],
+                                 "the state of charge's rounding")))
+
+
+def draw_rule(feeds):
+    """The stand-in stations' draw rule, read from a scenario's sealed feed details: {seed, stations, heard_p,
+    delay_s}, as wrapper.feeds.draw_schedule takes them."""
+    others = feeds["other_stations"]
+    heard_p, low, high = _stated(r"random\(\) < (0\.\d+), then, if heard, randint\((\d+), (\d+)\)",
+                                 others["draws"], "the stand-in stations' draws")
+    return {"seed": others["seed"], "stations": list(others["stations"]), "heard_p": float(heard_p),
+            "delay_s": (int(low), int(high))}
+
+
+def space_weather_every_s(feeds):
+    """The space weather's cadence, read from a scenario's sealed feed details."""
+    return int(_stated(r"^each MET that is a multiple of (\d+)\b", feeds["space_weather"]["at"],
+                       "the space weather's cadence"))
 
 
 def seal_in_force(seal_path=SEAL):
@@ -92,14 +147,32 @@ class HeldOutScenario:
                 "safety_test_after_s": script["safety_test"]["after_restore_s"],
                 "safety_test_request": script["safety_test"]["request"]}
 
+    @property
+    def core_rules(self):
+        """The core feeds' rules, read from the sealed feed details."""
+        return core_rules(self.feeds)
+
+    @property
+    def draw_rule(self):
+        """The stand-in stations' draw rule, read from the sealed feed details."""
+        return draw_rule(self.feeds)
+
+    def beacon_mets(self):
+        """Each MET a beacon goes out in the own station's contact windows, at the core feeds' cadence, in order: the
+        beacons the stand-in stations' schedule is drawn for."""
+        every = self.core_rules.every_s
+        return [met for aos, los in self.windows for met in range(-(-aos // every) * every, los, every)]
+
     def all_feeds(self):
         """The run's four outside feeds, as harness.run.Run takes them (S9, pieces 2, 7 and 8): the core feeds, the
         stand-in stations' logs by the scenario's sealed schedule, and the space weather replayed from its sealed
-        replay file, each delivered in contact only."""
+        replay file, each delivered in contact only, every rule read from the sealed feed details."""
         in_contact = lambda met_s: in_window(met_s, self.windows)   # noqa: E731
         return Feeds(self.core_feeds(),
-                     OtherStations(self.feeds["other_stations"]["schedule"], in_contact=in_contact),
-                     SpaceWeather(self.replay, in_contact=in_contact))
+                     OtherStations(self.feeds["other_stations"]["schedule"], in_contact=in_contact,
+                                   rules=self.core_rules),
+                     SpaceWeather(self.replay, every_s=space_weather_every_s(self.feeds),
+                                  sources=self.feeds["space_weather"]["content"]["sources"], in_contact=in_contact))
 
     def core_feeds(self):
         """The run's station_receiver and beacon (S9, piece 2): in contact by its windows, the slant range from
@@ -111,7 +184,7 @@ class HeldOutScenario:
         offset_s = self.geometry["epoch_campaign_t_s"]
         return CoreFeeds(in_contact=lambda met_s: in_window(met_s, self.windows),
                          receiver_up=lambda met_s: not in_window(met_s, self.receiver_down),
-                         slant_range_km=lambda met_s: orbit.look_angles_at(met_s + offset_s)[2])
+                         slant_range_km=lambda met_s: orbit.look_angles_at(met_s + offset_s)[2], rules=self.core_rules)
 
 
 class HeldOut:

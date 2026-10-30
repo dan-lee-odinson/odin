@@ -1,14 +1,20 @@
 """S9, piece 2: the core outside feeds, station_receiver and beacon (CONTRACT.md §6.5), as each scenario's feed details
-set them. Built from the true state and the script; reported in contact only; a failed receiver chain shows as
-NO_SIGNAL, never FAULT; the beacon keeps sending through a housekeeping halt."""
+set them, every rule read from its sealed feed details (the Director's ruling of 30 October 2026). Built from the true
+state and the script; reported in contact only; a failed receiver chain shows as NO_SIGNAL, never FAULT; the beacon
+keeps sending through a housekeeping halt. On made-up rules from made-up feed details: none of the held-out values."""
 
 import pytest
 
 from contract.validate import check
-from wrapper.feeds import NOISE_FLOOR_DBM, CoreFeeds, beacon_content, signal_level_dbm
+from harness.phase3 import SealBroken, core_rules
+from tests.test_s9_phase3_setup import MADE_UP_FEEDS
+from wrapper.feeds import CoreFeeds, CoreRules, beacon_content, signal_level_dbm
 
-CONTACT = (800, 1230)
+CONTACT = (810, 1230)
 UTC = "2026-08-01T13:41:43.000Z"
+# The rules the made-up sealed feed details state, as harness/phase3.py reads them.
+RULES = CoreRules(every_s=50, reference_dbm=-80.0, reference_km=500.0, db_per_decade=10.0, level_decimals=2,
+                  noise_floor_dbm=-120.0, callsign="MADE-UP", battery_v_decimals=2, soc_pct_step=10)
 
 
 def state(mode="NOMINAL", battery_v=7.6614, soc_pct=66.3, frame_generated=True):
@@ -19,7 +25,7 @@ def state(mode="NOMINAL", battery_v=7.6614, soc_pct=66.3, frame_generated=True):
 def feeds(down=()):
     return CoreFeeds(in_contact=lambda met: CONTACT[0] <= met < CONTACT[1],
                      receiver_up=lambda met: not any(start <= met < end for start, end in down),
-                     slant_range_km=lambda met: 2000.0)
+                     slant_range_km=lambda met: 2000.0, rules=RULES)
 
 
 def fly(feed, start=700, end=1300, pre_roll_until=None):
@@ -29,17 +35,32 @@ def fly(feed, start=700, end=1300, pre_roll_until=None):
     return reports
 
 
-def test_the_signal_level_falls_20_db_a_decade_of_range_from_minus_90_at_1000_km():
-    assert (signal_level_dbm(1000.0), signal_level_dbm(2000.0), signal_level_dbm(500.0)) == (-90.0, -96.0, -84.0)
+def test_red_each_core_feed_rule_is_read_from_the_sealed_feed_details():
+    assert core_rules(MADE_UP_FEEDS) == RULES
 
 
-def test_red_a_pass_reports_the_receiver_at_acquisition_and_each_minute_and_the_beacon_each_minute():
+def test_red_a_feed_detail_the_seal_does_not_state_as_read_refuses_the_scenario():
+    def worded(feed, field, text):
+        return dict(MADE_UP_FEEDS, **{feed: dict(MADE_UP_FEEDS[feed], **{field: text})})
+    with pytest.raises(SealBroken, match="the beacon's cadence"):
+        core_rules(worded("beacon", "at", "now and then"))
+    with pytest.raises(SealBroken, match="the receiver's cadence"):
+        core_rules(worded("station_receiver", "reports", "at a multiple of 50 or a multiple of 70"))
+    with pytest.raises(SealBroken, match="different cadences"):
+        core_rules(worded("beacon", "at", "each MET that is a multiple of 70"))
+
+
+def test_the_signal_level_follows_the_sealed_model():
+    assert [signal_level_dbm(km, RULES) for km in (500.0, 200.0, 50.0, 2000.0)] == [-80.0, -76.02, -70.0, -86.02]
+
+
+def test_red_a_pass_reports_the_receiver_at_acquisition_and_at_its_cadence_and_the_beacon_at_its_cadence():
     reports = fly(feeds())
     receiver = [(r["met_s"], r["content"]["status"]) for r in reports if r["feed"] == "station_receiver"]
     beacons = [r["met_s"] for r in reports if r["feed"] == "beacon"]
-    assert receiver == [(800, "LOCKED")] + [(met, "LOCKED") for met in range(840, 1230, 60)]
-    assert beacons == list(range(840, 1230, 60))
-    assert all(r["content"]["signal_level_dbm"] == -96.0 for r in reports if r["feed"] == "station_receiver")
+    assert receiver == [(810, "LOCKED")] + [(met, "LOCKED") for met in range(850, 1230, 50)]
+    assert beacons == list(range(850, 1230, 50))
+    assert all(r["content"]["signal_level_dbm"] == -86.02 for r in reports if r["feed"] == "station_receiver")
 
 
 def test_every_report_is_a_feed_report_as_the_contract_has_it():
@@ -49,30 +70,30 @@ def test_every_report_is_a_feed_report_as_the_contract_has_it():
 
 def test_red_nothing_is_reported_out_of_contact_or_in_the_silent_pre_roll():
     assert all(CONTACT[0] <= r["met_s"] < CONTACT[1] for r in fly(feeds()))
-    assert fly(feeds(), start=0, end=1300, pre_roll_until=800) == fly(feeds(), start=800, end=1300)
-    assert fly(feeds(), start=0, end=800) == []
+    assert fly(feeds(), start=0, end=1300, pre_roll_until=810) == fly(feeds(), start=810, end=1300)
+    assert fly(feeds(), start=0, end=810) == []
 
 
 def test_red_a_failed_receiver_chain_shows_as_no_signal_never_fault_and_hears_no_beacon():
     reports = fly(feeds(down=[(900, 960)]))
     receiver = {r["met_s"]: r["content"] for r in reports if r["feed"] == "station_receiver"}
-    assert receiver[900] == {"status": "NO_SIGNAL", "signal_level_dbm": NOISE_FLOOR_DBM}
-    assert receiver[960] == {"status": "LOCKED", "signal_level_dbm": -96.0}
+    assert receiver[900] == {"status": "NO_SIGNAL", "signal_level_dbm": -120.0}
+    assert receiver[960] == {"status": "LOCKED", "signal_level_dbm": -86.02}
     assert "FAULT" not in {c["status"] for c in receiver.values()}
-    assert [r["met_s"] for r in reports if r["feed"] == "beacon"] == [840] + list(range(960, 1230, 60))
+    assert [r["met_s"] for r in reports if r["feed"] == "beacon"] == [850] + list(range(1000, 1230, 50))
 
 
-@pytest.mark.parametrize("given, battery_v, soc_pct", [((7.6614, 66.3), 7.7, 65), ((7.64, 67.6), 7.6, 70),
-                                                       ((6.95, 32.4), 7.0, 30)])
-def test_the_beacon_carries_mode_voltage_to_a_tenth_and_charge_to_the_nearest_5(given, battery_v, soc_pct):
-    assert beacon_content(state("LOW_POWER", *given)) == {"callsign": "HUGINN", "EPS_MODE": "LOW_POWER",
-                                                          "battery_v": battery_v, "soc_pct": soc_pct}
+@pytest.mark.parametrize("given, battery_v, soc_pct", [((7.6614, 66.3), 7.66, 70), ((6.9571, 34.9), 6.96, 30),
+                                                       ((7.2, 74.9), 7.2, 70)])
+def test_the_beacon_carries_mode_voltage_and_charge_rounded_as_the_rules_say(given, battery_v, soc_pct):
+    assert beacon_content(state("LOW_POWER", *given), RULES) == {"callsign": "MADE-UP", "EPS_MODE": "LOW_POWER",
+                                                                 "battery_v": battery_v, "soc_pct": soc_pct}
 
 
 def test_the_beacon_keeps_sending_through_a_housekeeping_halt():
     feed = feeds()
-    feed.tick(839, UTC, state())
-    halted = feed.tick(840, UTC, state(frame_generated=False))
+    feed.tick(849, UTC, state())
+    halted = feed.tick(850, UTC, state(frame_generated=False))
     assert [r["feed"] for r in halted] == ["station_receiver", "beacon"]
 
 
@@ -133,10 +154,10 @@ def test_a_sealed_scenarios_core_feeds_read_huginns_orbit_at_its_place_in_the_ca
     feed = HeldOut(folder, seal=seal).scenario("H90").core_feeds()
     orbit = Orbit(wrapper.huginn.HUGINN / "defs" / "orbit", "2026-07-29T14:00:00Z")
     assert feed.tick(799, UTC, state()) == []                                    # before acquisition
-    [receiver, beacon] = feed.tick(840, UTC, state())
+    [receiver, beacon] = feed.tick(850, UTC, state())
     assert receiver["content"] == {"status": "LOCKED",
-                                   "signal_level_dbm": signal_level_dbm(orbit.look_angles_at(840 + 257303)[2])}
-    assert beacon["content"]["callsign"] == "HUGINN"
+                                   "signal_level_dbm": signal_level_dbm(orbit.look_angles_at(850 + 257303)[2], RULES)}
+    assert beacon["content"]["callsign"] == "MADE-UP"   # the made-up feed details' rules, read from the seal
 
 
 def test_red_a_sealed_scenarios_receiver_fault_downs_its_receiver_for_its_span(tmp_path):
@@ -149,5 +170,4 @@ def test_red_a_sealed_scenarios_receiver_fault_downs_its_receiver_for_its_span(t
     feed = scenario.core_feeds()
     reports = [r for met in range(800, 1230) for r in feed.tick(met, UTC, state())]
     assert {r["feed"] for r in reports} == {"station_receiver"}   # no beacon heard
-    assert {(r["content"]["status"], r["content"]["signal_level_dbm"]) for r in reports} == {("NO_SIGNAL",
-                                                                                            NOISE_FLOOR_DBM)}
+    assert {(r["content"]["status"], r["content"]["signal_level_dbm"]) for r in reports} == {("NO_SIGNAL", -120.0)}

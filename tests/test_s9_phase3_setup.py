@@ -14,6 +14,16 @@ from tests.repo_checks import REPO_ROOT
 from tests.test_phase3_seal import IN_FORCE
 
 HUGINN = REPO_ROOT / "deps" / "huginn" / "sim" / "scenarios" / "P1_nominal.yaml"   # HUGINN's own, public
+# Made-up sealed core feed details, worded as harness/phase3.py reads a sealed scenario's (none of the held-out values):
+# every made-up scenario carries them, and a test adds the other two feeds' details where it needs them.
+MADE_UP_FEEDS = {
+    "station_receiver": {
+        "reports": "one at each change of state, and one at each MET in contact that is a multiple of 50, made up",
+        "content": {"status": "LOCKED or NO_SIGNAL", "signal_level_dbm": "a number, to 0.01 dB"},
+        "signal_level_dbm": "-80.0 + 10 log10(500 km / slant range), made up; -120.0, the noise floor, with NO_SIGNAL"},
+    "beacon": {"at": "each MET that is a multiple of 50, made up",
+               "content": {"callsign": "MADE-UP", "EPS_MODE": "the mode", "battery_v": "to 0.01 V",
+                           "soc_pct": "to the nearest 10 %"}}}
 
 
 def made_up(folder, script=None, feeds=None, extra=None):
@@ -39,7 +49,7 @@ def made_up(folder, script=None, feeds=None, extra=None):
                 "run": {"start_met_s": 0, "end_met_s": windows[-1][1],
                         "seats": [{"from_met_s": 0, "to_met_s": windows[-1][1], "seat": "GROUND", "pacing": "REAL_TIME"}],
                         "check_ins": [{"met_s": b - 90} for _, b in windows]},
-                "script": script or {}, "feeds": feeds or {}}
+                "script": script or {}, "feeds": dict(MADE_UP_FEEDS, **(feeds or {}))}
     (sealed / "H90.scenario.yaml").write_bytes(dump(scenario))
     for name, data in (extra or {}).items():   # other sealed files, a replay among them
         (sealed / name).write_bytes(data)
