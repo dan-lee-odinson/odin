@@ -63,16 +63,16 @@ def test_red_a_payload_already_off_at_onset_is_no_latch_up_and_the_truth_file_sa
 
 
 def test_a_sealed_scenarios_latch_up_is_given_to_the_run_as_its_script_sets_it(tmp_path):
-    script = {"latch_up": {"onset_met_s": 7000, "damage": {"after_s": 120}}}
+    script = {"latch_up": {"onset_met_s": 7000, "damage": {"after_s": 150}}}
     folder, seal = made_up(tmp_path, script=script)
-    assert HeldOut(folder, seal=seal).scenario("H90").latch_up == {"onset_met_s": 7000, "damage_after_s": 120}
+    assert HeldOut(folder, seal=seal).scenario("H90").latch_up == {"onset_met_s": 7000, "damage_after_s": 150}
     folder, seal = made_up(tmp_path / "none")
     assert HeldOut(folder, seal=seal).scenario("H90").latch_up is None
 
 
 def test_red_the_run_gives_its_latch_up_to_the_simulator(tmp_path):
     from tests.harness_world import HarnessWorld
-    run = HarnessWorld(tmp_path).run(phase=3, latch_up={"onset_met_s": 1100, "damage_after_s": 120})
+    run = HarnessWorld(tmp_path).run(phase=3, latch_up={"onset_met_s": 1100, "damage_after_s": 150})
     try:
         assert run.start()
         assert run.simulator.latch_up["onset_met_s"] == 1100 and run.simulator.latch_up["state"] == "WAITING"
