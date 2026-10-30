@@ -85,12 +85,16 @@ def received_frames(truth_records):
 
 
 def same_value(point, claimed, actual):
-    """A claimed value against the frame's, at the dictionary's display decimals; states and counts exactly."""
+    """A claimed value against the frame's. A float is the same when it is within half a display unit of the frame's
+    value, at the dictionary's display decimals: ±0.05 for 1 decimal, ±0.005 for 2, ±0.5 for 0, the boundary
+    included (the Director's ruling of 30 October 2026, "Within half a display unit"). Rounding both numbers to the
+    decimals, as S8 did before, judged a claim 0.0003 V off false when the two fell either side of a rounding edge.
+    The difference is taken in display units to 9 places, so the float arithmetic of the numbers themselves never
+    moves the boundary. States and counts exactly."""
     if POINTS[point]["type"] == "float":
         if isinstance(claimed, bool) or not isinstance(claimed, (int, float)):
             return False
-        places = decimals(point)
-        return round(float(claimed), places) == round(float(actual), places)
+        return round(abs(float(claimed) - float(actual)) * 10 ** decimals(point), 9) <= 0.5
     return claimed == actual
 
 
