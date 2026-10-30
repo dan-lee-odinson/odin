@@ -2,8 +2,11 @@
 private paths and private email addresses are found and reported; the public identity passes. Every
 name and address here is made up for the test."""
 
+import gzip
+
 import pytest
 
+from tools import identity_scan
 from tools.identity_scan import scan
 
 MACHINE = {"USERNAME": "jqtester", "COMPUTERNAME": "ORION7"}
@@ -35,3 +38,31 @@ def test_the_public_identity_and_ordinary_text_pass():
 def test_findings_name_the_line():
     findings = scan("card.html", b"one\ntwo\nfile:///C:/Users/someone/card.html\n", MACHINE)
     assert [(line, kind) for _, line, kind, _ in findings] == [(3, "user-profile path")]
+
+
+# A scene saved compressed hides a path from a scan of its bytes (ANIM-01, 30 October 2026): the scan reads
+# through zstd and gzip, layer by layer, and says which layers it read.
+SCENE = b"BLENDER17-01 ... Save As Blender File\x00C:\\Users\\someone\\Documents\\render\\out\\a1.png\x00 ..."
+
+
+def zstd_compress(data):
+    if identity_scan.zstd is None:
+        pytest.skip("zstd needs Python 3.14 or later")
+    return identity_scan.zstd.compress(data)
+
+
+@pytest.mark.parametrize("packed, layers", [
+    (lambda: gzip.compress(SCENE), "gzip"),
+    (lambda: zstd_compress(SCENE), "zstd"),
+    (lambda: gzip.compress(zstd_compress(SCENE)), "gzip/zstd")])
+def test_red_a_path_planted_inside_a_compressed_file_is_found(packed, layers):
+    findings = scan("huginn_a1.blend", packed(), MACHINE)
+    assert [(name, kind, text) for name, _, kind, text in findings] == [
+        (f"huginn_a1.blend ({layers})", "user-profile path", "C:\\Users\\someone")]
+
+
+def test_a_compressed_file_that_cannot_be_read_is_a_finding_not_a_pass():
+    damaged = gzip.compress(SCENE)[:40]
+    [(name, line, kind, problem)] = scan("scene.blend", damaged, MACHINE)
+    assert (name, line, kind) == ("scene.blend (gzip)", 0, "unreadable compressed file")
+    assert problem.startswith("cannot be decompressed: ")

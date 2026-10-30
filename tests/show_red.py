@@ -125,6 +125,22 @@ CASES = {"s0": [
     ("a viewer page left out of the clean-room scan",
      "tests/test_s0_huginn_guard.py::test_red_forbidden_path_is_caught[viewer page in HTML]",
      change_file("tests/repo_checks.py", replace_once(b'    ".html", ".htm", ".css",', b"   "))),
+    # The identity scan reads through compression (the Director's ruling of 30 October 2026, after ANIM-01).
+    ("the identity scan reading a gzip file's compressed bytes only",
+     "tests/test_tools_identity_scan.py::test_red_a_path_planted_inside_a_compressed_file_is_found",
+     change_file("tools/identity_scan.py", replace_once(b"        if data.startswith(GZIP_MAGIC):", b"        if False:"))),
+    ("the identity scan reading a zstd file's compressed bytes only",
+     "tests/test_tools_identity_scan.py::test_red_a_path_planted_inside_a_compressed_file_is_found",
+     change_file("tools/identity_scan.py", replace_once(b"        elif data.startswith(ZSTD_MAGIC):",
+                                                        b"        elif False:"))),
+    ("the identity scan passing a compressed file it could not read",
+     "tests/test_tools_identity_scan.py::test_a_compressed_file_that_cannot_be_read_is_a_finding_not_a_pass",
+     change_file("tools/identity_scan.py", replace_once(
+         b'        return [(name, 0, "unreadable compressed file", problem)]', b"        return []"))),
+    ("the launcher starting a scored run while a series stop stands (30 October 2026)",
+     "tests/test_tools_scored_run.py::test_red_the_launcher_refuses_to_start_while_a_stop_stands",
+     change_file("tools/scored_run.py", replace_once(b'    if stopped:\n        print(f"refused',
+                                                     b'    if False:\n        print(f"refused'))),
 ], "s1": [
     ("a good answer example with the payload state set to STANDBY",
      "tests/test_s1_schemas.py::test_good_example_validates[answer/good-command-payload.json]",

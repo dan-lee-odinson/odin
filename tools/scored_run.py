@@ -33,6 +33,7 @@ os.chdir(ROOT)
 
 from connector.api import inst  # noqa: E402
 from connector.cosmos import _user_environment, credentials, demo_installed, environment  # noqa: E402
+from eval.set_aside import stops as series_stops  # noqa: E402
 from gateway.acts import verify_arming_act  # noqa: E402
 from gateway.plans import verify_chain  # noqa: E402
 from harness import freeze, instructions  # noqa: E402
@@ -134,11 +135,24 @@ def check(run_id):
     spent = meta_spent(ledger)
     step(f"Meta spent so far by ODIN's spend meter, against the ${STOP_USD:.0f} stop", spent < STOP_USD,
          f"${spent:.4f}" + ("" if ledger.exists() else " (no ledger yet)"))
+    stopped = series_stops()
+    step("no series stopped by a second set-aside for the same cause (marks/set_aside.yaml)", not stopped,
+         stopped_text(stopped) if stopped else "")
     print("every check holds" if all(results) else f"{results.count(False)} check(s) failed")
     return 0 if all(results) else 1
 
 
+def stopped_text(stopped):
+    return "; ".join(f"phase {phase}, {key}, {count} runs" for (phase, key), count in sorted(stopped.items()))
+
+
 def go(run_id):
+    # A second set-aside for the same cause stops the series until the Director lifts it once the fix is committed
+    # (his rulings of 29 October 2026): while a stop stands, no scored run starts (his word of 30 October 2026).
+    stopped = series_stops()
+    if stopped:
+        print(f"refused: the series is stopped until the Director lifts it: {stopped_text(stopped)}", flush=True)
+        return 1
     run = make_run(run_id)
     print(f"starting {run_id} at {datetime.now(timezone.utc).isoformat(timespec='seconds')}", flush=True)
     code = fly(run, environ=odin_environ(), timeout_s=TIMEOUT_S, output_dir=OUTPUT / run_id)
