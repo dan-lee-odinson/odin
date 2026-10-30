@@ -421,6 +421,10 @@ CASES = {"s0": [
      "tests/test_s5_ground_missed.py::test_red_frames_cosmos_never_shows_are_written_as_missed_and_set_the_run_aside",
      change_file("harness/run.py", replace_once(b"if superseded or met - frame_met >= MISSED_AFTER_S:",
                                                 b"if False:"))),
+    ("frames a scripted receiver fault withheld taken as lost by our link (30 October 2026)",
+     "tests/test_s5_ground_missed.py::test_red_frames_a_scripted_receiver_fault_withholds_are_the_scenarios_not_link_lost",
+     change_file("harness/run.py", replace_once(b"        if sent:\n            self._awaited.add(met)",
+                                                b"        if True:\n            self._awaited.add(met)"))),
     ("a frame the seat moved past never written as missed",
      "tests/test_s5_ground_missed.py::test_red_a_frame_the_seat_moved_past_is_missed_as_superseded",
      change_file("harness/run.py", replace_once(

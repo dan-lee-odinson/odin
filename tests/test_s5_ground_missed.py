@@ -13,6 +13,9 @@ from harness import run as harness_run
 from harness.run import Run
 from tests.fake_cosmos import FakeCosmos
 from tests.test_s5_connector import PASSWORD, cosmos, flown, fly, free_port, scripted  # noqa: F401  (fixtures)
+from wrapper.link import Link
+
+scripted_answers = scripted
 
 
 def truth_of(run, type_):
@@ -43,6 +46,27 @@ def test_red_frames_cosmos_never_shows_are_written_as_missed_and_set_the_run_asi
 def test_a_ground_run_whose_cosmos_shows_every_frame_misses_none(flown):
     run, _, _ = flown
     assert truth_of(run, "GROUND_MISSED") == []
+
+
+OUTAGE = (820, 840)   # a scripted receiver outage, as S4's live pass and wrapper/serve.py script one
+
+
+def test_red_frames_a_scripted_receiver_fault_withholds_are_the_scenarios_not_link_lost(tmp_path, monkeypatch, cosmos):
+    # The Director's word of 30 October 2026: the scenario's own link fault keeps frames from the seat by design; only
+    # frames our link or COSMOS lost are ours.
+    downlink = Link.downlink
+
+    def scripted(link, raw, met_s):
+        link.receiver_up = not OUTAGE[0] <= met_s < OUTAGE[1]
+        return downlink(link, raw, met_s)
+    monkeypatch.setattr(Link, "downlink", scripted)
+    run = fly(tmp_path, monkeypatch, cosmos, scripted_answers())
+    ticks = truth_of(run, "TRUE_STATE")
+    withheld = [r["met_s"] for r in ticks if r["body"]["downlink"] == "RECEIVER_DOWN"]
+    assert withheld == list(range(*OUTAGE))
+    truth = runlog.read_jsonl(run.final / runlog.TRUTH)
+    assert truth_of(run, "GROUND_MISSED") == [] and aside.link_causes(truth) == []
+    assert not set(runlog.received_frames(truth)) & set(withheld)
 
 
 def awaiting(*mets):
