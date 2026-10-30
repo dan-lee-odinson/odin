@@ -189,7 +189,7 @@ CASES = {"s0": [
                  replace_once(b'"canonical_hex": "2d302e30"', b'"canonical_hex": "2d302e31"'))),
     ("the log server answering a refused record with 200 (U24)",
      "tests/test_s2_server.py::test_red_a_refused_submission_gets_400_and_writes_nothing[a decision on /log/agent]",
-     change_file("log/server.py", replace_once(b'self._reply(400, {"problems": refusal.problems})',
+     change_file("log/server.py", replace_once(b"self._refuse(400, refusal.problems)",
                                                b'self._reply(200, {"problems": refusal.problems})'))),
     ("the log server answering an unknown path before reading the body",
      "tests/test_s2_server.py::test_every_refusal_is_answered_though_its_body_is_large",
@@ -502,6 +502,26 @@ CASES = {"s0": [
      change_file("harness/run.py", replace_once(
          b"self.clock.finished or self.failed is not None:\n                    break",
          b"self.clock.finished or self.failed is not None:\n                    return self._complete()"))),
+    # The record's gaps closed (the Director's ruling of 29 October 2026, "Close them").
+    ("the log refusing ODIN's record and the run flying on, unrecorded",
+     "tests/test_s6_record_gaps.py::test_red_the_log_refusing_odins_record_ends_the_run_with_error",
+     change_file("log/server.py", replace_once(b"            if on_failure is not None:\n                on_failure(f\"the log refused",
+                                               b"            if False:\n                on_failure(f\"the log refused"))),
+    ("BALDUR-0 refusing ODIN's request before deciding and the run flying on, unrecorded",
+     "tests/test_s6_record_gaps.py::test_red_baldur0_refusing_odins_request_before_deciding_ends_the_run_with_error",
+     change_file("gateway/server.py", replace_once(b"            failed(f\"BALDUR-0 refused ODIN's POST",
+                                                   b"            0 and failed(f\"BALDUR-0 refused ODIN's POST"))),
+    ("a handler failure nobody foresaw and the run flying on, unrecorded",
+     "tests/test_s6_record_gaps.py::test_red_a_handler_failure_nobody_foresaw_ends_the_run_with_error",
+     change_file("harness/server.py", replace_once(b'        if hasattr(run, "fail"):', b"        if False:"))),
+    ("a tool call refused for the model's own arguments ending the run",
+     "tests/test_s6_record_gaps.py::test_a_tool_call_refused_for_the_models_own_arguments_does_not_end_the_run",
+     change_file("harness/server.py", replace_once(
+         b"            except Refused as refusal:\n                self._reply(refusal.status, {\"problems\": refusal.problems})\n"
+         b"            except Exception as error:\n                failed(self, error)\n\n        def do_POST",
+         b"            except Refused as refusal:\n                self._reply(refusal.status, {\"problems\": refusal.problems})\n"
+         b"                run.fail(\"made up\")\n"
+         b"            except Exception as error:\n                failed(self, error)\n\n        def do_POST"))),
     ("ODIN launched with a command other than Muse Code's start command (M8)",
      "tests/test_s6_odin_process.py::test_a_stand_in_run_flies_odin_as_its_own_process",
      change_file("harness/launch.py", replace_once(b'ODIN_START = ("-m", "odin.run_odin")',

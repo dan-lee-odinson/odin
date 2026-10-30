@@ -323,9 +323,9 @@ class Run:
         self.watcher = Watcher(self._windows, mode=self.store.view.mode)
         self.clock = RunClock(self.simulator, until_met_s=self.end_met_s, pacing=self.pacing, rate=self.rate,
                               on_tick=self._on_tick)
-        self._serve(log_server.make_server(self.events, self.addresses.get("log")))
+        self._serve(log_server.make_server(self.events, self.addresses.get("log"), on_failure=self.fail))
         self._serve(baldur_server.make_server(self.gateway, self.addresses.get("baldur0"),
-                                              after_request=self._after_request))
+                                              after_request=self._after_request, on_failure=self.fail))
         self._serve(make_server(self, self.addresses.get("harness")))
         self.clock.start()
         return True
@@ -333,6 +333,17 @@ class Run:
     def _serve(self, server):
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self._servers.append(server)
+
+    def fail(self, detail):
+        """A defect of ours that a server saw: the log or BALDUR-0 refused something ODIN's own loop sent, or a
+        handler failed in a way nobody foresaw. The run ends with ERROR and detail as RUN_END's, as it does when
+        a tick fails (the Director's ruling of 29 October 2026, closing the record's gaps). The first failure is
+        the one kept. The next tick stops the clock, and ODIN's next poll is told the run is complete."""
+        with self._lock:
+            if self.failed is None:
+                self.failed = detail
+        with self.queue.changed:
+            self.queue.changed.notify_all()
 
     def url(self, which):
         """The URL a service is listening on: harness, baldur0 or log."""

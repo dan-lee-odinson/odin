@@ -23,8 +23,11 @@ def log_address(ports=PORTS):
     return config["host"], config["ports"]["log"]
 
 
-def make_server(event_log, address=None):
-    """A server for the run's event log. Call serve_forever() on it, and shutdown() to stop it."""
+def make_server(event_log, address=None, *, on_failure=None):
+    """A server for the run's event log. Call serve_forever() on it, and shutdown() to stop it.
+    on_failure(detail) is told of each submission refused and each failure the server did not foresee: ODIN
+    submits only what its own loop builds, so either is a defect of ours, and the harness ends the run with
+    ERROR and it as RUN_END's detail (the Director's ruling of 29 October 2026, closing the record's gaps)."""
     routes = {"/log/agent": event_log.submit_agent, "/report": event_log.submit_report}
 
     class Handler(BaseHTTPRequestHandler):
@@ -35,21 +38,31 @@ def make_server(event_log, address=None):
             data = self.rfile.read(int(length)) if length.isdigit() else None
             submit = routes.get(self.path)
             if submit is None:
-                self._reply(404, {"problems": [f"no endpoint {self.path}; the log takes /log/agent and /report"]})
+                self._refuse(404, [f"no endpoint {self.path}; the log takes /log/agent and /report"])
                 return
             try:
                 if data is None:
                     raise ValueError(f"Content-Length is {length!r}, not a length")
                 body = json.loads(data)
             except ValueError as error:
-                self._reply(400, {"problems": [f"the body is not one JSON value ({error})"]})
+                self._refuse(400, [f"the body is not one JSON value ({error})"])
                 return
             try:
                 record = submit(body)
             except LogError as refusal:
-                self._reply(400, {"problems": refusal.problems})
+                self._refuse(400, refusal.problems)
+                return
+            except Exception as error:
+                self._reply(500, {"problems": [f"the log failed: {error!r}"]})
+                if on_failure is not None:
+                    on_failure(f"the log failed on ODIN's POST {self.path}: {error!r}")
                 return
             self._reply(200, {"record_id": record["record_id"]})
+
+        def _refuse(self, status, problems):
+            self._reply(status, {"problems": problems})
+            if on_failure is not None:
+                on_failure(f"the log refused ODIN's POST {self.path} ({status}): {'; '.join(problems)}")
 
         def _reply(self, status, payload):
             data = json.dumps(payload).encode("utf-8")

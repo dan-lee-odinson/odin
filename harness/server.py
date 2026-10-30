@@ -61,7 +61,15 @@ def history_arguments(query, known=tuple(POINTS)):
 
 def make_server(run, address=None):
     """A server for the run: run.next_turn(), run.docs_lookup(q), run.history(points, window_s) and
-    run.check_in(body). Call serve_forever() on it, and shutdown() to stop it."""
+    run.check_in(body). Call serve_forever() on it, and shutdown() to stop it. A failure a handler did not
+    foresee replies 500 and goes to run.fail(detail), which ends the run with ERROR and it as RUN_END's detail
+    (the Director's ruling of 29 October 2026, closing the record's gaps). Its refusals stay as they are: those
+    of the tools answer the model's own arguments, and /checkin is the Director's, not ODIN's."""
+
+    def failed(handler, error):
+        handler._reply(500, {"problems": [f"the harness failed: {error!r}"]})
+        if hasattr(run, "fail"):
+            run.fail(f"the harness failed on {handler.command} {urlparse(handler.path).path}: {error!r}")
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -81,6 +89,8 @@ def make_server(run, address=None):
                                         f"/docs/lookup and /history"])
             except Refused as refusal:
                 self._reply(refusal.status, {"problems": refusal.problems})
+            except Exception as error:
+                failed(self, error)
 
         def do_POST(self):
             # The body is read before any reply, a refusal included: a reply sent while the request is
@@ -100,6 +110,8 @@ def make_server(run, address=None):
                 self._reply(200, run.check_in(body))
             except Refused as refusal:
                 self._reply(refusal.status, {"problems": refusal.problems})
+            except Exception as error:
+                failed(self, error)
 
         def _client_gone(self):
             """Whether the client has hung up: its connection reads as closed, or is reset. A request has no
