@@ -253,6 +253,8 @@ def test_red_cosmos_refusing_an_allowed_command_ends_the_run_with_its_refusal(tm
     assert logged(run, "DISPATCH") == []
     assert fake.sent == [("cmd", "CMD_PLD_SET_STATE", {"STATE": "OFF"})]   # nothing sent after the refusal
     scored = score_run(run.folder, "PASS-3")
-    assert scored["build_defect"] == end["detail"]
+    # Set aside by S8 for it, with its reason code (the Director's rulings of 29 October 2026).
+    assert scored["build_defect"] == "set aside by S8, not scored: " + end["detail"]
+    assert [c["key"] for c in scored["set_aside"]] == ["RUN_END ERROR COSMOS_REFUSED"]
     [(_, row)] = summarize([scored]).items()
-    assert row["build_defects"] == {run.run_id: end["detail"]} and row["clean"] == "clean in 0 of 0 runs"
+    assert row["build_defects"] == {run.run_id: scored["build_defect"]} and row["clean"] == "clean in 0 of 0 runs"

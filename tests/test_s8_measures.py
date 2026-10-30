@@ -35,15 +35,22 @@ def test_red_a_turn_lost_after_its_model_call_is_found():
     assert lost_turns(records[:4]) == []
 
 
-def test_red_a_phase_2_run_with_a_lost_turn_is_a_build_defect_not_scored(tmp_path):
-    lines = [record("RUN_START", 0, run_id="PH2-TEST", model_config="spark", phase=2),
-             record("PLAN_IN_FORCE", 0, plan_id="TYR0-P2-PASS1-v1"), ok_call(1), ok_call(2),
-             record("ANSWER", 11, turn_id=2)]
+def test_red_a_phase_2_run_with_a_lost_turn_is_set_aside_not_scored(tmp_path):
+    # Made-up records, so S8 also finds the log no chain: a run set aside lists every cause it shows (the
+    # Director's ruling of 29 October 2026, eval/set_aside.py).
+    settings = dict(config="stand_in", provider="none", model_id=None, reasoning_effort=None, max_output_tokens=None,
+                    call_index=1, latency_s=0.0, actual_cost_usd=None)
+    lines = [record("RUN_START", 0, run_id="PH2-TEST", model_config="stand_in", provider="none", phase=2),
+             record("PLAN_IN_FORCE", 0, plan_id="TYR0-P2-PASS1-v1"),
+             record("MODEL_CALL", 10, turn_id=1, status="OK", **settings),
+             record("MODEL_CALL", 10, turn_id=2, status="OK", **settings), record("ANSWER", 11, turn_id=2, answer={})]
     (tmp_path / "events.jsonl").write_text("".join(json.dumps(r) + "\n" for r in lines), encoding="utf-8")
     (tmp_path / "truth.jsonl").write_text("", encoding="utf-8")
     found = score_run(tmp_path)
-    assert found["build_defect"].startswith("1 turn(s) lost after a model call that came back OK")
-    assert "turn 1" in found["build_defect"] and "measures" not in found
+    assert found["build_defect"].startswith("set aside by S8, not scored: ")
+    assert [c["detail"] for c in found["set_aside"] if c["cause"] == "LOST_TURN"] == [
+        "turn 1: its model call came back OK with neither ANSWER nor MALFORMED after it"]
+    assert "measures" not in found
 
 
 def test_red_a_phase_2_run_the_director_set_aside_is_a_build_defect_not_scored(tmp_path, monkeypatch):

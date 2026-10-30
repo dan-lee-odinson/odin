@@ -5,19 +5,28 @@
     python -m eval.score --sheet runs/scored/<run_id>     lay out a phase-1 run's marking sheet (U61)
 
 Each run's pass is the plan its log names; scores come from its event log and truth file alone. A phase-1 run's
-results carry the Director's marks from its sheet in marks/phase1/, apart from what S8 scores.
+results carry the Director's marks from its sheet in marks/phase1/, apart from what S8 scores. A scored run of
+phase 2 or 3 that S8 sets aside is written into marks/set_aside.yaml with what S8 found (the Director's ruling
+of 29 October 2026); a development run never is.
 """
 
 import json
 import sys
 
+import eval.set_aside as aside
 from eval import phase1, runlog
 from eval.results import score_phase_1, score_run, summarize
 
 
-def score(folder):
-    phase = next(r["body"]["phase"] for r in runlog.events(folder) if r["type"] == "RUN_START")
-    return score_phase_1(folder) if phase == 1 else score_run(folder)
+def score(folder, set_aside_path=None):
+    run_start = next(r["body"] for r in runlog.events(folder) if r["type"] == "RUN_START")
+    if run_start["phase"] == 1:
+        return score_phase_1(folder)
+    run = score_run(folder)
+    if run_start["mode"] == "SCORED" and aside.mark(run["run_id"], run_start["phase"], run.get("set_aside"),
+                                                    set_aside_path):
+        print(f"{run['run_id']} set aside by S8, written into marks/set_aside.yaml", file=sys.stderr)
+    return run
 
 
 def write_sheet(folder):
