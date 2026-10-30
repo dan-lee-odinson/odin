@@ -100,7 +100,7 @@ class Run:
                  config, seat="ONBOARD", pacing="CHARGED", rate=1.0, check_ins=(), pass_transcript=None,
                  revoke_at=None, restore=None, docs_folder=docs.CACHE, keys_dir=KEYS_DIR, addresses=None,
                  utc_clock=utc_now, endpoint=None, cosmos=None, link_at=None, feeds=None, receiver_down=(),
-                 revocation=None, onboard=None):
+                 revocation=None, onboard=None, seats=None):
         """config: what whoever starts the run names, RUN_START_CONFIG but for the DERIVED settings, which come
         from the model's frozen block (U56) and its adapter (U57); a config carrying any of them is refused.
         endpoint: the base URL a development run's adapter calls instead of its built-in one; refused in a
@@ -119,11 +119,23 @@ class Run:
         still go up (S9, piece 3). revocation: phase 3's scripted revocation (S9, piece 4), {restore_act,
         restore_after_s, second_presentation_after_s, safety_test_after_s, safety_test_request}: ODIN's authority
         is revoked at BALDUR-0's first ALLOW, and the steps after it are scheduled from then (_revoke_at_first_allow).
-        onboard: the model that flies the onboard seat when it is not the run's own (M17): one of ONBOARD_MODELS."""
+        onboard: the model that flies the onboard seat when it is not the run's own (M17): one of ONBOARD_MODELS.
+        seats: phase 3's seat schedule (S9, piece 5), [(from_met_s, to_met_s, seat, pacing)], each half-open, as
+        harness/phase3.py's HeldOutScenario.seats gives it: the seat and its pacing follow the MET, switching at each
+        boundary (_follow_seats), and seat and pacing are the first span's."""
         if onboard is not None and onboard not in ONBOARD_MODELS:
             raise ValueError(f"the onboard model {onboard!r} is not one of {ONBOARD_MODELS} (M17)")
         if feeds is not None and phase != 3:
             raise ValueError("outside feeds are phase 3's only (CONTRACT.md §6.5)")
+        self.seats = sorted(tuple(span) for span in seats) if seats else None
+        if self.seats:
+            if phase != 3:
+                raise ValueError("a run moves between seats in phase 3 only (CONTRACT.md §10.1)")
+            for _, _, one, how in self.seats:
+                if one not in SEATS or (one == "GROUND" and how != "REAL_TIME"):
+                    raise ValueError(f"the seat schedule has {one} in {how}: a seat is one of {SEATS}, and the ground "
+                                     f"seat runs in real time (CONTRACT.md §10.1)")
+            seat, pacing = self.seats[0][2], self.seats[0][3]
         if seat not in SEATS:
             raise ValueError(f"seat {seat!r} is not one of {SEATS}")
         if seat == "GROUND" and pacing != "REAL_TIME":
@@ -148,6 +160,12 @@ class Run:
         self.start_met_s = self.end_met_s = None
         self.queue = TriggerQueue()
         self.store = FrameStore("COSMOS" if seat == "GROUND" else "ONBOARD")
+        # A run that moves between seats keeps each seat's store: the ground's from COSMOS, the onboard's beside the
+        # simulator at every tick, so each seat has its own history when its turn comes (S9, piece 5).
+        self._stores = {"GROUND": FrameStore("COSMOS"), "ONBOARD": FrameStore("ONBOARD")} if self.seats else None
+        if self._stores:
+            self.store = self._stores[seat]
+        self.seat_changes = []   # (met_s, seat, the clock's pacing) at each switch
         self.cosmos, self._link_at = cosmos, link_at
         self.link = None
         self._ground_count = self._sent_seen = 0
@@ -364,7 +382,8 @@ class Run:
             if refusal:
                 self.stop("ERROR", detail=refusal)
                 return False
-        elif self.seat == "GROUND" and not self._start_ground():
+        elif (self.seat == "GROUND" or any(span[2] == "GROUND" for span in self.seats or ())) \
+                and not self._start_ground():
             self.stop("ERROR")
             return False
         self.truth = TruthLog.create(self.folder / "truth.jsonl", met_clock=self.met_s, utc_clock=self._utc)
@@ -430,10 +449,15 @@ class Run:
                 self.clock.stop()
                 return
             met = self.simulator.met_s
+            if self.seats:
+                self._follow_seats(met)
             if self.phase == 1:
                 received = self._cosmos_packet(met)
             elif self.seat == "GROUND":
                 received = self._ground_frame(met)
+                tapped = self.simulator.tap.latest() if self._stores and frame is not None else None
+                if tapped is not None:   # the onboard store keeps its history while the ground seat flies
+                    self._stores["ONBOARD"].receive(tapped, self._utc(), met)
             else:
                 received = self.simulator.tap.latest() if frame is not None else None
                 if received is not None:
@@ -499,6 +523,19 @@ class Run:
                     self.queue.add_report("HAND_BACK", revoked)
                 if self.pacing == "CHARGED" and self.queue.waiting():
                     self.clock.pause()
+
+    def _follow_seats(self, met):
+        """Phase 3's seat schedule (S9, piece 5): at a boundary the seat changes, and with it the store the seat
+        reads, the clock's pacing (CONTRACT.md §10.1) and BALDUR-0's route, which reads the seat. A turn served
+        before the change is not charged to the new pacing."""
+        seat, pacing = next(((one, how) for start, end, one, how in self.seats if start <= met < end),
+                            (self.seat, self.pacing))
+        if (seat, pacing) == (self.seat, self.pacing):
+            return
+        self.seat, self.pacing, self.store = seat, pacing, self._stores[seat]
+        self._charged = True
+        self.clock.set_pacing(pacing)
+        self.seat_changes.append((met, seat, self.clock.pacing))
 
     # -- ODIN's turns ------------------------------------------------------------------------------
 
