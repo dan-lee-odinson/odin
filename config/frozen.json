@@ -11,6 +11,7 @@
   },
   "models": {
     "spark": "sha256:764c3a01537ba11e8f3fd303c750773498a39e77de9f8552774b15eb491d71a3",
-    "spark_open": "sha256:94d25d66a4f9dd48f061d9bb6a41482ccb1b94c061f44799d689a70cbc792d2c"
+    "spark_open": "sha256:94d25d66a4f9dd48f061d9bb6a41482ccb1b94c061f44799d689a70cbc792d2c",
+    "glimmer_modal": "sha256:e268814aac0789234687eb4869388bdc748c0ddea41a00035ed179d3455e6a3b"
   }
 }

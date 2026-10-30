@@ -32,9 +32,11 @@ COMMON_BEFORE = "sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378
 # Each model's block as the Director ruled it on 27 October 2026 (config/models.yaml at 9aa39d8).
 SPARK = (b'{"date":"2026-10-27","max_output_tokens":32000,"model":"muse-spark-1.3","reasoning_effort":"high",'
          b'"source":"the Director\'s ruling of 27 October 2026, from M3\'s table","timeout_s":120}')
+# Glimmer's, as he approved it on 30 October 2026 ("Approve, but a 60 s timeout"; "Approve the diff").
 MODEL_HASHES = {"spark": "sha256:764c3a01537ba11e8f3fd303c750773498a39e77de9f8552774b15eb491d71a3",
-                "spark_open": "sha256:94d25d66a4f9dd48f061d9bb6a41482ccb1b94c061f44799d689a70cbc792d2c"}
-MODELS = ("spark", "spark_open")
+                "spark_open": "sha256:94d25d66a4f9dd48f061d9bb6a41482ccb1b94c061f44799d689a70cbc792d2c",
+                "glimmer_modal": "sha256:e268814aac0789234687eb4869388bdc748c0ddea41a00035ed179d3455e6a3b"}
+MODELS = ("spark", "spark_open", "glimmer_modal")
 
 
 def test_the_record_holds_the_six_schemas_and_each_ruled_model():
@@ -102,6 +104,15 @@ def test_red_a_changed_setting_refuses_that_models_runs_only(copies):
         check("spark")
     check("spark_open")
     check("stand_in")
+
+
+def test_red_a_changed_glimmer_setting_refuses_glimmers_runs_only(copies):
+    # The approved 60 s timeout, written back as the 120 s first drafted.
+    edit(copies / "config" / "models.yaml", b"  timeout_s: 60\n", b"  timeout_s: 120\n")
+    with pytest.raises(NotFrozen, match="glimmer_modal's settings"):
+        check("glimmer_modal")
+    check("spark")
+    check("spark_open")
 
 
 def test_red_a_recorded_model_whose_entry_disappears_refuses_its_runs(copies):

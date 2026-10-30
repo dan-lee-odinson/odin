@@ -20,3 +20,15 @@ spark_open:
   timeout_s: 120
   source: the Director's ruling of 27 October 2026, from M3's table
   date: 2026-10-27
+
+# Muse Glimmer on Modal, the onboard seat (CONTRACT.md §11.1; the Director's ruling of 29 October 2026, item 5, since
+# glimmer_local missed 60 s a decision on the laptop in M5). Its adapter reads the endpoint from this block (M16).
+glimmer_modal:
+  model: Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf
+  reasoning_effort: low
+  max_output_tokens: 8192
+  timeout_s: 60
+  endpoint: https://dan-lee-odinson--odin-glimmer-serve-h100.us-east.modal.run
+  gpu: H100
+  source: the Director's ruling and approval of 30 October 2026 ("Low, tie type to command"; "Approve, but a 60 s timeout"), from M5's timing on Modal
+  date: 2026-10-30

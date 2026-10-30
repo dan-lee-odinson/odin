@@ -19,8 +19,18 @@ MEASURED = {"spark": {"low", "medium", "high"}, "spark_open": {"low", "medium", 
 SOURCE = "the Director's ruling of 27 October 2026, from M3's table"
 
 
-def test_the_models_are_the_two_the_director_ruled_on():
-    assert sorted(MODELS) == ["spark", "spark_open"]
+def test_the_models_are_the_three_the_director_ruled_on():
+    assert sorted(MODELS) == ["glimmer_modal", "spark", "spark_open"]
+
+
+def test_glimmer_carries_the_settings_the_director_approved_and_their_source():
+    # His ruling of 30 October 2026, "Low, tie type to command", and his approval, "Approve, but a 60 s timeout".
+    assert MODELS["glimmer_modal"] == {
+        "model": "Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf", "reasoning_effort": "low", "max_output_tokens": 8192,
+        "timeout_s": 60, "endpoint": "https://dan-lee-odinson--odin-glimmer-serve-h100.us-east.modal.run",
+        "gpu": "H100", "source": "the Director's ruling and approval of 30 October 2026 (\"Low, tie type to command\"; "
+                                 "\"Approve, but a 60 s timeout\"), from M5's timing on Modal",
+        "date": datetime.date(2026, 10, 30)}
 
 
 @pytest.mark.parametrize("name", sorted(RULED))
