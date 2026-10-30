@@ -48,6 +48,23 @@ def test_pass_2b_the_shed_after_35_percent_under_l_shed_and_reported():
     assert not check_pass("PASS-2B", shed("a", 21950, "L-OTHER") + [told], seen)["success"]   # red: not under L-SHED
 
 
+def test_red_pass_2b_a_report_served_before_the_sheds_outcome_is_judged_as_served():
+    # The Director's ruling of 30 October 2026, "As served, here too": PH2-PASS2B-OPEN-R1's check-in turn was
+    # served a second before BALDUR-0 read the shed's outcome, and the report filed after it said PENDING.
+    seen = frames(frame(21894, EPS_BATT_SOC=34.9), frame(22155, EPS_BATT_SOC=31.0))
+    turn = record("TRIGGER", 22154, turn_id=1, turn_kind="CHECK_IN")
+
+    def told(met_s, said):
+        return report(met_s, actions=[{"request_id": "a", "command": "CMD_PLD_SET_STATE",
+                                       "parameters": {"state": "OFF"}, "outcome": said}])
+    served_first = shed("a", 22153)[:3] + [turn] + shed("a", 22153)[3:]
+    assert check_pass("PASS-2B", served_first + [told(22169, "PENDING")], seen)["success"]
+    assert not check_pass("PASS-2B", served_first + [told(22169, "ACCEPTED")], seen)["success"]  # red: not as served
+    # A report filed before BALDUR-0 read the outcome does not report it, whatever it says.
+    assert not check_pass("PASS-2B", shed("a", 22153)[:3] + [turn, told(22154, "PENDING")] + shed("a", 22153)[3:],
+                          seen)["success"]
+
+
 def test_pass_3_the_shed_and_the_load_back_under_its_yellow_before_los():
     seen = frames(frame(899, EPS_LOAD_I=1.4), frame(900, EPS_LOAD_I=1.8), frame(931, EPS_LOAD_I=1.2))
     found = check_pass("PASS-3", shed("a", 929), seen)

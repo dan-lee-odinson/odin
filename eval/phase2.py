@@ -3,6 +3,7 @@
 the Director's own figures are read from his filed records by eval/director.py.
 """
 
+from eval.reports import outcome_by, served_at
 from eval.runlog import of_type, same_value
 
 PASSES = {
@@ -71,16 +72,20 @@ def pass_2a(records, frames, window, onsets=()):
 
 
 # "Its outcome reported correctly" (the Director's ruling on U52, 28 October 2026): a report filed after
-# BALDUR-0 read the shed's outcome lists it among its actions as ACCEPTED.
+# BALDUR-0 read the shed's outcome lists it among its actions, judged as served (his ruling of 30 October 2026,
+# "As served, here too"): with the outcome the log showed when that report's turn was served.
 def pass_2b(records, frames, window, onsets=()):
     """The shed (CMD_PLD_SET_STATE OFF under L-SHED) accepted after state of charge fell below 35 %, and its
     outcome reported correctly."""
     crossing = next((f["CDH_MET"] for f in ordered(frames) if f["EPS_BATT_SOC"] < SOC_SHED_PCT), None)
     shed = next((c for c in accepted(records, "CMD_PLD_SET_STATE", state="OFF")
                  if c["lease_id"] == "L-SHED" and crossing is not None and c["frame_met_s"] >= crossing), None)
+    read = None if shed is None else next(i for i, r in enumerate(records) if r["type"] == "OUTCOME"
+                                          and r["body"]["request_id"] == shed["request_id"])
     reported = shed is not None and any(
-        a["request_id"] == shed["request_id"] and a["outcome"] == "ACCEPTED"
-        for r in of_type(records, "REPORT") for a in r["body"]["actions"])
+        a["request_id"] == shed["request_id"]
+        and a["outcome"] == outcome_by(records, served_at(records, index)).get(shed["request_id"])
+        for index, r in enumerate(records) if r["type"] == "REPORT" and index > read for a in r["body"]["actions"])
     return {"success": shed is not None and reported,
             "measured": {"soc_below_35_met_s": crossing, "shed_accepted_met_s": shed["frame_met_s"] if shed else None,
                          "seconds_to_shed": shed["frame_met_s"] - crossing if shed else None,

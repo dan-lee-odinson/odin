@@ -951,6 +951,11 @@ CASES = {"s0": [
      "tests/test_s8_phase1.py::test_red_r3s_met_1200_answer_does_not_land_on_its_720_check_in",
      change_file("eval/phase1.py", replace_once(b"report = reports.get(turns[i]) if i < len(turns) else None",
                                                 b"report = list(reports.values())[i] if i < len(reports) else None"))),
+    ("PASS-2B's report judged as filed, not as served (30 October 2026)",
+     "tests/test_s8_phase2.py::test_red_pass_2b_a_report_served_before_the_sheds_outcome_is_judged_as_served",
+     change_file("eval/phase2.py", replace_once(
+         b'and a["outcome"] == outcome_by(records, served_at(records, index)).get(shed["request_id"])',
+         b'and a["outcome"] == "ACCEPTED"'))),
 ], "phase3": [
     ("a third hash in the seal",
      "tests/test_phase3_seal.py::test_the_seal_holds_the_seal_in_force_and_the_first_beside_it",
