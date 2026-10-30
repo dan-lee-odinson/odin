@@ -14,12 +14,12 @@ Keys and tokens come from environment variables only, never from a file: Modal's
 MODAL_TOKEN_SECRET, and the proxy-auth token is ODIN_MODAL_PROXY_KEY and ODIN_MODAL_PROXY_SECRET. Nothing here prints
 or writes any of them.
 
-    python tools/glimmer_modal.py deploy              deploy the app (both endpoints, scaled to zero)
+    python tools/glimmer_modal.py deploy              deploy the app (every endpoint, scaled to zero)
     python tools/glimmer_modal.py download            once: the weights into the Volume, checked by SHA-256
     python tools/glimmer_modal.py warm <gpu>          keep one container of that endpoint up, and wait until it serves
     python tools/glimmer_modal.py cold <gpu>          let it scale to zero again
     python tools/glimmer_modal.py url <gpu>           the endpoint's URL
-<gpu> is h100 or a100-80gb.
+<gpu> is h100, a100-80gb or h200.
 """
 
 import hashlib
@@ -43,7 +43,7 @@ WEIGHTS_DIR = "/weights"
 PORT = 8080
 CONTEXT = 131072   # the model's own context; one slot (-np 1), so one request has all of it
 IDLE_S = 120       # seconds a container stays up after its last request before scaling to zero
-FUNCTIONS = {"h100": "serve_h100", "a100-80gb": "serve_a100_80gb"}
+FUNCTIONS = {"h100": "serve_h100", "a100-80gb": "serve_a100_80gb", "h200": "serve_h200"}
 
 app = modal.App(APP_NAME)
 weights = modal.Volume.from_name("odin-glimmer-weights", create_if_missing=True)
@@ -88,6 +88,16 @@ def serve_h100():
 @modal.concurrent(max_inputs=4)
 @modal.web_server(port=PORT, startup_timeout=900, requires_proxy_auth=True)
 def serve_a100_80gb():
+    _llama_server()
+
+
+# The H200, timed against the H100 by the Director's word of 30 October 2026, to see whether it brings Glimmer's
+# decisions under 60 s.
+@app.function(image=server_image, gpu="H200", volumes={WEIGHTS_DIR: weights}, timeout=3600,
+              scaledown_window=IDLE_S, min_containers=0)
+@modal.concurrent(max_inputs=4)
+@modal.web_server(port=PORT, startup_timeout=900, requires_proxy_auth=True)
+def serve_h200():
     _llama_server()
 
 

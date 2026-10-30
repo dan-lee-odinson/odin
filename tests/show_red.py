@@ -1050,7 +1050,7 @@ CASES = {"s0": [
      "tests/test_config_models.py::test_voice_transcribe_is_priced_per_audio_hour_against_the_meta_stop_and_is_no_model",
      change_file("config/prices.yaml", replace_once(b"  per_audio_hour: 0.18\n", b"  per_audio_hour: 0.018\n"))),
     ("Glimmer's Modal endpoint served without proxy auth (29 October 2026)",
-     "tests/test_tools_glimmer_modal.py::test_both_endpoints_sit_behind_proxy_auth_and_scale_to_zero",
+     "tests/test_tools_glimmer_modal.py::test_every_endpoint_sits_behind_proxy_auth_and_scales_to_zero",
      change_file("tools/glimmer_modal.py", replace_once(
          b'@modal.web_server(port=PORT, startup_timeout=900, requires_proxy_auth=True)\ndef serve_h100():',
          b'@modal.web_server(port=PORT, startup_timeout=900, requires_proxy_auth=False)\ndef serve_h100():'))),

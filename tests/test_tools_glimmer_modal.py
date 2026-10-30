@@ -14,11 +14,12 @@ def text():
     return TOOL.read_text(encoding="utf-8")
 
 
-def test_both_endpoints_sit_behind_proxy_auth_and_scale_to_zero():
+def test_every_endpoint_sits_behind_proxy_auth_and_scales_to_zero():
+    # The H100, the A100 80 GB, and the H200 the Director had timed on 30 October 2026.
     source = text()
-    assert len(re.findall(r"@modal\.web_server\([^)]*requires_proxy_auth=True[^)]*\)", source)) == 2
+    assert len(re.findall(r"@modal\.web_server\([^)]*requires_proxy_auth=True[^)]*\)", source)) == 3
     assert "requires_proxy_auth=False" not in source
-    assert source.count("min_containers=0)") == 2
+    assert source.count("min_containers=0)") == 3
 
 
 def test_the_server_image_is_one_pinned_llama_cpp_build_at_or_after_b10353():
