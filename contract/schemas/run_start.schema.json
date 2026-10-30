@@ -68,6 +68,25 @@
     "reference_sha256": {
       "description": "The frozen COSMOS reference (§10.4); null for a run flown without it.",
       "anyOf": [{"$ref": "common.schema.json#/definitions/sha256"}, {"type": "null"}]
+    },
+    "onboard": {
+      "description": "The model that flies the onboard seat when it is not the run's own (the Director's ruling of 30 October 2026, \"Loop picks model by seat\"). A run can move between the ground seat and the onboard seat; each turn's bundle names its seat, and ODIN answers an ONBOARD turn with this model and a GROUND turn with the run's. Each field is found as the run's own is: the model ID and reasoning setting from the model's frozen block in config/models.yaml (U56), the provider and endpoint from its adapter (U57). Null when the run's model flies every seat. A run recorded before M17 has no such field.",
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "required": ["model_config", "provider", "model_id", "reasoning_effort", "endpoint", "answer_method"],
+          "additionalProperties": false,
+          "properties": {
+            "model_config": {"description": "Glimmer's configurations, or the stand-in in development (§11.1).", "enum": ["glimmer_local", "glimmer_modal", "stand_in"]},
+            "provider": {"type": ["string", "null"]},
+            "model_id": {"type": ["string", "null"]},
+            "reasoning_effort": {"type": ["string", "null"]},
+            "endpoint": {"anyOf": [{"type": "string", "pattern": "^https?://[^\\s]+$"}, {"type": "null"}]},
+            "answer_method": {"enum": ["STRUCTURED_OUTPUT", "SCRIPTED"]}
+          }
+        }
+      ]
     }
   },
   "allOf": [

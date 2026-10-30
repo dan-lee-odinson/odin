@@ -18,7 +18,8 @@ def scratch_repo(tmp_path):
                        "keys/allowed_signers": "dan ssh-ed25519 AAAA\n", "keys/odin.pub": "ssh-ed25519 BBBB odin\n",
                        "contract/schemas/a.schema.json": "{}\n", "checkins/a.m4a": "\x00ftyp\n",
                        "contract/m14/format-B.json": "{}\n", "contract/m15/format-R.json": "{}\n",
-                       "contract/m16/format-G.json": "{}\n", "contract/other.md": "not shared\n", "gateway/other.py": "x = 1\n"}.items():
+                       "contract/m16/format-G.json": "{}\n", "contract/m17/README.md": "m17\n",
+                       "contract/other.md": "not shared\n", "gateway/other.py": "x = 1\n"}.items():
         (repo / name).parent.mkdir(parents=True, exist_ok=True)
         (repo / name).write_bytes(text.encode("utf-8"))
     git = ["git", "-C", str(repo)]
@@ -40,7 +41,8 @@ def test_the_files_come_from_main_not_the_working_tree(tmp_path):
     assert files["config/ports.yaml"] == b"log: 8712\n"
     assert set(files) == {".agents/AGENTS.md", "CONTRACT.md", "config/ports.yaml", "keys/allowed_signers",
                           "keys/odin.pub", "contract/schemas/a.schema.json", "checkins/a.m4a",
-                          "contract/m14/format-B.json", "contract/m15/format-R.json", "contract/m16/format-G.json"}
+                          "contract/m14/format-B.json", "contract/m15/format-R.json", "contract/m16/format-G.json",
+                          "contract/m17/README.md"}
 
 
 def test_muse_codes_rules_are_copied_and_checked_like_the_rest():
