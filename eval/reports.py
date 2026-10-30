@@ -6,7 +6,7 @@ reports compared with the log and the frames its seat received.
   report was filed): the OUTCOME record's, or REFUSED, VOIDED or PENDING as BALDUR-0's decisions show. Phase 1
   never comes here: its scoring is its own checks and the Director's marks;
 - each evidence entry {point, value, met_s} matches the frame with that CDH_MET, to the dictionary's
-  display decimals.
+  display decimals; a point that frame does not carry matches nothing.
 
 The score is claims correct over claims made, with every false claim listed. A report with no checkable
 claims is reported as such. Timeline entries are listed but not scored (the Director's ruling on U50,
@@ -54,6 +54,9 @@ def claims_of(report, index, records, frames):
         frame = frames.get(item["met_s"])
         if frame is None:
             found.append(({"evidence": item}, False, "no frame with that CDH_MET was received"))
+        elif item["point"] not in frame:
+            # The frozen format names either dictionary's points; a frame carries only its own spacecraft's.
+            found.append(({"evidence": item}, False, f"the frame carries no {item['point']}"))
         else:
             actual = frame[item["point"]]
             found.append(({"evidence": item}, same_value(item["point"], item["value"], actual), f"the frame read {actual}"))

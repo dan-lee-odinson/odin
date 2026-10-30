@@ -63,3 +63,13 @@ def test_red_an_outcome_logged_after_the_reports_turn_was_served_is_judged_as_th
     assert wrong["why"] == "the log shows PENDING"
     # A report whose turn the log does not show is judged as it was filed.
     assert report_accuracy(served[:2] + served[3:] + [report("ACCEPTED")], {})["false"] == []
+
+
+def test_red_evidence_naming_a_point_its_frame_does_not_carry_is_false():
+    # PH2-PASS2A-SPARK-R1's check-in cited CMD_ACPT_CNT and COLLECTS, phase 1's INST points, from a HUGINN frame:
+    # the frozen format names either dictionary's points, and that frame carries neither.
+    bad = score([report(903, evidence=[{"point": "CMD_ACPT_CNT", "value": 1, "met_s": 900},
+                                       {"point": "COLLECTS", "value": 0, "met_s": 900},
+                                       {"point": "EPS_LOAD_I", "value": 1.8, "met_s": 900}])])
+    assert (bad["claims"], bad["correct"]) == (3, 1)
+    assert [f["why"] for f in bad["false"]] == ["the frame carries no CMD_ACPT_CNT", "the frame carries no COLLECTS"]
