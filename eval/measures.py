@@ -91,19 +91,32 @@ def loop_health(records):
 FROM_BLOCK = {"model_id": "model", "reasoning_effort": "reasoning_effort", "max_output_tokens": "max_output_tokens"}
 
 
+def model_settings(model_config, provider):
+    """What a MODEL_CALL from one model must carry: its config, its provider as RUN_START names it, and the rest
+    from its frozen block."""
+    block = frozen_block(model_config)
+    return {"config": model_config, "provider": provider,
+            **{field: block[key] if block else None for field, key in FROM_BLOCK.items()}}
+
+
 def model_call_mismatches(records):
-    """Each MODEL_CALL field that differs from the run's settings, as {turn_id, call_index, field, found,
-    expected}: config and provider against RUN_START's, the others against the model's frozen block."""
+    """Each MODEL_CALL field that differs from its model's settings, as {turn_id, call_index, field, found,
+    expected}. A run names one model, or two when another flies the onboard seat (RUN_START's onboard; the
+    Director's ruling of 30 October 2026, "Loop picks model by seat"): each call is checked against its own
+    model's, and a call from a model the run does not name against the run's own."""
     calls = of_type(records, "MODEL_CALL")
     if not calls:
         return []
     run_start = of_type(records, "RUN_START")[0]["body"]
-    block = frozen_block(run_start["model_config"])
-    expected = {"config": run_start["model_config"], "provider": run_start["provider"],
-                **{field: block[key] if block else None for field, key in FROM_BLOCK.items()}}
+    own = model_settings(run_start["model_config"], run_start["provider"])
+    named = {own["config"]: own}
+    onboard = run_start.get("onboard")
+    if onboard:
+        named[onboard["model_config"]] = model_settings(onboard["model_config"], onboard["provider"])
     return [{"turn_id": call["body"]["turn_id"], "call_index": call["body"]["call_index"], "field": field,
              "found": call["body"][field], "expected": value}
-            for call in calls for field, value in expected.items() if call["body"][field] != value]
+            for call in calls for field, value in named.get(call["body"]["config"], own).items()
+            if call["body"][field] != value]
 
 
 # A command or argument outside the dictionary in force is an attempted violation whichever side catches it

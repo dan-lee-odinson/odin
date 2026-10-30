@@ -75,6 +75,8 @@ RUN_START_CONFIG = ("seed", "model_config", "provider", "model_id", "reasoning_e
 # and its provider and endpoint from the model's adapter, whose code makes the call (U57). A configuration
 # carrying any of the four is refused, so there is no second copy.
 FROM_BLOCK = {"model_id": "model", "reasoning_effort": "reasoning_effort"}
+# The models that may fly the onboard seat beside the run's own (M17): Glimmer's, or the stand-in in development.
+ONBOARD_MODELS = ("glimmer_local", "glimmer_modal", "stand_in")
 DERIVED = (*FROM_BLOCK, "provider", "endpoint")
 
 
@@ -98,7 +100,7 @@ class Run:
                  config, seat="ONBOARD", pacing="CHARGED", rate=1.0, check_ins=(), pass_transcript=None,
                  revoke_at=None, restore=None, docs_folder=docs.CACHE, keys_dir=KEYS_DIR, addresses=None,
                  utc_clock=utc_now, endpoint=None, cosmos=None, link_at=None, feeds=None, receiver_down=(),
-                 revocation=None):
+                 revocation=None, onboard=None):
         """config: what whoever starts the run names, RUN_START_CONFIG but for the DERIVED settings, which come
         from the model's frozen block (U56) and its adapter (U57); a config carrying any of them is refused.
         endpoint: the base URL a development run's adapter calls instead of its built-in one; refused in a
@@ -116,7 +118,10 @@ class Run:
         seat's link withholds each frame stamped in one, RECEIVER_DOWN, while COSMOS stays connected and commands
         still go up (S9, piece 3). revocation: phase 3's scripted revocation (S9, piece 4), {restore_act,
         restore_after_s, second_presentation_after_s, safety_test_after_s, safety_test_request}: ODIN's authority
-        is revoked at BALDUR-0's first ALLOW, and the steps after it are scheduled from then (_revoke_at_first_allow)."""
+        is revoked at BALDUR-0's first ALLOW, and the steps after it are scheduled from then (_revoke_at_first_allow).
+        onboard: the model that flies the onboard seat when it is not the run's own (M17): one of ONBOARD_MODELS."""
+        if onboard is not None and onboard not in ONBOARD_MODELS:
+            raise ValueError(f"the onboard model {onboard!r} is not one of {ONBOARD_MODELS} (M17)")
         if feeds is not None and phase != 3:
             raise ValueError("outside feeds are phase 3's only (CONTRACT.md §6.5)")
         if seat not in SEATS:
@@ -133,6 +138,7 @@ class Run:
         self.pass_transcript = pass_transcript
         self.revoke_at, self.restore = revoke_at, restore
         self.revocation, self._again, self._safety_test = revocation, None, None
+        self.onboard = onboard
         self.feeds, self.receiver_down = feeds, tuple(receiver_down)
         self._feed_reports = {}   # id(FEED_REPORT trigger): (that trigger, its report), until a turn serves it
         self.docs_folder, self.keys_dir, self.addresses = docs_folder, keys_dir, addresses or {}
@@ -286,7 +292,20 @@ class Run:
         return {"run_id": self.run_id, "scenario_id": self.scenario_id, "phase": self.phase, "mode": self.mode,
                 **{name: self.configuration[name] for name in RUN_START_CONFIG},
                 "config_sha256": sha256_tag(canonical_json(self.configuration)), **self.frozen,
-                "plan_chain_sha256": sha256_tag(canonical_json(chain_hashes)) if chain_hashes else None}
+                "plan_chain_sha256": sha256_tag(canonical_json(chain_hashes)) if chain_hashes else None,
+                "onboard": self.configuration["onboard"]}
+
+    def _onboard_settings(self):
+        """RUN_START's onboard (M17; the Director's ruling of 30 October 2026, "Loop picks model by seat"): the model
+        that flies the onboard seat, its settings found as the run's own are, from its frozen block (U56) and its
+        adapter (U57); None when the run's model flies every seat. Raises NotFrozen as for the run's model."""
+        if self.onboard is None:
+            return None
+        block = freeze.check(self.onboard)
+        return {"model_config": self.onboard,
+                **{name: block[key] if block else None for name, key in FROM_BLOCK.items()},
+                **adapter_settings(self.onboard, block, mode=self.mode),
+                "answer_method": "SCRIPTED" if self.onboard == "stand_in" else "STRUCTURED_OUTPUT"}
 
     def _claimed_start(self):
         """The chain's first valid_from as its files give it, for the records written before BALDUR-0 has
@@ -316,7 +335,8 @@ class Run:
         block = freeze.check(model_config)
         self.configuration = {**self.config,
                               **{name: block[key] if block else None for name, key in FROM_BLOCK.items()},
-                              **adapter_settings(model_config, block, mode=self.mode, endpoint=self.endpoint)}
+                              **adapter_settings(model_config, block, mode=self.mode, endpoint=self.endpoint),
+                              "onboard": self._onboard_settings()}
         for folder in (self.folder, self.final):
             if folder.exists():
                 raise FileExistsError(f"{folder} already exists; a run's folder is never reused")

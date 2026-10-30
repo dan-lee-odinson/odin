@@ -25,7 +25,9 @@ def adapter_settings(model_config, block, *, mode, endpoint=None):
     adapter = build_adapter(model_config, **({"base_url": endpoint} if endpoint is not None else {}))
     if adapter.model_id != block["model"]:
         raise NotFrozen(f"{model_config}'s adapter calls {adapter.model_id}, not its frozen block's {block['model']}")
-    built_in = type(adapter).endpoint.rstrip("/")
+    # A model whose frozen block names its endpoint calls that one, as Glimmer's adapter reads it there (M16); its
+    # class may carry another's, inherited (S9, 30 October 2026). Otherwise the adapter's own built-in endpoint.
+    built_in = (block.get("endpoint") or type(adapter).endpoint).rstrip("/")
     if mode == "SCORED" and adapter.base_url != built_in:
         raise ValueError(f"a SCORED run calls only {model_config}'s built-in endpoint, {built_in}, "
                          f"not {adapter.base_url}")

@@ -115,7 +115,7 @@ def glimmer_frozen(monkeypatch):
 def glimmer_run(*more):
     """clean(), flown by Glimmer on Modal, then the records given and RUN_END."""
     records = [record("RUN_START", 0, run_id="PH3-TEST", model_config="glimmer_modal", provider="modal", phase=3,
-                      mode="SCORED")] + clean()[1:] + list(more) + [end()]
+                      mode="SCORED", onboard=None)] + clean()[1:] + list(more) + [end()]
     return [dict(r, body={**r["body"], **GLIMMER_CALL}) if r["type"] == "MODEL_CALL" else r for r in records]
 
 

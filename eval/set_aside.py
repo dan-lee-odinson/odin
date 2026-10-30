@@ -174,6 +174,12 @@ def record_causes(records, bundles=None):
     """Every cause of ours in a run's records (causes 1 to 4 and 6 to 13), in record order."""
     bundles = bundles or {}
     found = []
+    # Every run from M17 on writes RUN_START's onboard, null or not (the Director's confirmation of 30 October 2026);
+    # the phase-1 and phase-2 runs were recorded before it. A phase-3 RUN_START without it fails its record (cause 5).
+    start = next((r for r in records if r["type"] == "RUN_START"), None)
+    if start is not None and start["body"].get("phase") == 3 and "onboard" not in start["body"]:
+        found.append(cause("RECORD_FAILS_SCHEMA", "RECORD_FAILS_SCHEMA RUN_START",
+                           "a phase-3 RUN_START without onboard, which every run from M17 on writes", start))
     for turn in measures.lost_turns(records):
         call = next(r for r in of_type(records, "MODEL_CALL") if r["body"]["turn_id"] == turn)
         found.append(cause("LOST_TURN", "LOST_TURN", f"turn {turn}: its model call came back OK with neither "

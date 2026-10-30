@@ -38,7 +38,8 @@ def started(tmp_path, config, **options):
 def test_a_run_takes_its_settings_from_the_frozen_block_and_the_adapter(tmp_path, config, expected):
     body = started(tmp_path, config)
     assert {name: body[name] for name in expected} == expected
-    assert body["config_sha256"] == sha256_tag(canonical_json({**config, **expected}))
+    # The configuration names the onboard model too, null for a run whose model flies every seat (M17).
+    assert body["config_sha256"] == sha256_tag(canonical_json({**config, **expected, "onboard": None}))
 
 
 def test_the_stand_in_stays_null_for_all_four(tmp_path):
