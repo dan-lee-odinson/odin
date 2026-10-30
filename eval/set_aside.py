@@ -12,7 +12,10 @@ run's own model events are listed beside its pass's results and not counted (his
  3. RUN_END_ERROR: the run ended with ERROR (the harness, the log, BALDUR-0 or COSMOS failed or refused, or ODIN
     exited, or did not); and MODEL_CALL_ERROR, a call that failed in the loop or adapter.
  4. MODEL_CALL_ERROR and MODEL_CALL_TIMEOUT: the provider's HTTP error, a rate limit among them, or a timeout. The
-    record holds no HTTP status, so 3 and 4 share MODEL_CALL_ERROR.
+    record holds no HTTP status, so 3 and 4 share MODEL_CALL_ERROR. A Glimmer call cut off at its frozen timeout
+    while its server was up and working on it is the model's miss, not ours: its adapter writes it TIMEOUT, with
+    the time it ran, and it counts under loop health (the Director's ruling of 30 October 2026, "Model's miss if
+    server was working"). A Glimmer server or network failure is ERROR, and stays ours.
  5. RECORD_FAILS_SCHEMA: the event log or truth file fails its schema, its chain or its head file.
  6. NO_RUN_END: the event log has no RUN_END.
  7. RUN_END_NOT_COMPLETE: the run ended with PLAN_CHAIN_FAILED, NOT_ARMED or ABORTED.
@@ -37,12 +40,15 @@ from jsonschema import Draft7Validator
 
 from eval import measures, runlog
 from eval.runlog import EVENTS, TRUTH, TRUTH_COMPRESSED, of_type
+from harness.freeze import NotFrozen, frozen_block
 from log.event_log import verify_event_log, verify_truth
 
 ROOT = Path(__file__).resolve().parent.parent
 SET_ASIDE = ROOT / "marks" / "set_aside.yaml"
 INPUTS = "inputs"
 NOT_COMPLETE = ("PLAN_CHAIN_FAILED", "NOT_ARMED", "ABORTED")
+# Glimmer's configurations (CONTRACT.md §11.1), whose servers Claude Code runs and can see working.
+GLIMMER = ("glimmer_modal", "glimmer_local")
 # The answer tool for each kind of ACT answer, as spark_open's adapter names them (M14).
 ACT_TOOLS = {"command": "answer_command", "escalation": "answer_escalation", "none": "answer_none"}
 # RUN_END ERROR's detail, by the forms the harness and its servers write (harness/run.py, harness/launch.py,
@@ -51,6 +57,19 @@ ERROR_KINDS = (("COSMOS refused", "COSMOS_REFUSED"), ("the harness failed", "HAR
                ("ODIN exited", "ODIN_EXITED"), ("ODIN did not exit", "ODIN_DID_NOT_EXIT"),
                ("the log refused", "LOG_REFUSED"), ("the log failed", "LOG_FAILED"),
                ("BALDUR-0 refused", "BALDUR0_REFUSED"), ("BALDUR-0 failed", "BALDUR0_FAILED"))
+
+
+def models_miss(call):
+    """A Glimmer call cut off at its timeout while its server was up and working on it (cause 4): TIMEOUT, as its
+    adapter writes only then, from a Glimmer configuration, having run at least its frozen timeout_s. Cut off
+    sooner, it was not the timeout that stopped it."""
+    if call["config"] not in GLIMMER or call["status"] != "TIMEOUT" or call["latency_s"] is None:
+        return False
+    try:
+        block = frozen_block(call["config"])
+    except NotFrozen:
+        return False
+    return call["latency_s"] >= block["timeout_s"]
 
 
 def cause(name, key, detail, record=None):
@@ -168,7 +187,7 @@ def record_causes(records, bundles=None):
                                    record))
     for record in of_type(records, "MODEL_CALL"):
         status = record["body"]["status"]
-        if status in ("ERROR", "TIMEOUT"):
+        if status in ("ERROR", "TIMEOUT") and not models_miss(record["body"]):
             found.append(cause(f"MODEL_CALL_{status}", f"MODEL_CALL {status}",
                                f"turn {record['body']['turn_id']}, call {record['body']['call_index']}: the model "
                                f"call came back {status}", record))

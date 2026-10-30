@@ -10,6 +10,7 @@ import pytest
 import yaml
 
 import eval.set_aside as aside
+from eval import measures
 from eval import score as scoring
 from eval.results import summarize
 from tests.repo_checks import REPO_ROOT
@@ -94,6 +95,42 @@ def test_red_3_a_run_that_ended_with_error_keyed_by_its_details_kind(detail, kin
 @pytest.mark.parametrize("status", ["ERROR", "TIMEOUT"])
 def test_red_4_a_model_call_that_failed_or_timed_out(status):
     assert keys(clean() + [trigger(3, 960), call(3, 960, status=status), end()]) == [f"MODEL_CALL {status}"]
+
+
+# The Director's ruling of 30 October 2026, "Model's miss if server was working": Glimmer's adapter writes TIMEOUT
+# only for a call cut off at its timeout while the server was up and working on it, and ERROR for a server or network
+# failure. Glimmer's frozen block, with its 60 s timeout, is made up here: it goes into config/models.yaml after M16.
+GLIMMER_BLOCK = {"model": "Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf", "reasoning_effort": "low",
+                 "max_output_tokens": 8192, "timeout_s": 60}
+GLIMMER_CALL = dict(config="glimmer_modal", provider="modal", model_id=GLIMMER_BLOCK["model"],
+                    reasoning_effort="low", max_output_tokens=8192)
+
+
+@pytest.fixture
+def glimmer_frozen(monkeypatch):
+    for module in (aside, measures):
+        monkeypatch.setattr(module, "frozen_block", lambda config: GLIMMER_BLOCK)
+
+
+def glimmer_run(*more):
+    """clean(), flown by Glimmer on Modal, then the records given and RUN_END."""
+    records = [record("RUN_START", 0, run_id="PH3-TEST", model_config="glimmer_modal", provider="modal", phase=3,
+                      mode="SCORED")] + clean()[1:] + list(more) + [end()]
+    return [dict(r, body={**r["body"], **GLIMMER_CALL}) if r["type"] == "MODEL_CALL" else r for r in records]
+
+
+def test_red_4_a_glimmer_call_cut_off_at_its_timeout_while_its_server_worked_is_the_models_miss(glimmer_frozen):
+    cut_off = glimmer_run(trigger(3, 960), call(3, 960, status="TIMEOUT", latency_s=60.4))
+    assert keys(cut_off) == []
+    assert measures.loop_health(cut_off)["timeouts"] == 1     # counted under loop health, like a malformed answer
+
+
+def test_red_4_a_glimmer_server_or_network_failure_stays_ours(glimmer_frozen):
+    def found(status, latency_s):
+        return keys(glimmer_run(trigger(3, 960), call(3, 960, status=status, latency_s=latency_s)))
+    assert found("ERROR", 0.3) == ["MODEL_CALL ERROR"]       # refused, reset or unreachable
+    assert found("ERROR", 61.0) == ["MODEL_CALL ERROR"]      # the proxy's 502 after a minute: the server failed
+    assert found("TIMEOUT", 12.0) == ["MODEL_CALL TIMEOUT"]  # cut off before its timeout: not the timeout's doing
 
 
 def run_folder(tmp_path):
