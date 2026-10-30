@@ -979,6 +979,18 @@ CASES = {"s0": [
      change_file("harness/phase3.py", replace_once(
          b'                raise SealBroken(f"{label} names plan {plan}, which is not sealed")\n',
          b"                continue\n"))),
+    # S9, piece 2: the core feeds (CONTRACT.md §6.5).
+    ("the station receiver reporting at its changes only, not each minute in contact",
+     "tests/test_s9_feeds.py::test_red_a_pass_reports_the_receiver_at_acquisition_and_each_minute_and_the_beacon_each_minute",
+     change_file("wrapper/feeds.py", replace_once(b"        if changed or met_s % EVERY_S == 0:", b"        if changed:"))),
+    ("a feed report delivered out of contact or in the silent pre-roll",
+     "tests/test_s9_feeds.py::test_red_nothing_is_reported_out_of_contact_or_in_the_silent_pre_roll",
+     change_file("wrapper/feeds.py", replace_once(b"        if pre_roll or not self.in_contact(met_s):\n            return []",
+                                                  b"        if False:\n            return []"))),
+    ("a failed receiver chain reported as FAULT",
+     "tests/test_s9_feeds.py::test_red_a_failed_receiver_chain_shows_as_no_signal_never_fault_and_hears_no_beacon",
+     change_file("wrapper/feeds.py", replace_once(b'status = "LOCKED" if heard else "NO_SIGNAL"',
+                                                  b'status = "LOCKED" if heard else "FAULT"'))),
 ], "freeze": [
     ("one changed byte in ODIN's frozen instructions (U54)",
      "tests/test_s6_instructions.py::test_the_files_on_disk_are_the_frozen_ones_the_director_accepted",
