@@ -977,7 +977,7 @@ CASES = {"s0": [
          b'and a["outcome"] == outcome_by(records, served_at(records, index)).get(shed["request_id"])',
          b'and a["outcome"] == "ACCEPTED"'))),
 ], "phase3": [
-    ("a fourth hash in the seal",
+    ("one hash too many in the seal",
      "tests/test_phase3_seal.py::test_the_seal_holds_the_seal_in_force_the_first_beside_it_and_the_checks_seal",
      change_file("phase3/SEAL.md", replace_once(b"Nothing changes once the runs start.\n",
                                                 b"Nothing changes once the runs start.\nsha256:" + b"ab" * 32 + b"\n"))),
@@ -1096,6 +1096,9 @@ CASES = {"s0": [
      "tests/test_s9_phase3_scoring.py::test_the_checks_seal_is_its_own_entry_in_seal_md_apart_from_the_scenarios",
      change_file("eval/phase3.py", replace_once(b"found = HASH.findall(text[at:]) if at >= 0 else []",
                                                 b"found = HASH.findall(text)"))),
+    ("the checks read under their first seal, not the one in force (S9, E's check, 30 October 2026)",
+     "tests/test_s9_phase3_scoring.py::test_the_checks_seal_is_its_own_entry_in_seal_md_apart_from_the_scenarios",
+     change_file("eval/phase3.py", replace_once(b"    return found[0]\n", b"    return found[-1]\n"))),
     ("checks whose manifest is not their seal read anyway (S9, 30 October 2026)",
      "tests/test_s9_phase3_scoring.py::test_red_checks_that_match_their_seal_are_read_and_others_are_refused",
      change_file("eval/phase3.py", replace_once(b"    if found != expected:\n", b"    if False:\n"))),

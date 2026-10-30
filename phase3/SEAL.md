@@ -24,10 +24,20 @@ A change found necessary before the held-out runs start means a new seal, report
 
 ## The scoring checks' seal, of 30 October 2026
 
-S8's phase-3 checks are sealed as the scenarios are, and kept apart from them (the Director's ruling of 28 October 2026): built outside the repository from the approved phase-3 document and the scoring ruling, with their tests and their red cases, and checked end to end on the sealed scenarios by the scripted stand-in alone. Only this hash is in the repository before the held-out runs, so the scoring is fixed before any held-out result exists. The files are committed after the runs, with the scenarios, and checked against it then.
+S8's phase-3 checks are sealed as the scenarios are, and kept apart from them (the Director's ruling of 28 October 2026): built outside the repository from the approved phase-3 document and the scoring ruling, with their tests and their red cases, and checked end to end on the sealed scenarios by the scripted stand-in alone. Only their hashes are in the repository before the held-out runs, so the scoring is fixed before any held-out result exists. The files are committed after the runs, with the scenarios, and checked against the checks' seal in force then.
+
+The checks' seal in force, made the same day when E's check was added, by the Director's ruling of 30 October 2026 ("Seal E's check now; fly E after A–D if time allows"):
+
+```
+sha256:6edb98286aac5fdd7687d84a0d2cf1a1188fc46dee05f8ae02b9797ec6eaa32d
+```
+
+The checks' first seal, kept beside it:
 
 ```
 sha256:fe3af633dae31c5304d932317806c0b45043e5588d0e8c575d22432ce996d901
 ```
 
-It is the SHA-256 of the checks' own `MANIFEST.sha256`, as for the scenarios. S8 reads the checks only after their manifest hashes to it, every file it lists matches, and their folder holds nothing it does not list (`eval/phase3.py`).
+Each is the SHA-256 of the checks' own `MANIFEST.sha256`, as for the scenarios. S8 reads the checks only after their manifest hashes to the seal in force, the first hash under this heading, every file it lists matches, and their folder holds nothing it does not list (`eval/phase3.py`).
+
+The second seal adds E's check, its test and its red cases, and changes nothing else. The held-out script that compares the two seals, run on the first seal's files, kept read-only, and the new ones, found exactly that: "the new seal adds only E's check, its test and its red cases", every earlier line kept in order and the manifest's every entry its file's hash. Its self-test refused six planted changes. The stand-in flew E end to end on its sealed files before the seal, and E's check found it a success. All of this came before any held-out run.
