@@ -11,10 +11,11 @@ SEAL = FOLDER / "SEAL.md"
 HASH = re.compile(r"\bsha256:[0-9a-f]{64}\b")
 IN_FORCE = "sha256:bc8ae4ace8a100486cc9b11bad17a4e818893e9d1363e3fc9eb4db4fabf6350e"   # 29 October 2026
 FIRST = "sha256:5d92af90e06031d9f6db889779e27c598766c0074cc1b635692c42431b9ea330"   # 28 October 2026, a20ad3f
+CHECKS = "sha256:fe3af633dae31c5304d932317806c0b45043e5588d0e8c575d22432ce996d901"   # S8's phase-3 checks, 30 October 2026
 
 
-def test_the_seal_holds_the_seal_in_force_and_the_first_beside_it():
-    assert HASH.findall(SEAL.read_text(encoding="utf-8")) == [IN_FORCE, FIRST]
+def test_the_seal_holds_the_seal_in_force_the_first_beside_it_and_the_checks_seal():
+    assert HASH.findall(SEAL.read_text(encoding="utf-8")) == [IN_FORCE, FIRST, CHECKS]
 
 
 def test_the_seal_names_no_scenario_and_no_plan():

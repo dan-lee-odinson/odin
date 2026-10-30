@@ -3,6 +3,7 @@
     python -m eval.score runs/scored/<run_id>             one run, as JSON
     python -m eval.score --summary runs/scored/<run_id>... the results table over several phase-2 runs
     python -m eval.score --sheet runs/scored/<run_id>     lay out a phase-1 run's marking sheet (U61)
+    python -m eval.score --held-out <folder> runs/...     a phase-3 run, by S8's sealed checks in <folder>/checks
 
 Each run's pass is the plan its log names; scores come from its event log and truth file alone. A phase-1 run's
 results carry the Director's marks from its sheet in marks/phase1/, apart from what S8 scores. A scored run of
@@ -12,17 +13,19 @@ of 29 October 2026); a development run never is.
 
 import json
 import sys
+from pathlib import Path
 
 import eval.set_aside as aside
 from eval import phase1, runlog
+from eval.phase3 import load_checks
 from eval.results import score_phase_1, score_run, summarize
 
 
-def score(folder, set_aside_path=None):
+def score(folder, set_aside_path=None, checks=None):
     run_start = next(r["body"] for r in runlog.events(folder) if r["type"] == "RUN_START")
     if run_start["phase"] == 1:
         return score_phase_1(folder)
-    run = score_run(folder)
+    run = score_run(folder, checks=checks)
     if run_start["mode"] == "SCORED" and aside.mark(run["run_id"], run_start["phase"], run.get("set_aside"),
                                                     set_aside_path):
         print(f"{run['run_id']} set aside by S8, written into marks/set_aside.yaml", file=sys.stderr)
@@ -44,12 +47,14 @@ def write_sheet(folder):
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     summary = "--summary" in argv
-    folders = [a for a in argv if a not in ("--summary", "--sheet")]
+    held_out = argv[argv.index("--held-out") + 1] if "--held-out" in argv else None
+    folders = [a for a in argv if a not in ("--summary", "--sheet", "--held-out", held_out)]
     if not folders:
         sys.exit(__doc__)
     if "--sheet" in argv:
         return max(write_sheet(folder) for folder in folders)
-    runs = [score(folder) for folder in folders]
+    checks = load_checks(Path(held_out) / "checks") if held_out else None
+    runs = [score(folder, checks=checks) for folder in folders]
     if summary:
         print(json.dumps({f"{p} {m}": row for (p, m), row in summarize(runs).items()}, indent=2, default=str))
     else:
