@@ -4,6 +4,7 @@ measured wall-clock time before BALDUR-0's dispatch recheck, and quiet stretches
 time."""
 
 import threading
+import time
 
 import pytest
 
@@ -125,12 +126,15 @@ def test_red_a_charge_with_the_clock_running_is_refused():
         clock.charge(2.0)
 
 
-def test_switching_to_real_time_starts_pacing_afresh_with_no_catch_up():
+def test_red_switching_to_real_time_paces_from_the_switch_with_no_catch_up():
+    # The tick that switches is real time's first, so the next comes a full tick after it (31 October 2026); the wall
+    # time that passed while charged is never caught up.
     fake = FakeWall()
     clock = RunClock(simulator(), until_met_s=50, pacing="CHARGED", wall=fake.wall, sleep=fake.sleep)
-    switched = {}
+    switched, stepped = {}, {}
 
     def on_tick(frame):
+        stepped[clock.met_s] = fake.now
         if clock.met_s == 29 and not switched:
             fake.now += 500.0   # wall time that passed while charged
             clock.set_pacing("REAL_TIME")
@@ -139,4 +143,72 @@ def test_switching_to_real_time_starts_pacing_afresh_with_no_catch_up():
     clock.on_tick = on_tick
     clock.run()
     assert clock.met_s == 49
-    assert fake.now - switched["at"] == pytest.approx(20.0)
+    assert [stepped[met] - switched["at"] for met in range(30, 50)] == pytest.approx([float(n) for n in range(1, 21)])
+
+
+# A charge that lands on a seat's boundary (31 October 2026): in a phase-3 run, an onboard turn's charge stepped the
+# tick of an acquisition of signal, whose switch to real time let the clock run on at once; it stepped the next tick
+# while the ground seat was still waiting for COSMOS to show the first, and that frame was lost. Here the tick at 130
+# switches as the harness's seat schedule does, then waits as the ground seat waits for COSMOS.
+
+def a_turn_charged_into_real_time(rate, wait_s):
+    """A charged clock paused for a turn at 120, whose tick at 130 switches it to real time and then waits wait_s.
+    Returns the clock and what each tick saw: {met_s: (wall time stepped, met_s once its work was done)}."""
+    seen, holder = {}, {}
+
+    def on_tick(frame):
+        clock, met = holder["clock"], holder["clock"].met_s
+        stepped = time.monotonic()
+        if met == 120:
+            clock.pause()
+            holder["paused"].set()
+        if met == 130:
+            clock.set_pacing("REAL_TIME")
+            time.sleep(wait_s)
+        seen[met] = (stepped, clock.met_s)
+
+    holder["paused"] = threading.Event()
+    clock = holder["clock"] = RunClock(simulator(), until_met_s=1000, pacing="CHARGED", rate=rate, on_tick=on_tick)
+    clock.start()
+    assert holder["paused"].wait(5)
+    return clock, seen
+
+
+def until(seen, met_s, within=5.0):
+    deadline = time.monotonic() + within
+    while met_s not in seen and time.monotonic() < deadline:
+        time.sleep(0.01)
+    return met_s in seen
+
+
+def test_red_a_charge_that_lands_on_the_switch_holds_the_clock_until_that_tick_is_done():
+    clock, seen = a_turn_charged_into_real_time(rate=10.0, wait_s=0.3)   # the wait longer than a tick
+    try:
+        assert clock.charge(10.0) == 10
+        assert seen[130][1] == 130   # nothing stepped while the switching tick waited
+        assert until(seen, 131)
+    finally:
+        clock.stop()
+
+
+def test_red_the_tick_after_a_charge_crosses_into_real_time_comes_a_full_tick_later():
+    clock, seen = a_turn_charged_into_real_time(rate=2.0, wait_s=0.05)   # a tick of 0.5 s
+    try:
+        assert clock.charge(10.0) == 10
+        assert until(seen, 132)
+        assert seen[131][0] - seen[130][0] >= 0.45
+        assert seen[132][0] - seen[131][0] >= 0.45
+    finally:
+        clock.stop()
+
+
+def test_red_a_turn_charged_across_the_switch_is_charged_only_up_to_it():
+    # A long turn: its time would run 30 ticks past the boundary, which the new pacing does not charge.
+    clock, seen = a_turn_charged_into_real_time(rate=10.0, wait_s=0.0)
+    try:
+        assert clock.charge(40.0) == 10
+        assert clock.met_s == 130
+        assert until(seen, 133)
+        assert all(seen[met + 1][0] - seen[met][0] >= 0.08 for met in (130, 131, 132))
+    finally:
+        clock.stop()

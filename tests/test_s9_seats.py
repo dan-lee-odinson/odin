@@ -7,6 +7,8 @@ Flown here on a made-up chain of two short contacts of P3's pass against tests/f
 in-process as ODIN's loop takes them: none of it is a held-out scenario."""
 
 import json
+import time
+from datetime import datetime
 
 import pytest
 
@@ -15,13 +17,14 @@ from tests.harness_world import HarnessWorld
 from tests.test_s5_connector import RATE, cosmos, free_port  # noqa: F401  (the fake COSMOS fixture)
 
 SEATS = [(800, 830, "GROUND", "REAL_TIME"), (830, 900, "ONBOARD", "CHARGED"), (900, 940, "GROUND", "REAL_TIME")]
+AOS = 900   # the second contact's acquisition of signal, where the onboard seat hands back to the ground seat
 
 
 def seat_at(met_s):
     return next(seat for start, end, seat, _ in SEATS if start <= met_s < end)
 
 
-def fly(tmp_path, cosmos, seats=SEATS):
+def fly(tmp_path, cosmos, seats=SEATS, on_served=None):
     _, api, link_at = cosmos
     harness = HarnessWorld(tmp_path)
     plans = harness.world.plans([
@@ -38,9 +41,37 @@ def fly(tmp_path, cosmos, seats=SEATS):
             if json.loads(data).get("run_complete"):
                 break
             served.append(json.loads(data))
+            if on_served is not None:
+                on_served(run, served[-1])
     finally:
         run.stop()
     return run, served
+
+
+def charged_onto_the_acquisition(past_s):
+    """The first onboard turn, measured as having taken long enough for its charge to reach AOS and run past_s ticks
+    beyond it: the turn's time, which the harness measures from the bundle served, set back to that."""
+    def on_served(run, bundle):
+        if bundle["seat"] == "ONBOARD" and not hasattr(run, "charged_from"):
+            run.charged_from = bundle["met_s"]
+            run._served_at = time.monotonic() - (AOS - bundle["met_s"] + past_s - 0.5)
+    return on_served
+
+
+# The Director's ruling of 31 October 2026: in a phase-3 run, an onboard turn's charge stepped the acquisition's tick,
+# whose switch to real time let the clock step the next while the ground seat waited for COSMOS to show the first, and
+# the first was lost. A charge onto the acquisition, and a long turn's charge across it, now stop there; the ground
+# seat then runs in real time from that tick, and no frame is lost.
+@pytest.mark.parametrize("past_s", [0, 20], ids=["landing on the acquisition", "a long turn across it"])
+def test_red_a_charge_onto_the_acquisition_loses_no_frame_and_the_ground_seat_runs_in_real_time(tmp_path, cosmos,
+                                                                                                 past_s):
+    run, _ = fly(tmp_path, cosmos, on_served=charged_onto_the_acquisition(past_s))
+    assert run.charged_from < AOS
+    truth = [json.loads(line) for line in (run.folder / "truth.jsonl").read_bytes().splitlines()]
+    assert [r for r in truth if r["type"] == "GROUND_MISSED"] == []
+    stepped = {r["met_s"]: datetime.fromisoformat(r["utc"].replace("Z", "+00:00")) for r in truth
+               if r["type"] == "TRUE_STATE"}
+    assert all((stepped[met + 1] - stepped[met]).total_seconds() >= 0.8 / RATE for met in range(AOS, AOS + 5))
 
 
 def test_red_the_run_switches_seat_and_pacing_at_each_boundary_of_its_schedule(tmp_path, cosmos):

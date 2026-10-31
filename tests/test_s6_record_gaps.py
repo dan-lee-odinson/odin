@@ -4,6 +4,7 @@ so as RUN_END's detail, where before they left nothing in the record. A tool cal
 model's own arguments is the model's, and the run goes on."""
 
 import json
+import time
 import urllib.error
 import urllib.request
 
@@ -76,4 +77,10 @@ def test_red_a_handler_failure_nobody_foresaw_ends_the_run_with_error(flying, mo
 
 def test_a_tool_call_refused_for_the_models_own_arguments_does_not_end_the_run(flying):
     assert get(flying.url("harness") + "/history?points=NOT_A_POINT&window_s=0") == 400
-    assert flying.failed is None and records(flying, "RUN_END") == []
+    # The handler's reply comes before anything it does after it, so the run is watched a while, not read once: read
+    # once, a full dry run of 31 October 2026 missed the made-up failure after the reply.
+    watched_until = time.monotonic() + 0.5
+    while time.monotonic() < watched_until:
+        assert flying.failed is None
+        time.sleep(0.02)
+    assert records(flying, "RUN_END") == []

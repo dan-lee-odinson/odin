@@ -171,6 +171,7 @@ class Run:
         self.link = None
         self._ground_count = self._sent_seen = 0
         self._awaited = set()   # the METs of frames the link sent that the ground seat has not yet received
+        self._shown_met = None   # the newest frame's CDH_MET that COSMOS has shown the ground seat
         self.simulator = None
         self.clock = None
         self.turn_id = 0
@@ -216,18 +217,24 @@ class Run:
     def _ground_frame(self, met):
         """In the ground seat, the frame COSMOS received since the last tick, as COSMOS decommutated it, or None.
         When the link sent a frame on this tick, COSMOS is given up to GROUND_WAIT_S to show it. Only packets
-        counted after the run started are its own; COSMOS keeps its counts from earlier runs."""
+        counted after the run started are its own; COSMOS keeps its counts from earlier runs. A frame COSMOS
+        has already shown, while an earlier tick waited, is the seat's: it is neither awaited nor waited for
+        (the Director's ruling of 31 October 2026)."""
         sent = self.link.counts["SENT"] > self._sent_seen
         self._sent_seen = self.link.counts["SENT"]
-        if sent:
+        awaited = sent and (self._shown_met is None or met > self._shown_met)
+        if awaited:
             self._awaited.add(met)
-        deadline = time.monotonic() + (GROUND_WAIT_S if sent else 0)
+        deadline = time.monotonic() + (GROUND_WAIT_S if awaited else 0)
         while True:
             packet = self.cosmos.packet()
             if packet["received_count"] > self._ground_count:
                 self._ground_count = packet["received_count"]
                 self.store.receive(packet["frame"], packet["received_utc"], met)
-                self._missed(met, packet["frame"].get("CDH_MET"))
+                shown = packet["frame"].get("CDH_MET")
+                if shown is not None and (self._shown_met is None or shown > self._shown_met):
+                    self._shown_met = shown
+                self._missed(met, shown)
                 return packet["frame"]
             if time.monotonic() >= deadline:
                 self._missed(met, None)

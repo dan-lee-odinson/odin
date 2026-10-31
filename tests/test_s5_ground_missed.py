@@ -2,6 +2,7 @@
 not count it as received; and it sets the run aside, LINK_LOST (the Director's word of 30 October 2026). Against
 tests/fake_cosmos.py, as S5's other tests are."""
 
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -97,6 +98,39 @@ def test_a_frame_shown_or_still_awaited_is_not_missed():
     assert written == [] and seat._awaited == {901}
     Run._missed(seat, 901 + harness_run.MISSED_AFTER_S, None)
     assert [b["how"] for _, b in written] == ["NOT_SHOWN"] and seat._awaited == set()
+
+
+def test_red_a_frame_cosmos_showed_while_an_earlier_tick_waited_is_the_seats(monkeypatch):
+    # The Director's ruling of 31 October 2026: two frames reached COSMOS before the first one's tick had looked, so it
+    # showed the newer, which the seat then had. Only the older is missed; the newer is neither awaited again, to be
+    # written as missed once a later frame is shown, nor waited for.
+    monkeypatch.setattr(harness_run, "GROUND_WAIT_S", 0.3)
+    seat, written = awaiting()
+    link, showing, pending, received = SimpleNamespace(counts={"SENT": 0}), {"received_count": 0}, [], []
+
+    def send(met):   # the link sends met's frame, and COSMOS shows it
+        link.counts["SENT"] += 1
+        showing.update(received_count=showing["received_count"] + 1, frame={"CDH_MET": met},
+                       received_utc="2026-07-29T14:00:00Z")
+
+    def packet():
+        while pending:   # the clock stepped on while this tick waited
+            send(pending.pop())
+        return dict(showing)
+
+    vars(seat).update(link=link, cosmos=SimpleNamespace(packet=packet), _sent_seen=0, _ground_count=0, _shown_met=None,
+                      store=SimpleNamespace(receive=lambda frame, utc, met: received.append(frame["CDH_MET"])),
+                      _missed=lambda met, shown: Run._missed(seat, met, shown))
+    send(900)
+    pending.append(901)
+    assert Run._ground_frame(seat, 900)["CDH_MET"] == 901
+    started = time.monotonic()
+    assert Run._ground_frame(seat, 901) is None
+    assert time.monotonic() - started < 0.15
+    send(902)
+    assert Run._ground_frame(seat, 902)["CDH_MET"] == 902
+    assert [b for _, b in written] == [{"frame_met_s": 900, "noticed_met_s": 900, "how": "SUPERSEDED"}]
+    assert seat._awaited == set() and received == [901, 902]
 
 
 def test_s8_does_not_count_a_missed_frame_as_received():

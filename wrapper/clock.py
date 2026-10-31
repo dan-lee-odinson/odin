@@ -12,6 +12,11 @@ calls charge() with the turn's measured time when the turn ends.
 
 on_tick(frame) runs after every tick, in whichever thread stepped it. met_s is the MET of the newest
 tick, the clock BALDUR-0 and the logs read.
+
+A switch of pacing comes from the tick that crosses a seat's boundary, inside on_tick, and that tick is the
+new pacing's first: in real time the next comes a full tick later. When the tick is one of a turn's charge,
+the charge stops there, and the clock runs on only once that tick's work is done (the Director's ruling of
+31 October 2026, on the frame a phase-3 run lost when a charge landed on an acquisition of signal).
 """
 
 import math
@@ -37,6 +42,7 @@ class RunClock:
         self._pacing = pacing
         self._paused = False
         self._stopped = False
+        self._charging = False
         self._turn = threading.Lock()
         self._changed = threading.Condition()
         self._thread = None
@@ -62,13 +68,18 @@ class RunClock:
         return self
 
     def run(self):
-        """Step until the run ends or stop() is called."""
+        """Step until the run ends or stop() is called. A clock let go from a pause into real time keeps pace
+        before its first tick, since the tick before it was stepped by a charge that crossed into real time."""
         while True:
             with self._changed:
+                waited = False
                 while self._paused and not self._stopped:
                     self._changed.wait()
+                    waited = True
                 if self._stopped or self.finished:
                     return
+            if waited and self._pacing == "REAL_TIME" and self._keep_pace():
+                continue   # slept until the tick is due: look again before stepping it
             self._tick()
             if self._pacing == "REAL_TIME":
                 self._keep_pace()
@@ -84,14 +95,17 @@ class RunClock:
         self._thread.join(timeout)
 
     def set_pacing(self, pacing):
-        """Change pacing, at loss or acquisition of signal in phase 3."""
+        """Change pacing, at loss or acquisition of signal in phase 3, from the tick that crosses it: that tick
+        is the new pacing's first, so in real time the next comes a full tick after it. A switch made by a tick
+        of a charge leaves the clock paused; the charge stops there and lets it run on (charge())."""
         if pacing not in PACINGS:
             raise ValueError(f"pacing {pacing!r} is not one of {PACINGS}")
         with self._changed:
             self._pacing = pacing
-            self._paused = False
-            self._restart_pacing()
-            self._changed.notify_all()
+            self._restart_pacing(after_tick=True)
+            if not self._charging:
+                self._paused = False
+                self._changed.notify_all()
 
     # -- a turn in the onboard seat ------------------------------------------------------------
 
@@ -105,19 +119,31 @@ class RunClock:
     def charge(self, wall_seconds):
         """Advance the paused simulator by the turn's measured wall-clock time, rounded up to whole
         ticks so that it is never less, and leave it paused for BALDUR-0's recheck. Returns the ticks
-        stepped."""
+        stepped.
+
+        A tick of the charge that switches the pacing (set_pacing, from on_tick) ends it there: the rest of the
+        turn's time is not charged to the new pacing, and once that tick's work is done the clock runs on in it
+        (the Director's ruling of 31 October 2026)."""
         with self._changed:
             if not self._paused:
                 raise RuntimeError("charge() is for a paused clock")
+            self._charging = True
         # By the Director's ruling on U37 (27 October 2026): (a) the charge is rounded up to whole
         # ticks; (b) quiet stretches run as fast as the simulator steps; (c) a turn's time runs from
         # the bundle served to BALDUR-0's receipt of the request, or to ODIN's next request for a turn
         # when it sends none. The harness measures (c) and passes it here.
         ticks = math.ceil(wall_seconds / self.simulator.spacecraft.dt)
         stepped = 0
-        while stepped < ticks and not self.finished:
-            self._tick()
-            stepped += 1
+        try:
+            while stepped < ticks and not self.finished and self._pacing == "CHARGED":
+                self._tick()
+                stepped += 1
+        finally:
+            with self._changed:
+                self._charging = False
+                if self._pacing != "CHARGED":
+                    self._paused = False
+                    self._changed.notify_all()
         return stepped
 
     def resume(self):
@@ -134,11 +160,16 @@ class RunClock:
         if self.on_tick is not None:
             self.on_tick(frame)
 
-    def _restart_pacing(self):
-        self._paced_from = (self._wall(), self.simulator.spacecraft.t_s)
+    def _restart_pacing(self, after_tick=False):
+        """Pace from now. after_tick: from a tick just stepped, which counts as paced, so the next is a tick
+        away; otherwise the next tick is due now."""
+        t0 = self.simulator.spacecraft.t_s - (self.simulator.spacecraft.dt if after_tick else 0)
+        self._paced_from = (self._wall(), t0)
 
     def _keep_pace(self):
+        """Sleep until the next tick is due. Returns whether it slept."""
         wall0, t0 = self._paced_from
         gap = wall0 + (self.simulator.spacecraft.t_s - t0) / self.rate - self._wall()
         if gap > 0:
             self._sleep(gap)
+        return gap > 0
