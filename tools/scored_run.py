@@ -23,7 +23,10 @@ as in phase 2, and check and go need --held-out, the held-out folder outside the
 read from it at run time, once it checks against the seals (harness/phase3.py), so nothing here names a scenario or
 holds any of its values: the sealed scenario, its seats, faults and feeds; its plans as signed, each the sealed plan's
 bytes with its .sig beside it in plans-to-sign/; the arming act in acts/ that names the run; and, where the scenario
-scripts a revocation, the restore act signed in advance for the run, acts/RST-PH3-<label>-<arm>-R<n>.yaml.
+scripts a revocation, the restore act signed in advance for the run, acts/RST-PH3-<label>-<arm>-R<n>.yaml. Runs R1 to
+R5 fly under the scenario's act, acts/ARM-PH3-<label>.yaml. A re-fly, R6 to R9, flies under an act of its own that
+names only it, acts/ARM-PH3-<label>-<arm>-R<n>.yaml, as phase 1's re-flies did (the Director's rulings of 31 October
+2026).
 RUN_START's seed is the scenario's own HUGINN seed. A scenario with an onboard seat starts ODIN with Glimmer on Modal
 beside the arm's model (M17; the Director's ruling of 29 October 2026), and go first keeps Glimmer's endpoint warm
 (tools/glimmer_modal.py warm), so no cold start lands in a turn; tools/glimmer_modal.py cold lets it scale to zero
@@ -98,7 +101,7 @@ STOPS = {"spark": ("META_CREDIT", 125.0, "Meta"), "spark_open": ("BASETEN_CREDIT
 # Phase 3: the runs the held-out arming acts name. The onboard seat's model is Glimmer on Modal (the Director's ruling
 # of 29 October 2026), on the endpoint its frozen block names. Its proxy key and secret go to ODIN; Modal's own token
 # goes only to tools/glimmer_modal.py.
-PH3_RUN = re.compile(r"PH3-(H\d\d)-(SPARK|OPEN)-R([1-5])")
+PH3_RUN = re.compile(r"PH3-(H\d\d)-(SPARK|OPEN)-R([1-9])")
 ONBOARD_PH3 = "glimmer_modal"
 GLIMMER_GPU = "h100"
 ONBOARD_KEYS = ("ODIN_MODAL_PROXY_KEY", "ODIN_MODAL_PROXY_SECRET")
@@ -133,7 +136,7 @@ class Phase3:
         self.scenario = held.scenario(label)
         self.seed = yaml.safe_load(held.files[f"{label}.scenario.yaml"])["huginn"]["seed"]
         self.model = ARMS[arm]
-        self.act = folder / "acts" / f"ARM-PH3-{label}.yaml"
+        self.act = folder / "acts" / (f"ARM-PH3-{label}.yaml" if n <= 5 else f"ARM-PH3-{label}-{arm}-R{n}.yaml")
         if run_id not in yaml.safe_load(self.act.read_bytes())["runs"]:
             raise ValueError(f"{self.act.name} does not name {run_id}")
         self.plans = []

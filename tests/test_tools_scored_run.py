@@ -127,8 +127,9 @@ def test_a_phase_3_run_flies_its_sealed_scenario_as_signed_on_its_arm(tmp_path):
     assert (run.seats, run.onboard, run.revocation) == ([(0, 6900, "GROUND", "REAL_TIME")], None, None)
     assert scored_run.make_run("PH3-H90-OPEN-R2", folder, seal=seal).config["model_config"] == "spark_open"
     assert scored_run.Phase3("PH3-H90-SPARK-R1", folder, seal=seal).timeout_s() == 6900 - 0 + 900
-    assert [scored_run.phase3_of(r) for r in ("PH3-H90-OPEN-R5", "PH3-H90-OPEN-R6", "PH2-PASS1-SPARK-R1")] == [
-        ("H90", "OPEN", 5), None, None]
+    assert [scored_run.phase3_of(r) for r in ("PH3-H90-OPEN-R5", "PH3-H90-OPEN-R6", "PH3-H90-OPEN-R9",
+                                              "PH3-H90-OPEN-R10", "PH3-H90-OPEN-R0", "PH2-PASS1-SPARK-R1")] == [
+        ("H90", "OPEN", 5), ("H90", "OPEN", 6), ("H90", "OPEN", 9), None, None, None]
 
 
 def test_red_a_signed_plan_that_is_not_the_sealed_bytes_refuses_the_run(tmp_path):
@@ -143,6 +144,21 @@ def test_red_a_run_its_arming_act_does_not_name_is_refused(tmp_path):
     folder, seal = held_out(tmp_path, runs=("PH3-H90-SPARK-R1",))
     with pytest.raises(ValueError, match="does not name PH3-H90-SPARK-R2"):
         scored_run.make_run("PH3-H90-SPARK-R2", folder, seal=seal)
+
+
+def test_red_a_re_fly_flies_under_the_arming_act_of_its_own(tmp_path):
+    # The Director's rulings of 31 October 2026: a re-fly, R6 to R9, is armed by an act that names only it, as phase
+    # 1's re-flies were. The scenario's act never arms it, even one that names it.
+    folder, seal = held_out(tmp_path, runs=("PH3-H90-SPARK-R1", "PH3-H90-SPARK-R6"))
+    own = folder / "acts" / "ARM-PH3-H90-SPARK-R6.yaml"
+    with pytest.raises(FileNotFoundError):
+        scored_run.make_run("PH3-H90-SPARK-R6", folder, seal=seal)
+    own.write_text(yaml.safe_dump({"runs": ["PH3-H90-SPARK-R7"]}), encoding="utf-8")
+    with pytest.raises(ValueError, match="ARM-PH3-H90-SPARK-R6.yaml does not name PH3-H90-SPARK-R6"):
+        scored_run.make_run("PH3-H90-SPARK-R6", folder, seal=seal)
+    own.write_text(yaml.safe_dump({"runs": ["PH3-H90-SPARK-R6"]}), encoding="utf-8")
+    assert scored_run.make_run("PH3-H90-SPARK-R6", folder, seal=seal).act_path == own
+    assert scored_run.make_run("PH3-H90-SPARK-R1", folder, seal=seal).act_path == folder / "acts" / "ARM-PH3-H90.yaml"
 
 
 def test_red_an_onboard_seat_brings_glimmer_on_modal_beside_the_arms_model(tmp_path):

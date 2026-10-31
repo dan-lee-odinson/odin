@@ -170,6 +170,14 @@ CASES = {"s0": [
      "tests/test_tools_scored_run.py::test_red_the_launcher_refuses_a_phase_3_run_while_a_stop_stands",
      change_file("tools/scored_run.py", replace_once(b'    if stopped:\n        print(f"refused',
                                                      b'    if False:\n        print(f"refused'))),
+    ("phase 3's launcher taking runs R1 to R5 only, so no re-fly can fly (31 October 2026)",
+     "tests/test_tools_scored_run.py::test_a_phase_3_run_flies_its_sealed_scenario_as_signed_on_its_arm",
+     change_file("tools/scored_run.py", replace_once(b'-R([1-9])")', b'-R([1-5])")'))),
+    ("a phase-3 re-fly armed by the scenario's act, not the act of its own (31 October 2026)",
+     "tests/test_tools_scored_run.py::test_red_a_re_fly_flies_under_the_arming_act_of_its_own",
+     change_file("tools/scored_run.py", replace_once(
+         b'(f"ARM-PH3-{label}.yaml" if n <= 5 else f"ARM-PH3-{label}-{arm}-R{n}.yaml")',
+         b'f"ARM-PH3-{label}.yaml"'))),
 ], "s1": [
     ("a good answer example with the payload state set to STANDBY",
      "tests/test_s1_schemas.py::test_good_example_validates[answer/good-command-payload.json]",
