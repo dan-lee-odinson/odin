@@ -10,6 +10,11 @@ Modal-Secret headers of a proxy-auth token. One endpoint per GPU, so each can be
 flies. Each scales to zero when idle, and is kept warm only while a run needs it, so a cold start never lands inside
 a turn.
 
+Each endpoint runs one container at most, and a container takes no call until its model has loaded (the Director's
+ruling of 31 October 2026, "The two settings only"). Modal routes calls to a web server as soon as its port accepts a
+connection, and llama.cpp opens its port before the model has loaded, answering 503 until then; so the start-up code
+returns only once llama.cpp's health check answers 200. Neither changes what the model is sent or what it answers.
+
 Keys and tokens come from environment variables only, never from a file: Modal's own client reads MODAL_TOKEN_ID and
 MODAL_TOKEN_SECRET, and the proxy-auth token is ODIN_MODAL_PROXY_KEY and ODIN_MODAL_PROXY_SECRET. Nothing here prints
 or writes any of them.
@@ -43,6 +48,7 @@ WEIGHTS_DIR = "/weights"
 PORT = 8080
 CONTEXT = 131072   # the model's own context; one slot (-np 1), so one request has all of it
 IDLE_S = 120       # seconds a container stays up after its last request before scaling to zero
+STARTUP_S = 900    # seconds a container may take to load the model: the startup_timeout Modal is given below
 FUNCTIONS = {"h100": "serve_h100", "a100-80gb": "serve_a100_80gb", "h200": "serve_h200"}
 
 app = modal.App(APP_NAME)
@@ -69,14 +75,31 @@ def download():
     return {"file": FILENAME, "bytes": os.path.getsize(path), "sha256": digest.hexdigest()}
 
 
+def wait_until_loaded(url, timeout_s=STARTUP_S, sleep=time.sleep, monotonic=time.monotonic):
+    """Return once llama.cpp's health check answers 200, its model loaded; until then it refuses the connection while
+    starting, or answers 503 while loading (the Director's ruling of 31 October 2026)."""
+    deadline = monotonic() + timeout_s
+    while True:
+        try:
+            with urllib.request.urlopen(url, timeout=5) as reply:
+                if reply.status == 200:
+                    return
+        except OSError:   # refused while starting, or 503 while loading (an HTTPError)
+            pass
+        if monotonic() >= deadline:
+            raise TimeoutError(f"llama-server's model not loaded after {timeout_s} s")
+        sleep(1)
+
+
 def _llama_server():
     binary = next(p for p in ("/app/llama-server", "/usr/local/bin/llama-server", "/llama-server") if os.path.exists(p))
     subprocess.Popen([binary, "-m", os.path.join(WEIGHTS_DIR, FILENAME), "--jinja", "-ngl", "999", "-fa", "on",
                       "-c", str(CONTEXT), "-np", "1", "--host", "0.0.0.0", "--port", str(PORT)])
+    wait_until_loaded(f"http://127.0.0.1:{PORT}/health")
 
 
 @app.function(image=server_image, gpu="H100", volumes={WEIGHTS_DIR: weights}, timeout=3600,
-              scaledown_window=IDLE_S, min_containers=0)
+              scaledown_window=IDLE_S, max_containers=1, min_containers=0)
 @modal.concurrent(max_inputs=4)
 @modal.web_server(port=PORT, startup_timeout=900, requires_proxy_auth=True)
 def serve_h100():
@@ -84,7 +107,7 @@ def serve_h100():
 
 
 @app.function(image=server_image, gpu="A100-80GB", volumes={WEIGHTS_DIR: weights}, timeout=3600,
-              scaledown_window=IDLE_S, min_containers=0)
+              scaledown_window=IDLE_S, max_containers=1, min_containers=0)
 @modal.concurrent(max_inputs=4)
 @modal.web_server(port=PORT, startup_timeout=900, requires_proxy_auth=True)
 def serve_a100_80gb():
@@ -94,7 +117,7 @@ def serve_a100_80gb():
 # The H200, timed against the H100 by the Director's word of 30 October 2026, to see whether it brings Glimmer's
 # decisions under 60 s.
 @app.function(image=server_image, gpu="H200", volumes={WEIGHTS_DIR: weights}, timeout=3600,
-              scaledown_window=IDLE_S, min_containers=0)
+              scaledown_window=IDLE_S, max_containers=1, min_containers=0)
 @modal.concurrent(max_inputs=4)
 @modal.web_server(port=PORT, startup_timeout=900, requires_proxy_auth=True)
 def serve_h200():

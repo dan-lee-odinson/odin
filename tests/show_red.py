@@ -1385,6 +1385,23 @@ CASES = {"s0": [
      "tests/test_tools_glimmer_modal.py::test_no_key_token_or_secret_is_in_the_file",
      change_file("tools/glimmer_modal.py", replace_once(b'APP_NAME = "odin-glimmer"\n',
                                                         b'APP_NAME = "odin-glimmer"\nTOKEN = "ak-' + b"Q" * 20 + b'"\n'))),
+    ("Glimmer's H100 endpoint let run two containers at once (31 October 2026)",
+     "tests/test_tools_glimmer_modal.py::test_red_each_endpoint_runs_one_container_at_most",
+     change_file("tools/glimmer_modal.py", replace_once(
+         b'gpu="H100", volumes={WEIGHTS_DIR: weights}, timeout=3600,\n              scaledown_window=IDLE_S, max_containers=1,',
+         b'gpu="H100", volumes={WEIGHTS_DIR: weights}, timeout=3600,\n              scaledown_window=IDLE_S, max_containers=2,'))),
+    ("Glimmer's start-up returning as soon as llama.cpp is started, before its model has loaded (31 October 2026)",
+     "tests/test_tools_glimmer_modal.py::test_red_the_server_starts_as_before_and_returns_only_once_its_model_has_loaded",
+     change_file("tools/glimmer_modal.py", replace_once(b'    wait_until_loaded(f"http://127.0.0.1:{PORT}/health")\n', b""))),
+    ("Glimmer's start-up taking llama.cpp's 503, model still loading, as ready (31 October 2026)",
+     "tests/test_tools_glimmer_modal.py::test_red_the_start_up_waits_through_503_until_the_health_check_answers_200",
+     change_file("tools/glimmer_modal.py", replace_once(b"            pass\n        if monotonic() >= deadline:",
+                                                        b"            return\n        if monotonic() >= deadline:"))),
+    ("Glimmer's start-up returning at its time limit as if the model had loaded (31 October 2026)",
+     "tests/test_tools_glimmer_modal.py::test_red_the_start_up_gives_up_once_its_time_is_out",
+     change_file("tools/glimmer_modal.py", replace_once(
+         b"""            raise TimeoutError(f"llama-server's model not loaded after {timeout_s} s")\n""",
+         b"            return\n"))),
 ], "deposits": [
     ("one byte changed in the committed deposit deposits/MC-M1-01.zip",
      "tests/test_deposits.py::test_each_committed_deposit_is_odin_at_its_commit",
