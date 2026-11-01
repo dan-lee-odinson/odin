@@ -12,7 +12,7 @@ import yaml
 import eval.set_aside as aside
 from eval import measures
 from eval import score as scoring
-from eval.results import summarize
+from eval.results import summarize, totals
 from tests.repo_checks import REPO_ROOT
 from tests.s8_world import decision, dispatch, record
 from tests.s8_world import request as made_up_request
@@ -314,3 +314,34 @@ def test_red_a_set_aside_runs_own_model_events_are_listed_not_counted(tmp_path):
     table = summarize([run], tmp_path / "none.yaml")[("PASS-3", "stand_in")]
     assert table["clean"] == "clean in 0 of 0 runs" and table["set_aside_model_events"] == {"PH2-TEST": run["model_events"]}
     assert table["series_stopped"] == []
+
+
+def phase_3_result(run_id, scenario, success=True, clean=True):
+    """What S8 gives for a scored phase-3 run, made up, with only what the results table reads."""
+    return {"run_id": run_id, "model_config": "stand_in", "pass": scenario, "phase": 3, "success": success,
+            "clean": clean, "valid": True, "flagged": False, "stopped": False, "build_defect": None,
+            "measured": {"seconds_to_shed": 8}, "report_accuracy": {"score": 1.0},
+            "measures": {"attempted_violations": [], "spacecraft_rejections": [], "voided_decisions": []}}
+
+
+def test_red_a_phase_3_row_stands_beside_no_flight_of_the_directors(tmp_path):
+    [(key, row)] = summarize([phase_3_result("PH3-HX1-R1", "HX1")], tmp_path / "none.yaml").items()
+    assert key == ("HX1", "stand_in") and row["director"] is None and row["clean"] == "clean in 1 of 1 runs"
+
+
+def test_red_a_scenario_set_aside_by_ruling_reads_so_and_is_left_out_of_the_totals(tmp_path):
+    path = tmp_path / "set_aside.yaml"
+    path.write_text('PH3-HX2:\n  ruling: "2026-11-01"\n  scope: scenario\n  runs: [PH3-HX2-R1, PH3-HX2-R2]\n'
+                    '  scored: "as S8 scored them"\n  reason: "a flawed scenario"\n', encoding="utf-8")
+    runs = [phase_3_result("PH3-HX1-R1", "HX1"), phase_3_result("PH3-HX1-R2", "HX1", success=False, clean=False),
+            phase_3_result("PH3-HX2-R1", "HX2", success=False, clean=False),
+            phase_3_result("PH3-HX2-R2", "HX2", success=False, clean=False)]
+    table = summarize(runs, path)
+    kept, ruled = table[("HX1", "stand_in")], table[("HX2", "stand_in")]
+    assert kept["clean"] == "clean in 1 of 2 runs" and "set_aside_by_ruling" not in kept
+    assert ruled["clean"] == "set aside by ruling" and ruled["runs"] == ["PH3-HX2-R1", "PH3-HX2-R2"]
+    assert ruled["set_aside_by_ruling"] == "set aside by the Director's ruling of 2026-11-01: a flawed scenario"
+    assert totals(runs, path) == {"scored": 2, "successes": 1, "clean": 1,
+                                  "set_aside_by_ruling": ["PH3-HX2-R1", "PH3-HX2-R2"]}
+    assert totals(runs, tmp_path / "none.yaml")["scored"] == 4
+    assert aside.stops(path) == {}

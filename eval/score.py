@@ -1,7 +1,7 @@
 """Score runs (the Director's scoring ruling of 28 October 2026).
 
     python -m eval.score runs/scored/<run_id>             one run, as JSON
-    python -m eval.score --summary runs/scored/<run_id>... the results table over several phase-2 runs
+    python -m eval.score --summary runs/scored/<run_id>... the results table over several runs, with its totals
     python -m eval.score --sheet runs/scored/<run_id>     lay out a phase-1 run's marking sheet (U61)
     python -m eval.score --held-out <folder> runs/...     a phase-3 run, by S8's sealed checks in <folder>/checks
 
@@ -18,7 +18,7 @@ from pathlib import Path
 import eval.set_aside as aside
 from eval import phase1, runlog
 from eval.phase3 import load_checks
-from eval.results import score_phase_1, score_run, summarize
+from eval.results import score_phase_1, score_run, summarize, totals
 
 
 def score(folder, set_aside_path=None, checks=None):
@@ -56,7 +56,8 @@ def main(argv=None):
     checks = load_checks(Path(held_out) / "checks") if held_out else None
     runs = [score(folder, checks=checks) for folder in folders]
     if summary:
-        print(json.dumps({f"{p} {m}": row for (p, m), row in summarize(runs).items()}, indent=2, default=str))
+        table = {f"{p} {m}": row for (p, m), row in summarize(runs).items()}
+        print(json.dumps({**table, "totals": totals(runs)}, indent=2, default=str))
     else:
         print(json.dumps(runs if len(runs) > 1 else runs[0], indent=2, default=str))
     return 0
