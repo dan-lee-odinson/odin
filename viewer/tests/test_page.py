@@ -67,7 +67,7 @@ class NoNetwork(unittest.TestCase):
         self.assertEqual(policy.get("default-src"), ["'none'"])
         self.assertEqual(policy.get("connect-src"), ["'none'"])
         self.assertEqual(policy.get("form-action"), ["'none'"])
-        for directive in ("script-src", "style-src"):
+        for directive in ("script-src", "style-src", "font-src", "media-src"):
             sources = policy.get(directive, [])
             self.assertTrue(set(sources) <= {"'self'", "file:"}, "%s allows %s" % (directive, sources))
 

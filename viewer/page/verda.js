@@ -19,6 +19,7 @@
   const CHAR_W = 7.1;
   const EDGE_W = 6.4;           // a character of the notes at a lane's edge
   const STRIP_H = 26;           // the strip above a ground seat's age chart
+  const CHART_MIN = 36;         // the least a telemetry chart gives up to fit the screen
   const STRING_NAMES = { EPS_SA1_I: 'STRING 1', EPS_SA2_I: 'STRING 2' };
 
   const $ = (id) => document.getElementById(id);
@@ -140,16 +141,43 @@
     const entry = (window.VERDA_INDEX || []).find((e) => e.id === id);
     if (!entry) return;
     window.VERDA_TIMELINES = window.VERDA_TIMELINES || {};
-    if (window.VERDA_TIMELINES[id]) { show(window.VERDA_TIMELINES[id]); return; }
-    if (!/^[A-Za-z0-9._-]+\.js$/.test(entry.file)) { showBanner('Bad timeline file name in the index.', true); return; }
-    const tag = document.createElement('script');
-    tag.src = 'timelines/' + entry.file;
-    tag.onload = () => {
-      if (window.VERDA_TIMELINES[id]) show(window.VERDA_TIMELINES[id]);
-      else showBanner('timelines/' + entry.file + ' did not hold the timeline ' + id + '.', true);
+    window.VERDA_BESIDE = window.VERDA_BESIDE || {};
+    const files = [entry.file].concat(entry.beside ? [entry.beside.file] : []);
+    if (files.some((f) => !/^[A-Za-z0-9._-]+\.js$/.test(f))) { showBanner('Bad timeline file name in the index.', true); return; }
+    let waiting = 0;
+    const done = () => {
+      if (--waiting > 0) return;
+      const tl = window.VERDA_TIMELINES[id];
+      if (!tl) { showBanner('timelines/' + entry.file + ' did not hold the timeline ' + id + '.', true); return; }
+      if (!entry.beside) { show(tl); return; }
+      const b = window.VERDA_BESIDE[id];
+      if (b && b.run_sha256 === entry.sha256) { show(withBeside(tl, b)); return; }
+      show(tl);
+      showBanner('The Director’s pass is not shown: timelines/' + entry.beside.file + (b ? ' was made for another conversion of this run.' : ' could not be read.'), true);
     };
-    tag.onerror = () => showBanner('Could not read timelines/' + entry.file + '. Run the converter again.', true);
-    document.head.appendChild(tag);
+    for (const file of files) {
+      if (file === entry.file ? window.VERDA_TIMELINES[id] : window.VERDA_BESIDE[id]) continue;
+      waiting++;
+      const tag = document.createElement('script');
+      tag.src = 'timelines/' + file;
+      tag.onload = done;
+      tag.onerror = () => { if (file === entry.file) showBanner('Could not read timelines/' + file + '. Run the converter again.', true); else done(); };
+      document.head.appendChild(tag);
+    }
+    if (!waiting) { waiting = 1; done(); }
+  }
+
+  // A run beside the Director's pass comes in two files: the run's own timeline,
+  // which an animation clip pins by its SHA-256, and what pairing adds to it
+  // (his pass, the scenario's commands, the lanes they take). This puts them
+  // together, as the converter checked they would.
+  function withBeside(tl, b) {
+    const out = Object.assign({}, tl);
+    for (const key of ['sources', 'header', 'series']) out[key] = Object.assign({}, tl[key], b.add[key]);
+    for (const key of Object.keys(b['new'])) out[key] = b['new'][key];
+    out.integrity = (tl.integrity || []).concat(b.append.integrity || []);
+    for (const key of ['title', 'met_range', 'lanes']) out[key] = b[key];
+    return out;
   }
 
   function showBanner(msg, bad) {
@@ -162,8 +190,8 @@
   function show(tl) {
     S.tl = tl;
     S.playing = false;
-    S.view = [tl.met_range[0], tl.met_range[1]];
-    S.met = tl.met_range[0];
+    S.view = openingView(tl);
+    S.met = S.view[0];
     S.feedKey = '';
     const ask = S.ask && S.ask.run === tl.id ? S.ask : {};
     S.ask = null;
@@ -184,6 +212,7 @@
     drawHeader(tl);
     drawLegend(tl);
     drawCoverage(tl);
+    setupClip(tl);
     render();
     setMet(S.met);
     inspect('Record', 'Hover over anything on the timeline to see what it is. Click it to show its record here.');
@@ -223,7 +252,7 @@
     const add = (txt, cls, tip) => { const b = html('span', 'badge' + (cls ? ' ' + cls : ''), badges, txt); if (tip) b.title = tip; };
     if (h.phase !== undefined && h.phase !== null) add('Phase ' + h.phase);
     if (h.seat) add(h.seat === 'ONBOARD' ? 'Onboard seat' : 'Ground seat');
-    if (h.model_config) add('Model ' + h.model_config + (h.model_id ? ' (' + h.model_id + ')' : ''));
+    if (h.model_config) add('Model ' + h.model_config, null, h.model_id ? 'Model ' + h.model_id : null);
     if (h.mode) add(h.mode === 'DEVELOPMENT' ? 'Development mode' : h.mode, h.mode === 'DEVELOPMENT' ? 'caution' : null);
     for (const c of tl.integrity || []) {
       const ok = integrityOk(c);
@@ -291,7 +320,17 @@
     if (lane.kind === 'requests') return Math.max(lane.height || 40, requestRows(tl).rows * 24 + 12);
     if (lane.kind === 'pass-commands') return Math.max(lane.height || 40, passRows(tl).rows * 24 + 12);
     if (lane.kind === 'scenario-commands') return Math.max(lane.height || 36, scenarioRows(tl).rows * 24 + 12);
+    if (lane.kind === 'chart' && lane.id !== 'staleness') return (lane.height || 40) - (S.chartTrim || 0);
     return lane.height || 40;
+  }
+
+  // Where a chain's label goes: after its last mark, or, when that would run past the
+  // plot's right edge, before its first mark if the plot has room there.
+  function labelPlace(x0, x1, text) {
+    const w = text.length * CHAR_W;
+    const right = S.geo ? PLOT_X + S.geo.plotW : Infinity;
+    if (x1 + 10 + w > right && x0 - 10 - w >= PLOT_X) return { x: x0 - 10, anchor: 'end', start: x0 - 10 - w, end: x1 + 6 };
+    return { x: x1 + 10, anchor: 'start', start: x0, end: x1 + 12 + w };
   }
 
   function requestRows(tl) {
@@ -301,11 +340,10 @@
     for (const r of tl.requests) {
       const mets = ['met_s', 'decision_met_s', 'voided_met_s', 'dispatch_met_s', 'outcome_met_s']
         .map((k) => r[k]).filter((v) => typeof v === 'number');
-      const x0 = x(Math.min.apply(null, mets));
-      const x1 = x(Math.max.apply(null, mets)) + 12 + (r.summary || '').length * CHAR_W;
-      let row = ends.findIndex((e) => e < x0 - 6);
-      if (row < 0) { row = ends.length; ends.push(x1); } else { ends[row] = x1; }
-      placed.push({ r: r, row: row, mets: mets });
+      const place = labelPlace(x(Math.min.apply(null, mets)), x(Math.max.apply(null, mets)), r.summary || '');
+      let row = ends.findIndex((e) => e < place.start - 6);
+      if (row < 0) { row = ends.length; ends.push(place.end); } else { ends[row] = place.end; }
+      placed.push({ r: r, row: row, mets: mets, place: place });
     }
     return { rows: Math.max(1, ends.length), placed: placed };
   }
@@ -318,11 +356,10 @@
     const ends = [];
     for (const c of tl.pass_commands || []) {
       const mets = [c.met_s].concat(typeof c.outcome_met_s === 'number' ? [c.outcome_met_s] : []);
-      const x0 = x(Math.min.apply(null, mets));
-      const x1 = x(Math.max.apply(null, mets)) + 12 + c.summary.length * CHAR_W;
-      let row = ends.findIndex((e) => e < x0 - 6);
-      if (row < 0) { row = ends.length; ends.push(x1); } else { ends[row] = x1; }
-      placed.push({ c: c, row: row, mets: mets });
+      const place = labelPlace(x(Math.min.apply(null, mets)), x(Math.max.apply(null, mets)), c.summary);
+      let row = ends.findIndex((e) => e < place.start - 6);
+      if (row < 0) { row = ends.length; ends.push(place.end); } else { ends[row] = place.end; }
+      placed.push({ c: c, row: row, mets: mets, place: place });
     }
     return { rows: Math.max(1, ends.length), placed: placed };
   }
@@ -343,11 +380,10 @@
     }
     for (const c of all) {
       if (c.met_s < S.view[0] || c.met_s > S.view[1]) continue;
-      const x0 = x(c.met_s);
-      const x1 = x(Math.max(c.met_s, typeof c.outcome_met_s === 'number' ? c.outcome_met_s : c.met_s)) + 12 + c.summary.length * CHAR_W;
-      let row = ends.findIndex((e) => e < x0 - 6);
-      if (row < 0) { row = ends.length; ends.push(x1); } else { ends[row] = x1; }
-      placed.push({ c: c, row: row });
+      const place = labelPlace(x(c.met_s), x(Math.max(c.met_s, typeof c.outcome_met_s === 'number' ? c.outcome_met_s : c.met_s)), c.summary);
+      let row = ends.findIndex((e) => e < place.start - 6);
+      if (row < 0) { row = ends.length; ends.push(place.end); } else { ends[row] = place.end; }
+      placed.push({ c: c, row: row, place: place });
     }
     if (after.length) {
       const text = edgeText(after, false);
@@ -390,9 +426,18 @@
     const x = (m) => PLOT_X + (m - v0) / (v1 - v0) * plotW;
     S.geo = { x: x, plotW: plotW, width: width };
     const lanes = tl.lanes.filter((l) => !(l.source === 'truth' && !S.showTruth));
-    let total = AXIS_H;
-    for (const l of lanes) total += laneHeight(l, tl) + GAP;
-    total += AXIS_H;
+    const sum = () => lanes.reduce((t, l) => t + laneHeight(l, tl) + GAP, 2 * AXIS_H);
+    // A run whose chains need more rows than most (P1's, with two requests and two commands of
+    // the Director's and of the scenario's close together) still fits the screen: its telemetry
+    // charts each give up a few pixels, down to CHART_MIN.
+    S.chartTrim = 0;
+    const charts = lanes.filter((l) => l.kind === 'chart' && l.id !== 'staleness');
+    const excess = sum() - host.clientHeight;
+    if (excess > 0 && charts.length) {
+      const room = Math.min.apply(null, charts.map((l) => (l.height || 40) - CHART_MIN));
+      S.chartTrim = clamp(Math.ceil(excess / charts.length), 0, Math.max(0, room));
+    }
+    const total = sum();
     const root = svg('svg', { width: width, height: total, viewBox: '0 0 ' + width + ' ' + total }, host);
     const defs = svg('defs', {}, root);
     patterns(defs);
@@ -473,7 +518,7 @@
     if (lane.points && (lane.kind === 'chart' || lane.kind === 'state')) sub = lane.points.join('  ');
     if (lane.id === 'truth') sub = 'NEVER SEEN BY ODIN';
     if (lane.note_short) sub = lane.note_short;
-    const keyed = lane.kind === 'chart' && (lane.points || []).length > 1 && h >= 44;
+    const keyed = lane.kind === 'chart' && (lane.points || []).length > 1 && h >= CHART_MIN;
     if (keyed) {
       // Which mark is which string, for when the two read the same. It takes the
       // place of the point names; the hover names each string's point.
@@ -568,7 +613,13 @@
         const next = events.find((o) => o.met_s > e.met_s && (o.row || 0) === key);
         const room = next ? x(next.met_s) - cx - 16 : S.geo.width - cx - 30;
         const label = fit(text, Math.min(room, 420));
-        if (label) {
+        // Near the right edge, with nothing after it on its row, a name that will not fit
+        // after its mark is written whole before it, if the row is clear there.
+        const clear = cx - r - 4 - (lastEnd[key] === undefined ? PLOT_X : lastEnd[key] + 6);
+        if (!next && label !== text && fit(text, Math.min(clear, 420)) === text) {
+          svgText(names, cx - r - 4, cy + 4.5, text, 'ev-label', 'end');
+          lastEnd[key] = cx + r;
+        } else if (label) {
           svgText(names, cx + r + 4, cy + 4.5, label, 'ev-label');
           lastEnd[key] = cx + r + 4 + label.length * CHAR_W;
         }
@@ -614,7 +665,7 @@
       if (r.voided) add(r.voided_met_s, 'x', 'sev-bad');
       add(r.dispatch_met_s, 'triangle', 'sev-info');
       if (r.outcome) add(r.outcome_met_s, 'square', r.outcome === 'ACCEPTED' ? 'sev-good' : (r.outcome === 'REJECTED' ? 'sev-bad' : 'sev-warn'));
-      const t = svgText(g, x1 + 10, cy + 4.5, r.summary, 'ev-label');
+      const t = svgText(g, p.place.x, cy + 4.5, r.summary, 'ev-label', p.place.anchor);
       t.classList.add('hit');
       t.setAttribute('data-hit', id);
     }
@@ -638,7 +689,7 @@
       // His mark goes on top: at the whole-run zoom it sits on the outcome's square.
       const m = marker(g, 'triangle', x(c.met_s), cy, 5.5, 'hit sev-director');
       m.setAttribute('data-hit', id);
-      const t = svgText(g, x1 + 10, cy + 4.5, c.summary, 'ev-label');
+      const t = svgText(g, p.place.x, cy + 4.5, c.summary, 'ev-label', p.place.anchor);
       t.classList.add('hit');
       t.setAttribute('data-hit', id);
     }
@@ -662,7 +713,7 @@
       }
       const m = marker(g, 'diamond', x(c.met_s), cy, 5.5, 'hit scenario-mark');
       m.setAttribute('data-hit', id);
-      const t = svgText(g, x(Math.max(c.met_s, c.outcome_met_s || c.met_s)) + 10, cy + 4.5, c.summary, 'ev-label');
+      const t = svgText(g, p.place.x, cy + 4.5, c.summary, 'ev-label', p.place.anchor);
       t.classList.add('hit');
       t.setAttribute('data-hit', id);
     }
@@ -1032,6 +1083,19 @@
     $('inspector').scrollTop = 0;
   }
 
+  // A run opens on its pass: its contact windows, flown and planned, and a little
+  // either side. Phase 2's runs start at MET 0, and a P2B run's pass comes six
+  // hours later; "Whole run" shows all of it.
+  function openingView(tl) {
+    const r = tl.met_range;
+    const c = tl.spans.filter((s) => s.lane === 'contact' && typeof s.start === 'number' && typeof s.end === 'number');
+    if (!c.length) return [r[0], r[1]];
+    const lo = Math.min.apply(null, c.map((s) => s.start)), hi = Math.max.apply(null, c.map((s) => s.end));
+    const pad = Math.max(20, (hi - lo) * 0.04);
+    const view = [Math.max(r[0], lo - pad), Math.min(r[1], hi + pad)];
+    return view[1] > view[0] ? view : [r[0], r[1]];
+  }
+
   // ---- playback --------------------------------------------------------------
   function setMet(m) {
     const tl = S.tl;
@@ -1048,6 +1112,113 @@
     drawMet();
     drawNow();
     drawFeed();
+    syncClip();
+  }
+
+  // ---- the animation pane ---------------------------------------------------
+  // A clip rendered from a timeline file plays beside it, locked to the playhead.
+  // Its sync file (listed in timelines/index.js by the converter) gives run_id,
+  // timeline_sha256, first_frame_met_s, met_step_s and fps: frame n shows MET
+  // first_frame_met_s + n * met_step_s, at n / fps seconds into the clip.
+  function bareHash(h) { return typeof h === 'string' ? h.replace(/^sha256:/, '').toLowerCase() : ''; }
+  function shortHash(h) { return bareHash(h).slice(0, 12) || 'none'; }
+
+  // The clip for the timeline on screen, or why there is none to play.
+  function clipFor(tl) {
+    const runId = (tl.header || {}).run_id || tl.id;
+    const entry = (window.VERDA_INDEX || []).find((e) => e.id === tl.id) || {};
+    const have = bareHash(entry.sha256);
+    const listed = (window.VERDA_CLIPS || []).filter((c) => c.run_id === runId || (have && bareHash(c.timeline_sha256) === have));
+    if (!listed.length) return { reason: passOnly(tl) ? 'No ODIN run in this timeline, so no animation clip.' : 'No animation clip for this run.' };
+    const fit = listed.filter((c) => c.run_id === runId && have && bareHash(c.timeline_sha256) === have);
+    if (fit.length === 1) {
+      const c = fit[0];
+      if ((c.problems || []).length) return { reason: 'Not played: its sync file ' + c.sync_file + ' has a problem: ' + c.problems[0] + '.' };
+      if (!/^clips\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(c.file || '')) return { reason: 'Not played: the index names no usable clip file for it.' };
+      return { clip: c };
+    }
+    if (fit.length > 1) return { reason: 'Not played: ' + fit.length + ' clips claim this timeline; the converter should be given one.' };
+    const c = listed[0];
+    if (c.run_id !== runId) return { reason: 'Not played: its sync file names run ' + c.run_id + ', and the timeline on screen is run ' + runId + '.' };
+    return { reason: 'Not played: it was rendered from another timeline file. Its sync file pins sha256 ' + shortHash(c.timeline_sha256) +
+      '…, and the timeline file on screen is sha256 ' + shortHash(entry.sha256) + '….' };
+  }
+
+  function setupClip(tl) {
+    const v = $('clip');
+    const found = clipFor(tl);
+    S.clip = { clip: found.clip || null, frames: 0 };
+    v.pause();
+    v.onloadedmetadata = null;
+    v.onerror = null;
+    $('side').classList.remove('with-clip');
+    if (!found.clip) {
+      v.removeAttribute('src');
+      v.load();
+      $('clip-box').hidden = true;
+      $('clip-panel').className = 'panel frame clip-panel none';
+      $('clip-note').textContent = found.reason;
+      return;
+    }
+    const c = found.clip;
+    $('side').classList.add('with-clip');
+    $('clip-panel').className = 'panel frame clip-panel';
+    $('clip-box').hidden = false;
+    $('clip-note').textContent = 'Loading ' + c.file + '…';
+    v.muted = true;
+    v.onloadedmetadata = () => {
+      if (S.clip.clip !== c) return;
+      S.clip.frames = Math.max(1, Math.round(v.duration * c.fps));
+      syncClip();
+    };
+    v.onerror = () => {
+      if (S.clip.clip !== c) return;
+      S.clip = { clip: null, frames: 0 };
+      $('clip-box').hidden = true;
+      $('clip-note').textContent = 'Could not read timelines/' + c.file + '. Run the converter with --clips again.';
+    };
+    v.src = 'timelines/' + c.file;
+  }
+
+  // How many frames into the clip the playhead's MET falls: (t - first_frame_met_s) / met_step_s.
+  function clipFrame(c, t) { return (t - c.first_frame_met_s) / c.met_step_s; }
+  function clipMet(c, n) { return c.first_frame_met_s + n * c.met_step_s; }
+
+  // Moves the clip to the playhead: playing at the timeline's rate while it plays,
+  // on the playhead's frame while it is paused or scrubbed, and held at its first or
+  // last frame outside them.
+  function syncClip() {
+    const c = S.clip && S.clip.clip;
+    const v = $('clip');
+    if (!c || !S.clip.frames) return;
+    const n = clipFrame(c, S.met);
+    const last = S.clip.frames - 1;
+    let hold = null;
+    if (n < 0) hold = 'Holding at the first frame: the clip starts at MET ' + num(clipMet(c, 0)) + '.';
+    else if (n > last) hold = 'Holding at the last frame: the clip ends at MET ' + num(clipMet(c, last)) + '.';
+    const frame = hold ? (n < 0 ? 0 : last) : Math.floor(n + 1e-6);
+    // The clip plays on its own at the timeline's pace when the browser can play at that rate;
+    // otherwise it steps from frame to frame with the playhead.
+    const rate = S.speed / (c.fps * c.met_step_s);
+    if (S.playing && !hold && rate >= 0.0625 && rate <= 16) {
+      v.playbackRate = rate;
+      const want = n / c.fps;
+      if (v.paused) {
+        v.currentTime = want;
+        const started = v.play();
+        if (started && started.catch) started.catch(() => {});
+      } else if (Math.abs(v.currentTime - want) > 2 / c.fps) {
+        v.currentTime = want;
+      }
+    } else {
+      if (!v.paused) v.pause();
+      // The middle of the frame, so that rounding never shows the one before it.
+      const want = (frame + 0.5) / c.fps;
+      if (Math.abs(v.currentTime - want) > 0.25 / c.fps) v.currentTime = want;
+    }
+    // Frames are counted from 1 here, as the sync file's notes and the renderer count them.
+    $('clip-note').textContent = (hold ? hold + ' ' : '') + 'Frame ' + (frame + 1) + ' of ' + (last + 1) + ', MET ' + num(clipMet(c, frame)) +
+      ' · from timeline sha256 ' + shortHash(c.timeline_sha256) + '…';
   }
 
   // The boxed MET readout. Its text reads "MET <s> s".
@@ -1080,9 +1251,10 @@
     S.playing = true;
     S.last = performance.now();
     $('btn-play').textContent = 'Pause';
+    syncClip();
     requestAnimationFrame(step);
   }
-  function pause() { S.playing = false; $('btn-play').textContent = 'Play'; }
+  function pause() { S.playing = false; $('btn-play').textContent = 'Play'; syncClip(); }
   function step(ts) {
     if (!S.playing) return;
     const dt = Math.min(0.25, (ts - S.last) / 1000);
@@ -1301,7 +1473,7 @@
     $('btn-end').addEventListener('click', () => { pause(); if (S.tl) setMet(S.tl.met_range[1]); });
     $('btn-prev').addEventListener('click', () => jump(-1));
     $('btn-next').addEventListener('click', () => jump(1));
-    $('speed').addEventListener('change', (e) => { S.speed = Number(e.target.value); });
+    $('speed').addEventListener('change', (e) => { S.speed = Number(e.target.value); syncClip(); });
     $('scrub').addEventListener('input', (e) => { pause(); setMet(Number(e.target.value)); });
     $('btn-zoom-in').addEventListener('click', () => zoom(0.5));
     $('btn-zoom-out').addEventListener('click', () => zoom(2));

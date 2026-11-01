@@ -1,8 +1,12 @@
 """The converter's checks: hashing, the log's chain, limit states, the truth
 mapping, the timeline each practice run becomes, what the ground-seat run's
-bundles recorded of the ground link and staleness, and that the same inputs give
-the same files."""
+bundles recorded of the ground link and staleness, phase 2's fifty scored runs
+(their truth kept gzip-compressed), and that the same inputs give the same
+files."""
 
+import collections
+import gzip
+import io
 import json
 import os
 import shutil
@@ -11,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 import _support as S
@@ -41,7 +46,7 @@ class HashChain(unittest.TestCase):
         for run in S.all_runs():
             for name in ("events", "truth"):
                 with self.subTest(run=run.name, file=name):
-                    records, check = vc.read_chain(run / (name + ".jsonl"), run / (name + ".head"))
+                    records, check = vc.read_chain(vc.record_file(run, name), run / (name + ".head"))
                     self.assertGreater(len(records), 50)
                     self.assertEqual(check["problems"], [])
                     self.assertEqual(check["chain"], "VERIFIED")
@@ -90,11 +95,10 @@ class TruthMapping(unittest.TestCase):
         compared = 0
         for run in S.all_runs():
             truth = {}
-            with open(run / "truth.jsonl", encoding="utf-8") as handle:
-                for line in handle:
-                    record = json.loads(line)
-                    if record["type"] == "TRUE_STATE":
-                        truth[record["met_s"]] = record["body"]
+            for line in S.record_lines(run, "truth"):
+                record = json.loads(line)
+                if record["type"] == "TRUE_STATE":
+                    truth[record["met_s"]] = record["body"]
             for trigger, bundle in S.bundles(run):
                 observation = bundle["observation"]
                 body = truth[observation["frame_met_s"]]
@@ -209,22 +213,106 @@ class Repeatable(unittest.TestCase):
     def test_the_same_inputs_give_the_same_files_whatever_the_hash_seed(self):
         """Python orders a set by its hash seed, which changes from one process to the next."""
         made = []
+        # Every run that is not a scored one, and the first of each model on each pass.
+        runs = [r for r in S.all_runs() if not r.name.startswith("PH2-") or r.name.endswith("-R1")]
         with tempfile.TemporaryDirectory() as tmp:
             for seed in ("1", "2", "3", "4"):
                 out = Path(tmp, seed)
                 done = subprocess.run(
-                    [sys.executable, str(S.ROOT / "convert" / "verda_convert.py"), *map(str, S.all_runs()),
+                    [sys.executable, str(S.ROOT / "convert" / "verda_convert.py"), *map(str, runs),
                      "--out", str(out), "--dictionary", str(S.dictionary_path()), "--passes", str(S.passes_dir()),
                      "--plans", str(S.plans_dir()), "--scripted", str(S.scripted_path())],
                     env=dict(os.environ, PYTHONHASHSEED=seed, PYTHONDONTWRITEBYTECODE="1"),
                     capture_output=True, text=True, timeout=300)
                 self.assertEqual(done.returncode, 0, done.stderr)
                 made.append({p.name: p.read_bytes() for p in sorted(out.glob("*.js"))})
-        self.assertEqual(len(made[0]), len(S.ALL_RUNS) + 3 + 1)  # each run, the three passes alone, the index
+        # Each run, each paired run's beside file (all but the ground-seat run's), the index.
+        self.assertEqual(len(made[0]), len(runs) + len(runs) - 1 + 1)
         for seed, files in zip(("2", "3", "4"), made[1:]):
             with self.subTest(seed=seed):
                 self.assertEqual(sorted(files), sorted(made[0]))
                 self.assertEqual([n for n in files if files[n] != made[0][n]], [])
+
+
+class PhaseTwo(unittest.TestCase):
+    """Phase 2's fifty scored runs, each a whole run folder with its truth kept as truth.jsonl.gz."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.timelines = {}
+        for _, path, timeline in vc.convert_all([S.runs_dir() / n for n in S.SCORED_RUNS], Path(cls.tmp.name),
+                                                S.dictionary_path(), True, S.passes_dir(), S.plans_dir(),
+                                                S.scripted_path()):
+            if path is None:
+                raise AssertionError("a scored run could not be converted: %s" % timeline)
+            cls.timelines[timeline["id"]] = timeline
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_reads_gzipped_truth(self):
+        for name in S.SCORED_RUNS:
+            run = S.runs_dir() / name
+            with self.subTest(run=name):
+                self.assertFalse((run / "truth.jsonl").exists())
+                # Its truth records, counted here by reading the .gz file without the converter.
+                with gzip.open(run / "truth.jsonl.gz", "rt", encoding="utf-8") as handle:
+                    count = sum(1 for line in handle if line.strip())
+                truth = [c for c in self.timelines[name]["integrity"] if c["label"] == "Simulator truth file"]
+                self.assertEqual([(c["file"], c["chain"], c["head"], c["records"]) for c in truth],
+                                 [("truth.jsonl.gz", "VERIFIED", "MATCHES", count)])
+                self.assertIn("truth", [lane["id"] for lane in self.timelines[name]["lanes"]])
+
+    def test_says_when_it_skips_a_record_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp, "runs", "PH2-PASS3-OPEN-R1")
+            shutil.copytree(S.runs_dir() / run.name, run)
+            (run / "truth.jsonl.gz").rename(run / "truth.jsonl.zst")
+            Path(tmp, "runs", "not-a-run").mkdir()
+            _, timeline = vc.convert(run, Path(tmp, "out"), S.dictionary_path())
+            said = io.StringIO()
+            with redirect_stderr(said), redirect_stdout(io.StringIO()):
+                vc.main(["--all", str(Path(tmp, "runs")), "--out", str(Path(tmp, "out")),
+                         "--dictionary", str(S.dictionary_path())])
+        self.assertEqual(sorted(w.split(" ")[0] for w in timeline["warnings"]), ["truth.head", "truth.jsonl.zst"])
+        self.assertNotIn("truth", [lane["id"] for lane in timeline["lanes"]])
+        self.assertIn("SKIPPED not-a-run: no events.jsonl in it", said.getvalue())
+
+    def test_each_kind_of_truth_flag_has_a_row_of_its_own(self):
+        # A scored P4 run's truth holds four kinds of flag at MET 1200: the downlink, housekeeping halted,
+        # no frame generated, and the fault.
+        for name, t in self.timelines.items():
+            spans = [s for s in t["spans"] if s["lane"] == "truth"]
+            kinds = {s["label"].split(":")[0] for s in spans}
+            rows = {}
+            for s in spans:
+                rows.setdefault(s["row"], set()).add(s["label"].split(":")[0])
+            with self.subTest(run=name):
+                self.assertTrue(all(len(k) == 1 for k in rows.values()), rows)
+                lane = [l for l in t["lanes"] if l["id"] == "truth"][0]
+                self.assertEqual(lane["rows"], max(4, len(kinds) + 1))
+        p4 = [s for s in self.timelines["PH2-PASS4-OPEN-R1"]["spans"] if s["lane"] == "truth"]
+        self.assertEqual(len({s["label"].split(":")[0] for s in p4}), 4)
+
+    def test_the_fifty_each_beside_the_pass_of_its_plan_with_every_check_passing(self):
+        self.assertEqual(sorted(self.timelines), sorted(S.SCORED_RUNS))
+        models = collections.Counter()
+        tools = 0
+        for name, t in self.timelines.items():
+            with self.subTest(run=name):
+                self.assertEqual(t["header"]["pass"]["name"], S.PASS_OF[name.split("-")[1]])
+                self.assertEqual(t["header"]["pass"]["plan_id"], t["header"]["plans"][0])
+                self.assertEqual([c["label"] for c in t["integrity"] if not c.get("ok", c["chain"] == "VERIFIED")], [])
+                self.assertEqual(len(t["integrity"]), 5)
+                self.assertEqual(t["warnings"], [])
+                self.assertEqual(t["header"]["mode"], "SCORED")
+                models[t["header"]["model_config"]] += 1
+                tools += sum(turn["tools"] for turn in t["turns"].values())
+        self.assertEqual(models, {"spark": 25, "spark_open": 25})
+        # Four tool uses in phase 2, each on the turn it belongs to.
+        self.assertEqual(tools, 4)
 
 
 class GroundSeat(unittest.TestCase):

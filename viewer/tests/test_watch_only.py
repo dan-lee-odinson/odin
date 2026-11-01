@@ -1,10 +1,13 @@
 """VERDA is watch-only: the converter writes its own timeline files and nothing else,
-and leaves every run folder, pass folder and plan as it found them."""
+and leaves every run folder, pass folder, plan, scripted-commands file and clip as it
+found them."""
 
 import hashlib
+import io
 import shutil
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import _support as S
@@ -38,22 +41,28 @@ class WatchOnly(unittest.TestCase):
             runs = Path(tmp, "runs")
             for source in S.all_runs():
                 shutil.copytree(source, runs / source.name)
-            passes, plans = Path(tmp, "pass-records"), Path(tmp, "plans")
+            passes, plans, clips = Path(tmp, "pass-records"), Path(tmp, "plans"), Path(tmp, "clips")
             shutil.copytree(S.passes_dir(), passes)
             shutil.copytree(S.plans_dir(), plans)
+            shutil.copytree(S.clips_dir(), clips)
             scripted = Path(tmp, "scripted-commands", S.scripted_path().name)
             scripted.parent.mkdir()
             shutil.copy(S.scripted_path(), scripted)
             out = Path(tmp, "out")
             before = snapshot(tmp)
-            results = list(vc.convert_all(sorted(runs.iterdir()), out, S.dictionary_path(), True, passes, plans, scripted))
+            with redirect_stdout(io.StringIO()):
+                status = vc.main(["--all", str(runs), "--out", str(out), "--dictionary", str(S.dictionary_path()),
+                                  "--passes", str(passes), "--plans", str(plans), "--scripted", str(scripted),
+                                  "--clips", str(clips)])
             after = snapshot(tmp)
-        self.assertEqual([r[1] is not None for r in results], [True] * 7)
+        self.assertEqual(status, 0)
         added = sorted(set(after) - set(before))
-        # The ground-seat run's timeline is named by its run_id, dev-s6-0001.
-        names = list(S.PRACTICE_RUNS) + ["dev-s6-0001", "pass-2026-09-13-P1", "pass-2026-09-20-P2a",
-                                         "pass-2026-09-20-P2b", "index"]
-        self.assertEqual(added, sorted("out/%s.js" % name for name in names))
+        # Each run's own timeline, named by its run_id (the ground-seat run's is dev-s6-0001); a beside file
+        # for each run paired with his pass, which is every run but the ground-seat one; the index; the clip.
+        ids = ["dev-s6-0001" if name == S.GROUND_SEAT_RUN else name for name in S.ALL_RUNS]
+        expected = ["out/%s.js" % i for i in ids] + ["out/%s.beside.js" % i for i in ids if i != "dev-s6-0001"]
+        expected += ["out/index.js"] + ["out/clips/%s" % p.name for p in S.clips_dir().iterdir() if p.suffix != ".md"]
+        self.assertEqual(added, sorted(expected))
         self.assertEqual({k: after[k] for k in before}, before, "a file that was there before changed")
 
     def test_output_names_cannot_leave_the_folder(self):

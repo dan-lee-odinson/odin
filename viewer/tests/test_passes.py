@@ -48,11 +48,24 @@ def rows_of(path):
         return list(csv.reader(handle))
 
 
-def all_timelines(out):
-    return {timeline["id"]: timeline for _, path, timeline in
-            vc.convert_all(S.all_runs(), out, S.dictionary_path(), True, S.passes_dir(), S.plans_dir(),
-                           S.scripted_path())
+_SHARED = {}
+
+
+def all_timelines():
+    """Every run, beside his passes, converted once for this module into a folder kept until it ends."""
+    if "timelines" not in _SHARED:
+        _SHARED["tmp"] = tempfile.TemporaryDirectory()
+        _SHARED["timelines"] = {
+            timeline["id"]: timeline for _, path, timeline in
+            vc.convert_all(S.all_runs(), Path(_SHARED["tmp"].name), S.dictionary_path(), True, S.passes_dir(),
+                           S.plans_dir(), S.scripted_path())
             if path is not None}
+    return _SHARED["timelines"]
+
+
+def tearDownModule():
+    if "tmp" in _SHARED:
+        _SHARED["tmp"].cleanup()
 
 
 class PassFiles(unittest.TestCase):
@@ -135,26 +148,22 @@ class KnownCommandTimes(unittest.TestCase):
 class LineUp(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
-        cls.timelines = all_timelines(Path(cls.tmp.name))
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
+        cls.timelines = all_timelines()
 
     def test_each_pass_lines_up_with_its_runs(self):
         beside = {tid: (t["header"].get("pass") or {}).get("name") for tid, t in self.timelines.items()}
-        self.assertEqual(beside, {
+        expected = {
             "dev-practice-p3": "2026-10-11-P3",
             "dev-practice-p3-process": "2026-10-11-P3",
             "dev-practice-p4": "2026-10-11-P4",
             # The ground-seat run flew P3's scenario on 28 October, MET 800 to 909: it covers a
             # quarter of his P3 frames, so it stands alone.
             "dev-s6-0001": None,
-            "pass-2026-09-13-P1": "2026-09-13-P1",
-            "pass-2026-09-20-P2a": "2026-09-20-P2a",
-            "pass-2026-09-20-P2b": "2026-09-20-P2b",
-        })
+            S.PREVIEW_RUN: "2026-10-11-P3",
+        }
+        # Each scored run beside his pass of its plan. Every pass of his now has runs, so none stands alone.
+        expected.update({name: S.PASS_OF[name.split("-")[1]] for name in S.SCORED_RUNS})
+        self.assertEqual(beside, expected)
         for tid, t in self.timelines.items():
             if beside[tid] is None:
                 self.assertNotIn("director", t["sources"])
@@ -171,6 +180,24 @@ class LineUp(unittest.TestCase):
                 self.assertLessEqual(last, window["end"] + 20)
                 self.assertIn("pass-commands", [lane["id"] for lane in t["lanes"]])
 
+    def test_a_run_pairs_with_the_pass_flown_under_its_plan(self):
+        # Two made-up P2 runs with the same MET span, 0 to 22230 s, which covers his P2a and P2b frames
+        # alike; each is flown under one pass's plan, and that plan, not the span, decides.
+        points = huginn_dictionary.read_points(S.dictionary_path())
+        passes = vc.read_passes(S.passes_dir(), points)
+        plans = vc.read_plans(S.plans_dir())
+        paired = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            for plan_id in ("TYR0-P2-PASS2A-v1", "TYR0-P2-PASS2B-v1"):
+                run = Path(tmp, plan_id)
+                run.mkdir()
+                records = [{"type": "RUN_START", "met_s": 0, "body": {"scenario_id": "P2"}},
+                           {"type": "PLAN_IN_FORCE", "met_s": 0, "body": {"plan_id": plan_id}},
+                           {"type": "RUN_END", "met_s": 22230, "body": {}}]
+                (run / "events.jsonl").write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
+                paired[plan_id] = (vc.pass_for_run(run, passes, plans) or {}).get("name")
+        self.assertEqual(paired, {"TYR0-P2-PASS2A-v1": "2026-09-20-P2a", "TYR0-P2-PASS2B-v1": "2026-09-20-P2b"})
+
     def test_his_frame_age_shows_the_gap_in_his_p4_frames(self):
         age = {q[0]: q for q in self.timelines["dev-practice-p4"]["series"]["director:FRAME_AGE"]["samples"]}
         self.assertEqual(age[1199][1:3], [0, "GREEN"])
@@ -184,13 +211,8 @@ class LineUp(unittest.TestCase):
 class ScenarioCommands(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
-        cls.timelines = all_timelines(Path(cls.tmp.name))
+        cls.timelines = all_timelines()
         cls.scripted = vc.read_scripted(S.scripted_path(), S.plans_dir())
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
 
     def test_reads_the_seven_and_checks_each_against_its_plan(self):
         s = self.scripted
@@ -220,7 +242,7 @@ class ScenarioCommands(unittest.TestCase):
                           for c in p4["scenario_commands"]],
                          [(120, "CMD_PLD_SET_STATE", "before contact", True, "sim/scenarios/P4_hk_generation_halt.yaml:28"),
                           (1320, "CMD_SYS_RESET", "in contact", False, "sim/scenarios/P4_hk_generation_halt.yaml:31")])
-        p1 = self.timelines["pass-2026-09-13-P1"]
+        p1 = self.timelines["PH2-PASS1-SPARK-R1"]
         self.assertEqual([c["command"] for c in p1["pass_commands"]], ["CMD_PLD_SET_STATE", "CMD_PLD_SET_RATE"])
         self.assertEqual([c["met_s"] for c in p1["scenario_commands"]], [180, 240])
         for tid, t in self.timelines.items():
@@ -246,7 +268,7 @@ class ScenarioCommands(unittest.TestCase):
     def test_what_his_telemetry_showed_after_the_scenarios_commands(self):
         seen = {tid: [(c["met_s"], c["outcome"]["kind"], c["outcome"].get("met_s"), c["outcome"].get("before_met_s"))
                       for c in t["scenario_commands"]] for tid, t in self.timelines.items() if "scenario_commands" in t}
-        self.assertEqual(seen["pass-2026-09-13-P1"], [(180, "accepted", 180, 179), (240, "accepted", 240, 239)])
+        self.assertEqual(seen["PH2-PASS1-SPARK-R1"], [(180, "accepted", 180, 179), (240, "accepted", 240, 239)])
         self.assertEqual(seen["dev-practice-p4"], [(120, "outside", None, None), (1320, "unchanged", None, 1199)])
         self.assertEqual(seen["dev-practice-p3"], [(120, "outside", None, None)])
         # His P1 counter, read here from his CSV file: it steps up at the two METs the scenario sent its commands.
@@ -285,21 +307,28 @@ class ScenarioCommands(unittest.TestCase):
         self.assertNotIn("shared", theirs["outcome"])
 
     def test_odins_runs_dropped_exactly_the_in_contact_ones(self):
+        dropped_in = {}
         for run in S.all_runs():
-            with open(run / "truth.jsonl", encoding="utf-8") as handle:
-                truth = [json.loads(line) for line in handle]
-            with open(run / "events.jsonl", encoding="utf-8") as handle:
-                scenario = json.loads(handle.readline())["body"]["scenario_id"]
+            truth = [json.loads(line) for line in S.record_lines(run, "truth")]
+            start = json.loads(S.record_lines(run, "events")[0])["body"]
+            plans = vc.run_summary(run)["plans"]
             span = (truth[0]["met_s"], truth[-1]["met_s"])
             dropped = [(r["met_s"], r["body"]["command"], r["body"]["contact_window"]) for r in truth
                        if r["type"] == "SCRIPTED_COMMAND_DROPPED"]
-            expected = [(c["met_s"], c["command"], e["contact_window"]) for e in self.scripted["passes"].values()
-                        if pass_records.scenario_base(e["pass"]) == pass_records.scenario_base(scenario)
+            # The file's pass flown under the run's plan; for a practice run's development plan, its scenario's.
+            entries = [e for e in self.scripted["passes"].values() if e["plan_id"] in plans] or [
+                e for e in self.scripted["passes"].values()
+                if pass_records.scenario_base(e["pass"]) == pass_records.scenario_base(start["scenario_id"])]
+            expected = [(c["met_s"], c["command"], e["contact_window"]) for e in entries
                         for c in e["commands"] if not c["kept_in_odins_runs"] and span[0] <= c["met_s"] <= span[1]]
             with self.subTest(run=run.name):
                 self.assertEqual(dropped, expected)
-        with open(S.runs_dir() / "dev-practice-p4" / "truth.jsonl", encoding="utf-8") as handle:
-            self.assertEqual(sum('"SCRIPTED_COMMAND_DROPPED"' in line for line in handle), 1)
+            dropped_in[run.name] = [d[0] for d in dropped]
+        # Every P1 run dropped the scenario's commands at MET 180 and 240, and every P4 run its reset at 1320.
+        for name in S.SCORED_RUNS:
+            want = {"PASS1": [180, 240], "PASS4": [1320]}.get(name.split("-")[1], [])
+            self.assertEqual(dropped_in[name], want, name)
+        self.assertEqual(dropped_in["dev-practice-p4"], [1320])
 
 
 if __name__ == "__main__":

@@ -126,7 +126,16 @@ input[type=checkbox] { accent-color: var(--bracket); }
 main { display: grid; grid-template-columns: 1fr 540px; gap: 6px; min-height: 0; }
 #lanes { overflow-x: hidden; overflow-y: auto; min-height: 0; padding: 0; background: var(--panel); }
 #lanes svg { display: block; }
-#side { display: grid; grid-template-rows: auto minmax(110px, 1fr) minmax(150px, 1.25fr); gap: 6px; min-height: 0; }
+#side { display: grid; grid-template-rows: auto auto minmax(80px, 1fr) minmax(120px, 1.25fr); gap: 6px; min-height: 0; }
+/* The animation pane: the clip locked to the playhead, or a line saying why there is none. */
+.clip-box { background: #000; border: 1px solid var(--hair); aspect-ratio: 16 / 9; }
+.clip-box video { display: block; width: 100%; height: 100%; object-fit: contain; }
+.clip-note { margin: 5px 0 0; font-size: 12px; line-height: 1.35; color: var(--text-2); }
+.clip-panel.none .clip-note { margin: 0; color: var(--text-3); font-style: italic; }
+/* With a clip on screen, the event log gives its place to the pane, and the readouts drop their gauges. */
+#side.with-clip { grid-template-rows: auto auto minmax(90px, 1fr); }
+#side.with-clip .feed-panel { display: none; }
+#side.with-clip .gauge, #side.with-clip .truth-note { display: none; }
 .panel { padding: 8px 12px 10px; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 /* Section headers: a short accent bar, the title in spaced capitals, a thin rule. */

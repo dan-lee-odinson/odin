@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; font-src 'self' file:; img-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; font-src 'self' file:; img-src 'none'; connect-src 'none'; media-src 'self' file:; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VERDA</title>
 <link rel="stylesheet" href="verda.css">
@@ -44,6 +44,11 @@
 <main>
   <section id="lanes" class="frame" aria-label="Timeline"></section>
   <aside id="side">
+    <section id="clip-panel" class="panel frame clip-panel">
+      <h2><span id="clip-title">Animation</span></h2>
+      <div id="clip-box" class="clip-box" hidden><video id="clip" muted playsinline preload="auto"></video></div>
+      <p id="clip-note" class="clip-note"></p>
+    </section>
     <section class="panel frame now-panel">
       <h2><span id="now-title">At the playhead</span></h2>
       <div id="now"></div>

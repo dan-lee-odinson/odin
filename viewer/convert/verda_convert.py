@@ -5,12 +5,19 @@
     python convert/verda_convert.py --all FOLDER_OF_RUNS
         options: --out DIR (default page/timelines)  --dictionary PATH  --no-truth
                  --passes FOLDER_OF_PASSES  --plans FOLDER_OF_PLANS  --scripted FILE
+                 --clips FOLDER_OF_CLIPS
 
 For each run folder it reads events.jsonl and events.head, the saved turn
-bundles in inputs/, and truth.jsonl and truth.head when present. It checks the
+bundles in inputs/, and truth.jsonl and truth.head when present. A record file
+may be gzip-compressed (truth.jsonl.gz, as phase 2's scored runs keep it); its
+chain and head are checked on the records inside. A file in the run folder that
+the converter does not read is never skipped silently: the timeline's warnings
+name it, and the page and the converter's output show them. It checks the
 log's hash chain (CONTRACT.md v0.6, sections 4 and 12) and each saved bundle's
 hash, and writes <out>/<run_id>.js, the timeline file the page loads. It then
-rewrites <out>/index.js, the list of timeline files the page offers. It writes
+rewrites <out>/index.js, the list of timeline files the page offers, with each
+file's SHA-256. With --clips it copies each animation clip and its sync file
+into <out>/clips/ and lists them in index.js too (convert/clips.py). It writes
 nothing else and never writes into a run folder.
 
 The timeline file is data only: one JSON object, the "verda-timeline" format,
@@ -32,13 +39,24 @@ Telemetry comes from two places, kept apart and labeled:
     his own commands, and are never his. ODIN's runs keep the ones before
     contact and drop the ones in contact.
 
-With --passes, each run is paired with the Director's pass of its scenario
-whose frames its MET span covers, and each pass that no run pairs with gets a
-timeline of its own, beside its plan's contact window (--plans). With
---scripted, each pass's timeline also shows the scenario's own commands.
+With --passes, each run is paired with the Director's pass flown under its plan,
+or else of its scenario whose frames its MET span covers, and each pass that no
+run pairs with gets a timeline of its own, beside its plan's contact window
+(--plans). With --scripted, each pass's timeline also shows the scenario's own
+commands.
+
+A run paired with a pass is written as two files. <run_id>.js is the run's own
+timeline, byte for byte what the converter makes of the run alone: an animation
+clip of the run pins that file's SHA-256, so nothing on the Director's side of a
+comparison ever changes it. <run_id>.beside.js holds what pairing adds (his pass,
+the scenario's commands, the lanes they take) and pins the SHA-256 of the run's
+file it was made for. The page loads both and puts them together; the converter
+checks, before writing, that the two put together are the paired timeline.
 """
 
 import argparse
+import copy
+import gzip
 import hashlib
 import json
 import os
@@ -50,6 +68,7 @@ HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
+import clips  # noqa: E402
 import huginn_dictionary  # noqa: E402
 import pass_records  # noqa: E402
 import record_types  # noqa: E402
@@ -110,6 +129,7 @@ STATE_SEVERITY = {
 # Lane heights in pixels, so that every lane of a run beside a pass fits a 1920 x 1080 screen.
 CHART_H, STATE_H, AGE_H = 48, 38, 56
 STRIP_H = 26  # the strip above the age chart for what a ground seat's bundles recorded
+PAIRED_CHART_H = 44  # a chart's height beside the Director's pass
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
@@ -128,14 +148,42 @@ def sha256_tag(data):
     return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
+# The record files of a run folder, each as JSON Lines or gzip-compressed JSON Lines.
+RECORD_FILES = ("events", "truth")
+HEAD_SUFFIX = ".head"
+
+
+def record_file(run_dir, stem):
+    """The run folder's <stem>.jsonl, or its <stem>.jsonl.gz; None if it has neither."""
+    for name in (stem + ".jsonl", stem + ".jsonl.gz"):
+        if (Path(run_dir) / name).is_file():
+            return Path(run_dir) / name
+    return None
+
+
+def record_bytes(path):
+    """A record file's lines as written: a .gz file is read through gzip."""
+    data = Path(path).read_bytes()
+    return gzip.decompress(data) if Path(path).name.endswith(".gz") else data
+
+
+def unread_files(run_dir, read):
+    """The files at the top of a run folder the converter did not read, for its warnings."""
+    return sorted(p.name for p in Path(run_dir).iterdir() if p.is_file() and p.name not in read)
+
+
 def read_chain(path, head_path):
     """Reads a hash-chained JSON Lines file and checks its chain and head.
 
     Returns (records, check). Each line must be its record's canonical JSON, its
     prev_hash the hash of the line before (null on the first), and its record_id
-    its line number. The head file holds the hash of the last line.
+    its line number. The head file holds the hash of the last line. A .gz file
+    is checked on the lines inside it.
     """
-    data = Path(path).read_bytes()
+    try:
+        data = record_bytes(path)
+    except (OSError, EOFError, gzip.BadGzipFile) as exc:
+        raise RunFolderError("%s cannot be read: %s" % (Path(path).name, exc))
     lines = data.split(b"\n")
     if lines and lines[-1] == b"":
         lines.pop()
@@ -251,6 +299,8 @@ class _Builder:
         self.plan_windows = {}
         self.frames = set()  # MET of every frame some bundle held
         self.observations = []  # (turn MET, observation, turn_id)
+        self.truth_kinds = 0  # the kinds of truth flag, each drawn on a row of its own
+        self.read_files = set()  # the files at the top of the run folder it read
 
     # -- helpers ---------------------------------------------------------
     def event(self, lane, met_s, label, severity, shape, refs, **extra):
@@ -297,22 +347,34 @@ class _Builder:
 
     # -- the event log ---------------------------------------------------
     def read_log(self):
-        path = self.run_dir / "events.jsonl"
-        if not path.exists():
+        path = record_file(self.run_dir, "events")
+        if path is None:
             raise RunFolderError("%s has no events.jsonl" % self.run_dir)
-        records, check = read_chain(path, self.run_dir / "events.head")
+        records, check = read_chain(path, self.run_dir / ("events" + HEAD_SUFFIX))
+        self.read_files.update({path.name, "events" + HEAD_SUFFIX})
         self.integrity.append(dict(check, label="Event log"))
         for record in records:
             self.records[record["record_id"]] = record
         return records
 
     def read_truth(self):
-        path = self.run_dir / "truth.jsonl"
-        if not self.include_truth or not path.exists():
+        path = record_file(self.run_dir, "truth")
+        if not self.include_truth:
+            # Left out by choice (--no-truth): not a file the converter could not read.
+            self.read_files.update(p.name for p in self.run_dir.iterdir() if p.name.startswith("truth."))
             return []
-        records, check = read_chain(path, self.run_dir / "truth.head")
+        if path is None:
+            return []
+        records, check = read_chain(path, self.run_dir / ("truth" + HEAD_SUFFIX))
+        self.read_files.update({path.name, "truth" + HEAD_SUFFIX})
         self.integrity.append(dict(check, label="Simulator truth file"))
         return records
+
+    def skipped_files(self):
+        """Says, in the timeline's warnings, which files of the run folder it did not read."""
+        for name in unread_files(self.run_dir, self.read_files):
+            self.warnings.append("%s was not read: VERDA reads events.jsonl, truth.jsonl, each also as .gz, "
+                                 "and their .head files" % name)
 
     def walk_log(self, records):
         contact_open = None
@@ -584,7 +646,10 @@ class _Builder:
         for name, (start, last) in sorted(closed, key=lambda item: item[1][0]):
             row = rows.setdefault(name.split(":")[0], len(rows))
             severity = "bad" if name.startswith("fault") or name.startswith("no frame") else "warn"
-            self.span("truth", start, last + 1, name, severity, [], row=1 + min(row, 2))
+            # One row for each kind of flag, below the row of truth's own records. (Rows were once
+            # capped at three, which drew a fourth kind over the third, as in phase 2's P4 runs.)
+            self.span("truth", start, last + 1, name, severity, [], row=1 + row)
+        self.truth_kinds = len(rows)
         return last_met
 
     # -- derived telemetry age -------------------------------------------
@@ -720,6 +785,7 @@ def build_timeline(run_dir, dictionary_path, include_truth=True):
     records = builder.read_log()
     builder.walk_log(records)
     truth_records = builder.read_truth()
+    builder.skipped_files()
     truth_end = builder.walk_truth(truth_records) if truth_records else None
 
     run_id = builder.header.get("run_id") or run_dir.name
@@ -777,8 +843,9 @@ def build_timeline(run_dir, dictionary_path, include_truth=True):
                   "points": ["FRAME_AGE"], "note": staleness_note, "note_short": staleness_short,
                   "rows": 2, "strip": recorded})
     if truth_records:
-        lanes.append({"id": "truth", "label": "Simulator truth", "kind": "track", "height": 54,
-                      "rows": 4, "source": TRUTH, "note": TRUTH_LABEL})
+        extra = max(0, builder.truth_kinds - 3)  # a row more than the usual four, 12 px each
+        lanes.append({"id": "truth", "label": "Simulator truth", "kind": "track", "height": 54 + 12 * extra,
+                      "rows": 4 + extra, "source": TRUTH, "note": TRUTH_LABEL})
 
     for record in records:
         ref = "log:%d" % record["record_id"]
@@ -996,6 +1063,13 @@ def add_pass(timeline, pass_data, plan, points, scripted=None):
     if "truth" in by_id:  # the truth lane stays last
         lanes.remove(by_id["truth"])
         lanes.append(by_id["truth"])
+    # Beside his pass, the charts are a little shorter, so that a ground seat's run with every lane
+    # fits a 1920 x 1080 screen. This is the paired layout only: a run's own timeline keeps its own.
+    for lane in lanes:
+        if lane["kind"] == "chart" and lane["id"] != "staleness":
+            lane["height"] = min(lane["height"], PAIRED_CHART_H)
+        elif lane["id"] == "staleness" and lane.get("strip"):
+            lane["height"] = AGE_H + STRIP_H - 8
 
     ok = not pass_data["problems"]
     timeline["integrity"].append({
@@ -1043,21 +1117,33 @@ def pass_timeline(pass_data, plan, points, scripted=None):
 
 
 def run_summary(run_dir):
-    """A run's scenario and MET span, read from its event log, for pairing it with a pass."""
-    scenario, mets = None, []
-    with open(Path(run_dir) / "events.jsonl", encoding="utf-8") as handle:
-        for line in handle:
+    """A run's scenario, the plans it flew under and its MET span, read from its event log, for pairing it
+    with a pass."""
+    scenario, mets, plans = None, [], set()
+    path = record_file(run_dir, "events")
+    for line in (record_bytes(path).decode("utf-8").splitlines() if path else []):
+        if line.strip():
             record = json.loads(line)
             if record.get("type") == "RUN_START":
                 scenario = record.get("body", {}).get("scenario_id")
+            if record.get("type") == "PLAN_IN_FORCE" and record.get("body", {}).get("plan_id"):
+                plans.add(record["body"]["plan_id"])
             if isinstance(record.get("met_s"), (int, float)):
                 mets.append(record["met_s"])
-    return {"scenario": pass_records.scenario_base(scenario), "met_range": [min(mets), max(mets)] if mets else None}
+    return {"scenario": pass_records.scenario_base(scenario), "plans": sorted(plans),
+            "met_range": [min(mets), max(mets)] if mets else None}
 
 
-def pass_for_run(run_dir, passes):
-    """The Director's pass of the run's scenario that the run's MET span covers most of (at least half)."""
+def pass_for_run(run_dir, passes, plans=()):
+    """The Director's pass flown under a plan the run flew under; failing that, the pass of the run's
+    scenario that the run's MET span covers most of (at least half).
+
+    A run that starts at MET 0 can cover two passes of its scenario whole (P2a and P2b), so its plan
+    decides before its span does."""
     summary = run_summary(run_dir)
+    flown = [p for p in passes if (pass_records.plan_for(p, plans) or {}).get("plan_id") in summary["plans"]]
+    if len(flown) == 1:
+        return flown[0]
     best, score = None, 0.5
     if summary["met_range"] is None:
         return None
@@ -1125,18 +1211,91 @@ def _write_output(out_dir, name, text):
     return target
 
 
+# -- a run beside the Director's pass: two files --------------------------------
+
+BESIDE_PREFIX = "// VERDA beside "
+BESIDE_SUFFIX = ".beside.js"
+BESIDE_FORMAT = "verda-beside"
+# What pairing adds to a run's timeline: new entries in these maps,
+_BESIDE_ADD = ("sources", "header", "series")
+# these whole fields, which a run alone does not have,
+_BESIDE_NEW = ("pass_commands", "scenario_commands", "pass_records")
+# and these, which it replaces.
+_BESIDE_REPLACE = ("title", "met_range", "lanes")
+
+
+def beside_of(plain, paired, run_sha256):
+    """What pairing added to a run's own timeline, for its .beside.js file."""
+    beside = {"format": BESIDE_FORMAT, "format_version": FORMAT_VERSION, "id": plain["id"], "run_sha256": run_sha256,
+              "pass": paired["header"]["pass"]["name"],
+              "add": {key: {k: v for k, v in paired[key].items() if k not in plain[key]} for key in _BESIDE_ADD},
+              "new": {key: paired[key] for key in _BESIDE_NEW},
+              "append": {"integrity": paired["integrity"][len(plain["integrity"]):]}}
+    beside.update({key: paired[key] for key in _BESIDE_REPLACE})
+    return beside
+
+
+def with_beside(plain, beside):
+    """A run's own timeline with its .beside.js put to it, as the page does."""
+    out = dict(plain)
+    for key in _BESIDE_ADD:
+        out[key] = dict(plain[key], **beside["add"][key])
+    out.update(beside["new"])
+    out["integrity"] = plain["integrity"] + beside["append"]["integrity"]
+    out.update({key: beside[key] for key in _BESIDE_REPLACE})
+    return out
+
+
+def beside_script(beside):
+    summary = {"id": beside["id"], "title": beside["title"], "met_range": beside["met_range"],
+               "pass": beside["pass"], "run_sha256": beside["run_sha256"],
+               "format": BESIDE_FORMAT, "format_version": FORMAT_VERSION}
+    data = json.dumps(beside, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False)
+    return (BESIDE_PREFIX + json.dumps(summary, sort_keys=True, ensure_ascii=True) + "\n"
+            + "window.VERDA_BESIDE = window.VERDA_BESIDE || {};\n"
+            + "window.VERDA_BESIDE[%s] = %s;\n" % (json.dumps(beside["id"]), data))
+
+
+def read_beside_script(path):
+    first, _, rest = Path(path).read_text(encoding="utf-8").partition("\n")
+    if not first.startswith(BESIDE_PREFIX):
+        raise ValueError("%s is not a VERDA beside file" % path)
+    body = rest[rest.index("] = ") + len("] = "):].rstrip()
+    return json.loads(first[len(BESIDE_PREFIX):]), json.loads(body[:-1])
+
+
+def _remove_output(out_dir, name):
+    """Removes one of the converter's own files from the output folder, if it is there."""
+    if "/" in name or "\\" in name or not name.endswith(BESIDE_SUFFIX):
+        raise ValueError("refusing to remove %r" % name)
+    target = Path(out_dir) / name
+    if target.is_file():
+        target.unlink()
+
+
 def write_index(out_dir):
+    """index.js: each timeline file with the SHA-256 of its bytes, the Director's pass beside it if it has one,
+    and each animation clip placed beside them."""
     entries = []
     for path in sorted(Path(out_dir).glob("*.js")):
-        if path.name == "index.js":
+        if path.name == "index.js" or path.name.endswith(BESIDE_SUFFIX):
             continue
         first = path.read_text(encoding="utf-8").partition("\n")[0]
         if first.startswith(HEADER_PREFIX):
             summary = json.loads(first[len(HEADER_PREFIX):])
             summary["file"] = path.name
+            summary["sha256"] = clips.sha256_of(path)
+            beside_path = path.with_name(path.name[:-len(".js")] + BESIDE_SUFFIX)
+            if beside_path.is_file():
+                b = json.loads(beside_path.read_text(encoding="utf-8").partition("\n")[0][len(BESIDE_PREFIX):])
+                summary["beside"] = {"file": beside_path.name, "sha256": clips.sha256_of(beside_path),
+                                     "pass": b["pass"], "run_sha256": b["run_sha256"]}
+                summary["title"], summary["met_range"] = b["title"], b["met_range"]
             entries.append(summary)
-    text = ("// VERDA's list of timeline files, written by verda_convert.py.\n"
-            "window.VERDA_INDEX = %s;\n" % json.dumps(entries, sort_keys=True, indent=1, ensure_ascii=True))
+    text = ("// VERDA's list of timeline files and animation clips, written by verda_convert.py.\n"
+            "window.VERDA_INDEX = %s;\n" % json.dumps(entries, sort_keys=True, indent=1, ensure_ascii=True)
+            + "window.VERDA_CLIPS = %s;\n" % json.dumps(clips.index_entries(out_dir), sort_keys=True, indent=1,
+                                                         ensure_ascii=True))
     return _write_output(out_dir, "index.js", text)
 
 
@@ -1146,15 +1305,29 @@ def convert(run_dir, out_dir=DEFAULT_OUT, dictionary_path=None, include_truth=Tr
     scenario's own commands on his side."""
     dictionary_path = dictionary_path or find_dictionary()
     timeline = build_timeline(run_dir, dictionary_path, include_truth)
-    if pass_dir is not None:
-        points = huginn_dictionary.read_points(dictionary_path)
-        pass_data = pass_records.read_pass(pass_dir, points)
-        add_pass(timeline, pass_data, pass_records.plan_for(pass_data, read_plans(plans_dir)), points,
-                 read_scripted(scripted_path, plans_dir))
-        timeline["title"] = "%s beside the Director's pass %s" % (timeline["id"], pass_data["name"])
-    path = _write_output(out_dir, timeline["id"] + ".js", timeline_script(timeline))
+    text = timeline_script(timeline)
+    beside_name = timeline["id"] + BESIDE_SUFFIX
+    if pass_dir is None:
+        path = _write_output(out_dir, timeline["id"] + ".js", text)
+        _remove_output(out_dir, beside_name)  # the converter's own, from pairing this run before
+        write_index(out_dir)
+        return path, timeline
+    points = huginn_dictionary.read_points(dictionary_path)
+    pass_data = pass_records.read_pass(pass_dir, points)
+    paired = copy.deepcopy(timeline)
+    add_pass(paired, pass_data, pass_records.plan_for(pass_data, read_plans(plans_dir)), points,
+             read_scripted(scripted_path, plans_dir))
+    paired["title"] = "%s beside the Director's pass %s" % (timeline["id"], pass_data["name"])
+    beside = beside_of(timeline, paired, "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest())
+    if with_beside(timeline, beside) != paired:
+        raise RunFolderError("%s: the run's timeline and its beside file do not put together to the paired timeline"
+                             % timeline["id"])
+    path = _write_output(out_dir, timeline["id"] + ".js", text)
+    if clips.sha256_of(path) != beside["run_sha256"]:
+        raise RunFolderError("%s.js on disk is not the text it was made from" % timeline["id"])
+    _write_output(out_dir, beside_name, beside_script(beside))
     write_index(out_dir)
-    return path, timeline
+    return path, paired
 
 
 def convert_pass(pass_dir, out_dir=DEFAULT_OUT, dictionary_path=None, plans_dir=None, scripted_path=None):
@@ -1177,9 +1350,10 @@ def convert_all(runs, out_dir=DEFAULT_OUT, dictionary_path=None, include_truth=T
     Yields (what, path, timeline) or (what, None, the exception) for each timeline file."""
     dictionary_path = dictionary_path or find_dictionary()
     passes = read_passes(passes_dir, huginn_dictionary.read_points(dictionary_path)) if passes_dir else []
+    plans = read_plans(plans_dir)
     taken = set()
     for run in runs:
-        match = pass_for_run(run, passes) if passes else None
+        match = pass_for_run(run, passes, plans) if passes else None
         try:
             path, timeline = convert(run, out_dir, dictionary_path, include_truth,
                                      Path(passes_dir) / match["name"] if match else None, plans_dir, scripted_path)
@@ -1220,12 +1394,18 @@ def main(argv=None):
     parser.add_argument("--plans", metavar="FOLDER", help="the plans, for each pass's contact window")
     parser.add_argument("--scripted", metavar="FILE",
                         help="each scenario's own scripted commands, shown on the Director's side")
+    parser.add_argument("--clips", metavar="FOLDER",
+                        help="animation clips, each with its sync file beside it, to place beside the timelines")
     args = parser.parse_args(argv)
     runs = [Path(r) for r in args.runs]
     if args.all:
-        runs += sorted(p for p in Path(args.all).iterdir() if (p / "events.jsonl").exists())
-    if not runs and not args.passes:
-        parser.error("name at least one run folder, or --all FOLDER, or --passes FOLDER")
+        for folder in sorted(p for p in Path(args.all).iterdir() if p.is_dir()):
+            if record_file(folder, "events") is None:
+                print("SKIPPED %s: no events.jsonl in it" % folder.name, file=sys.stderr)
+            else:
+                runs.append(folder)
+    if not runs and not args.passes and not args.clips:
+        parser.error("name at least one run folder, or --all FOLDER, --passes FOLDER or --clips FOLDER")
     status = 0
     for name, path, timeline in convert_all(runs, args.out, args.dictionary, not args.no_truth, args.passes, args.plans,
                                             args.scripted):
@@ -1248,6 +1428,30 @@ def main(argv=None):
             print("  warning: " + warning)
         if broken:
             status = 1
+    if args.clips:
+        status = max(status, place_and_report_clips(args.clips, args.out))
+    return status
+
+
+def place_and_report_clips(clips_dir, out_dir):
+    """Places the clips, rewrites index.js, and says for each whether its timeline on disk is the one it pins."""
+    status = 0
+    for sync_path, placed, problems in clips.place_clips(clips_dir, out_dir):
+        if problems:
+            print("CLIP NOT PLACED %s: %s" % (sync_path.name, "; ".join(problems)), file=sys.stderr)
+            status = 1
+    write_index(out_dir)
+    timelines = {}
+    for path in sorted(Path(out_dir).glob("*.js")):
+        if path.name != "index.js":
+            timelines[path.stem] = clips.sha256_of(path)
+    for entry in clips.index_entries(out_dir):
+        have = timelines.get(entry["run_id"])
+        verdict = ("matches its timeline file" if have == entry["timeline_sha256"] else
+                   "NO timeline file %s.js" % entry["run_id"] if have is None else
+                   "pins %s, but %s.js is %s: the page will not play it" % (
+                       entry["timeline_sha256"][:19], entry["run_id"], have[:19]))
+        print("clip %s -> %s (%s)" % (entry["sync_file"], entry["file"], verdict))
     return status
 
 

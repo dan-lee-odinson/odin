@@ -8,6 +8,7 @@ tests/show_red.py plants a changed input without touching the real one:
     VERDA_RUNS        the folder holding the practice run folders
     VERDA_DICTIONARY  HUGINN's tlm_cmd.yaml
     VERDA_SCRIPTED    the scenarios' scripted commands, phase2_scripted_commands.json
+    VERDA_CLIPS       the animation clips, each with its sync file
     VERDA_PAGE        the page folder (index.html, verda.js, verda.css)
 
 The Director's passes and the plans are read from the inputs folder, as
@@ -28,7 +29,16 @@ if str(ROOT / "convert") not in sys.path:
 PRACTICE_RUNS = ("dev-practice-p3", "dev-practice-p3-process", "dev-practice-p4")
 # S5's live check of 28 October 2026: P3's pass flown in the ground seat, its run_id dev-s6-0001.
 GROUND_SEAT_RUN = "dev-s5-live-ground-seat"
-ALL_RUNS = PRACTICE_RUNS + (GROUND_SEAT_RUN,)
+# Phase 2's fifty scored runs: each pass flown five times by each model, spark and spark_open.
+SCORED_PASSES = ("PASS1", "PASS2A", "PASS2B", "PASS3", "PASS4")
+SCORED_ARMS = ("SPARK", "OPEN")
+SCORED_RUNS = tuple("PH2-%s-%s-R%d" % (p, a, n) for p in SCORED_PASSES for a in SCORED_ARMS for n in range(1, 6))
+# The Director's pass each scored run is flown beside, by the plan both were flown under.
+PASS_OF = {"PASS1": "2026-09-13-P1", "PASS2A": "2026-09-20-P2a", "PASS2B": "2026-09-20-P2b",
+           "PASS3": "2026-10-11-P3", "PASS4": "2026-10-11-P4"}
+# A phase-2 development run, P3 flown by spark_open: the run the animation's preview clip shows.
+PREVIEW_RUN = "dev-ph2-p3-open-01"
+ALL_RUNS = PRACTICE_RUNS + (GROUND_SEAT_RUN, PREVIEW_RUN) + SCORED_RUNS
 # The Director's five phase-2 passes, in inputs/pass-records/.
 PASSES = ("2026-09-13-P1", "2026-09-20-P2a", "2026-09-20-P2b", "2026-10-11-P3", "2026-10-11-P4")
 
@@ -107,6 +117,21 @@ def ground_seat_run():
 
 def all_runs():
     return [need(runs_dir() / name / "events.jsonl").parent for name in ALL_RUNS]
+
+
+def clips_dir():
+    return need(os.environ.get("VERDA_CLIPS", inputs_dir() / "clips"))
+
+
+def record_lines(run_dir, stem):
+    """A run's events or truth file as lines, read through gzip when it is a .gz file."""
+    import gzip
+    for name in (stem + ".jsonl", stem + ".jsonl.gz"):
+        path = Path(run_dir) / name
+        if path.is_file():
+            data = path.read_bytes()
+            return (gzip.decompress(data) if name.endswith(".gz") else data).decode("utf-8").splitlines()
+    raise AssertionError("missing input: %s/%s.jsonl" % (run_dir, stem))
 
 
 def scripted_path():
