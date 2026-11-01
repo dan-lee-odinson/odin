@@ -49,7 +49,7 @@ OUT = S.ROOT / "out" / "a2"
 CELL_BASE = (0.02, 0.08, 0.35)
 MODE_COLORS = {"NOMINAL": (0.2, 0.9, 0.3), "LOW_POWER": (1.0, 0.7, 0.15),
                "SAFE": (1.0, 0.2, 0.15)}
-GREEN, AMBER, RED, GRAY = (0.2, 0.9, 0.3), (1.0, 0.75, 0.1), (1.0, 0.2, 0.15), (0.4, 0.4, 0.42)
+GREEN, AMBER, RED, GRAY = (0.2, 0.9, 0.3), (1.0, 0.32, 0.0), (1.0, 0.2, 0.15), (0.4, 0.4, 0.42)
 
 
 def limit_color(limit):
@@ -122,23 +122,29 @@ class Rig:
         return cue
 
     def make_weather(self):
-        """A seeded clump of particles sunward of the craft, scaled by flux."""
+        """Radiation as it looks in spacecraft camera footage: brief white
+        specks and short streaks across the frame itself (Director, A5).
+        The streaks ride just in front of the camera; apply_state flashes
+        them at fresh spots each frame, at a rate following the flux."""
         stream = bpy.data.objects.new("WeatherStream", None)
         collection = bpy.data.collections["Spacecraft"]
         collection.objects.link(stream)
-        stream.parent = self.empty
-        rng = random.Random(7)
-        mat = A1.material("WeatherParticles", (1.0, 0.55, 0.2), roughness=0.5,
-                          emission=(1.0, 0.5, 0.15), emission_strength=2.2)
+        stream.parent = self.camera
+        stream.location = (0.0, 0.0, 0.0)
+        self.camera.data.clip_start = 0.01
+        mats = [A1.material("WeatherParticles%d" % i, (1.0, 1.0, 1.0),
+                            roughness=0.5, emission=(1.0, 1.0, 1.0),
+                            emission_strength=s)
+                for i, s in enumerate((1.0, 2.5, 5.0, 9.0))]
+        import random as _rng
+        pick = _rng.Random(3)
+        self.weather_particles = []
         for i in range(24):
-            # Fine streaks along the flow (local -Y, away from the Sun),
-            # of varied lengths, not dots (Director, A3).
-            A1.box("WeatherP%02d" % i,
-                   (0.005, rng.uniform(0.06, 0.18), 0.005),
-                   (rng.uniform(-0.5, 0.5), rng.uniform(0.25, 0.75),
-                    rng.uniform(-0.3, 0.3)),
-                   mat=mat, parent=stream, collection=collection)
-        stream.scale = (0.001, 0.001, 0.001)
+            speck = A1.box("WeatherP%02d" % i, (0.00025, 0.00006, 0.00006),
+                           (0.0, 0.0, -0.07), mat=pick.choice(mats),
+                           parent=stream, collection=collection)
+            speck.hide_render = True
+            self.weather_particles.append(speck)
         return stream
 
 
@@ -238,20 +244,30 @@ def apply_state(rig, state, position, sun_dir, frame=None, cue_kinds=()):
     rig.link.location = (start + end) / 2.0
     rig.link.rotation_euler = direction.to_track_quat("Z", "Y").to_euler()
     rig.link.scale = (1.0, 1.0, direction.length)
-    rig.link.hide_render = not state["in_contact"]
+    rig.link.hide_render = not state["in_contact"] or getattr(rig, "clean", False)
     for prop in ("location", "rotation_euler", "scale", "hide_render"):
         key(rig.link, prop)
     # Brief ODIN / BALDUR-0 flashes (VERDA carries the text).
     for cue, kind in ((rig.odin_cue, "odin"), (rig.baldur_cue, "baldur")):
-        on = kind in cue_kinds
+        on = kind in cue_kinds and not getattr(rig, "clean", False)
         cue.scale = (1.0, 1.0, 1.0) if on else (0.001, 0.001, 0.001)
         key(cue, "scale")
-    # Space weather: particle clump grows with the feed's proton flux.
+    # Space weather: camera strikes, count following the feed's flux.
     if rig.weather is not None:
         flux = (state["weather"] or {}).get("proton_flux_pfu", 0.0)
-        level = max(0.001, min(1.2, math.log10(flux + 1.0)))
-        rig.weather.scale = (level, level, level)
-        key(rig.weather, "scale")
+        level = max(0.0, min(1.0, math.log10(flux + 1.0)))
+        count = int(round(len(rig.weather_particles) * level))
+        seed = (frame if frame is not None else int(state["met_s"])) * 131
+        for i, speck in enumerate(rig.weather_particles):
+            rng = random.Random(seed + i)
+            speck.location = (rng.uniform(-0.03, 0.03),
+                              rng.uniform(-0.017, 0.017), -0.07)
+            speck.rotation_euler = (0.0, 0.0, rng.uniform(0.0, math.pi))
+            speck.scale = (rng.uniform(0.4, 1.6), 1.0, 1.0)
+            speck.hide_render = i >= count
+            for prop in ("location", "rotation_euler", "scale",
+                         "hide_render"):
+                key(speck, prop)
 
 
 def build_scene(rows, station, with_weather, settings=None):
@@ -344,6 +360,14 @@ def run_preview(timeline, timeline_path, rows, station, feed_reports,
         raise SystemExit("run %s has no UTC epoch in inputs/epochs.json"
                          % timeline["id"])
     scene, rig = build_scene(rows, station, bool(feed_reports), settings)
+    if settings.get("cut", "instrument") == "clean":
+        # The clean cut is what a camera would see: no data cues at all.
+        rig.clean = True
+        for name in ("ModeBeacon", "LoadIndicator", "NamePlate",
+                     "SA1_Label", "SA2_Label"):
+            obj = bpy.data.objects.get(name)
+            if obj is not None:
+                obj.hide_render = True
     first_sample, _last = T.telemetry_span(timeline)
     start_met = settings.get("met_start")
     if start_met is None:
@@ -409,6 +433,7 @@ def run_preview(timeline, timeline_path, rows, station, feed_reports,
                        settings.get("height", 360)],
         "engine": settings.get("engine", "BLENDER_EEVEE"),
         "samples": settings.get("samples", 32),
+        "cut": settings.get("cut", "instrument"),
         "sun": "derived from inputs/epochs.json epoch + MET (solar.py)",
         "note": "Telemetry starts at contact (MET 800); before that the "
                 "record holds no spacecraft state, so the preview starts "
@@ -488,6 +513,7 @@ def main():
         "met_end": int_arg("--met-end"),
         "engine": arg_value("--engine", "BLENDER_EEVEE"),
         "samples": int_arg("--samples") or 32,
+        "cut": arg_value("--cut", "instrument"),
         "clip": arg_value("--clip"),
         "epochs_path": epochs_path,
     }

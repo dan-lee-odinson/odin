@@ -195,8 +195,13 @@ CASES += [
                 pattern="test_a3.py"),
     source_case("a4_command_drops_samples", "test_render_clip_command",
                 ROOT / "render_clip.py",
-                '"--engine", args.engine, "--samples", str(args.samples)]',
-                '"--engine", args.engine]',
+                '"--engine", args.engine, "--samples", str(args.samples),',
+                '"--engine", args.engine,',
+                pattern="test_a4.py"),
+    source_case("a4_relative_paths_unresolved", "test_render_clip_command",
+                ROOT / "render_clip.py",
+                "    return str(Path(value).resolve())",
+                "    return str(Path(value))",
                 pattern="test_a4.py"),
 ]
 
@@ -239,6 +244,77 @@ def a4_eclipse_case():
 
 
 CASES += [a4_sync_case(), a4_eclipse_case()]
+
+
+def a5_report_case():
+    def run():
+        with tempfile.TemporaryDirectory() as tmp:
+            source = ROOT / "out" / "a5" / "a5_still_report.json"
+            report = json.loads(source.read_text(encoding="utf-8"))
+            report["met_s"] = report["met_s"] + 100
+            planted = Path(tmp) / "a5_still_report.json"
+            planted.write_text(json.dumps(report), encoding="utf-8")
+            return run_one_test("test_a5_still_report",
+                                {"ANIM_A5_REPORT": str(planted)},
+                                pattern="test_a5.py")
+    return "a5_report_wrong_met", run
+
+
+CASES += [
+    source_case("a5_zenith_pointed_down", "test_local_basis_known",
+                ROOT / "truescale.py",
+                'return (0.0, 0.0, -(EARTH_RADIUS_M + alt_km * 1000.0))',
+                'return (0.0, 0.0, (EARTH_RADIUS_M + alt_km * 1000.0))',
+                pattern="test_a5.py"),
+    source_case("a5_cut_argument_dropped", "test_cut_argument",
+                ROOT / "render_clip.py",
+                '"--cut", args.cut]',
+                '"--cut", "instrument"]',
+                pattern="test_a5.py"),
+    a5_report_case(),
+]
+
+
+def a5_fixture_case():
+    def run():
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp)
+            # A strike-less clean still planted as the eclipse fixture.
+            for name in ("fixture_890_sunlit.png",
+                         "fixture_945_safe_deny.png"):
+                shutil.copy2(ROOT / "out" / "a2" / name, staged / name)
+            # Same 960x540 size, but an old strike-less A1 still: only
+            # the strike count can catch it.
+            shutil.copy2(ROOT / "out" / "a1" / "preview_a1_02_hero.png",
+                         staged / "fixture_920_eclipse_red.png")
+            return run_one_test("test_fixture_stills_new_look",
+                                {"ANIM_FIXTURE_DIR": str(staged)},
+                                pattern="test_a5.py")
+    return "a5_fixture_still_replaced", run
+
+
+CASES += [a5_fixture_case()]
+
+
+def a5anim_sync_case():
+    def run():
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp)
+            source = ROOT / "out" / "a5anim"
+            for path in source.iterdir():
+                if path.is_file():
+                    shutil.copy2(path, staged / path.name)
+            sync_path = staged / "dev-ph2-p3-open-01_a5_instrument.sync.json"
+            sync = json.loads(sync_path.read_text(encoding="utf-8"))
+            sync["met_step_s"] = sync["met_step_s"] * 2
+            sync_path.write_text(json.dumps(sync), encoding="utf-8")
+            return run_one_test("test_clips_syncs_and_frames",
+                                {"ANIM_A5ANIM_DIR": str(staged)},
+                                pattern="test_a5anim.py")
+    return "a5anim_sync_step_doubled", run
+
+
+CASES += [a5anim_sync_case()]
 
 
 def main(argv):

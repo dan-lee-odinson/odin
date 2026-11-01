@@ -108,11 +108,18 @@ class TestRenderClipArgs(unittest.TestCase):
             "--dry-run"])
         command = R.build_command(args)
         joined = " ".join(command)
-        for needle in ("build_a2.py", "--timeline", "some/run.js",
-                       "--output-dir", "some/out", "--width 1280",
+        # Relative path arguments come out resolved to absolute paths
+        # (Director, A5 animate: relative paths failed on Claude Code's
+        # run), and the A5 look-pass scene is the one animated.
+        for needle in ("build_a5.py", "--animate", "--timeline",
+                       str(Path("some/run.js").resolve()),
+                       "--output-dir", str(Path("some/out").resolve()),
+                       "--width 1280",
                        "--height 720", "--met-start 890", "--met-end 930",
                        "--engine CYCLES", "--samples 128"):
             self.assertIn(needle, joined)
+        for element in command:
+            self.assertNotIn(element, ("some/run.js", "some/out"))
         self.assertEqual(R.main([
             "--timeline", "some/run.js", "--output", "some/out",
             "--dry-run"]), 0)

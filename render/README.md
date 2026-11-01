@@ -15,7 +15,11 @@ Full at medium. A1 and A2 as first built are deposited as ANIM-01
 held, not committed — its scene file stored a user-profile path). A1 to
 A3 are deposited as ANIM-02 without a scene file (SHA-256
 a8030f3474e796035e35c954e80016408329d8f0184dd7ff58d558a2aeb4d661); A4 was
-built after that deposit, also on Muse Wonder Full at medium.
+built after that deposit, also on Muse Wonder Full at medium, and A1 to
+A4 are deposited as ANIM-03 (SHA-256
+b9c7fab50e3de74d539a4e8e08efcaf892431f8de36534b541f639039ecc75ea). A5
+(the look pass, its three still rounds, and its animation) was built
+after that, also on Muse Wonder Full at medium.
 
 ## Run it
 
@@ -188,6 +192,70 @@ eclipse-only rim light keeps the outline — every part darker than in
 sunlight. A test decodes the fixture stills (MET 890 sunlit, MET 920
 eclipse) and fails when the eclipse spacecraft region is not darker; it
 caught the A3 cut, where eclipse measured brighter (75.0 vs 74.1).
+
+## A5: the look pass (one frame first)
+
+`build_a5.py` renders one follow-shot moment at true scale: the
+spacecraft at its real size at the origin, Earth (6,371 km radius) moved
+around it, camera about 3 m away on an 85 mm lens looking down about 26
+degrees so the horizon crosses the frame. Cycles, a hard sun from the
+derived direction, earthshine fill from below, AgX, slight bloom, motion
+blur on. Earth carries the 21,600-pixel Blue Marble, a cloud shell 8 km
+up casting shadows, Black Marble night lights fading in across the
+terminator, a water glint from a mask derived from the Blue Marble
+itself, and a thin limb glow; clouds and night lights are NASA
+composites, not the run's date, and are captioned so. Two cuts from the
+same scene (`--cut` on `render_clip.py`, the same switch here): clean
+(camera only) and instrument (data cues kept: beacon, load bar, soft
+contact beam toward the station; no station marker in the follow shot).
+Space weather in clips is drawn as brief white camera strikes whose rate
+follows the feed's flux. Per the Director, one moment (MET 900: sunlit,
+in contact, load YELLOW_HIGH) was rendered as stills in both cuts and
+animation of the look pass waits for the Director's word. Finals will run
+at 30 fps with position smoothed between orbit rows; state changes stay
+on their record times.
+
+Round two (the Director's seven notes on the first frame): the camera
+moved down-Sun for rim light and deep shadows with the Sun out of frame;
+cells are deep blue-black with silver grid lines in the gaps; the limb
+glow rolls off before the silhouette and ground haze fades distant land
+into blue; clouds got a wide soft ramp; the clean cut carries no text
+including painted plates; the contact link is a thin glowing line from
+the antenna, never over the craft; the amber load color is saturated;
+and space weather is 1-3 pixel sensor strikes of varied brightness. The
+fixture stills were redrawn through this same true-scale scene
+(`build_a5.py --fixture --met 890|920|945`).
+
+Round three (the Director's notes on round two): side light instead of
+down-Sun — the camera sits south of the craft and somewhat sunward, so
+one face is lit and the other in shadow, and Earth keeps round one's
+daylight colors (the water roughness floor was raised so side-lit ocean
+no longer mirrors black space, and the haze was cut back). The camera
+also moved to the cell side, so the cell grid reads with silver lines in
+the gaps; the foil got object-space crinkle driving bump and roughness;
+clouds are shaded by their own brightness under a capped soft ramp; the
+link line starts at the patch antenna's own position; and the eclipse
+fill and rim dropped so eclipse reads clearly against sunlight in the
+890/920 fixture pair. Round three worked at 960 x 540.
+
+Animation (the Director's go-ahead after round three): `build_a5.py
+--animate` keyframes this same scene across a run's MET range — Earth
+moving around the craft at the origin, derived Sun and terminator,
+record state on the craft, the antenna-anchored link, brief ODIN and
+BALDUR-0 cue flashes in the instrument cut, and feed-only sensor
+strikes. Transform curves interpolate smoothly; record-state curves are
+constant, so every state change lands on its record MET.
+`render_clip.py` drives this mode and resolves every path argument to
+an absolute path itself (relative arguments used to fail). Also folded
+in: a thinner limb glow, and the wing labels moved one panel in from
+the tips so the frame does not clip them. The first animated run is
+`dev-ph2-p3-open-01` (MET 800-1225, 86 frames, both cuts with sync
+files in `out/a5anim/`), because no scored PASS3 run's timeline is in
+the animation inputs; the same command renders a scored run unchanged
+when its timeline arrives. Where a run's epoch is marked shifted in
+`inputs/epochs.json`, its caption says the Sun is set to agree with the
+run's record, not the campaign clock (see `CAPTIONS.md`); the PASS-3
+runs are not shifted.
 
 ## License
 

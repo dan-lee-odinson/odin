@@ -2,7 +2,8 @@
 """A4: the headless render script Claude Code can run anywhere.
 
 A plain command-line wrapper: it takes every path and setting as an
-argument, builds the scene from the scripts in this folder (no scene file
+argument (resolving each path to an absolute one itself), builds the A5
+true-scale look-pass scene from the scripts in this folder (no scene file
 needed), renders with Blender headless, and the clip lands in the output
 folder with its A3 sync file beside it. It holds no key and reaches no
 network; the engine and samples are the caller's choice (for example a
@@ -19,12 +20,22 @@ else "blender" on the PATH.
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 ENGINES = ("BLENDER_EEVEE", "CYCLES")
+
+
+def resolved(value):
+    """An absolute path string for any path argument, relative or not.
+
+    Blender resolves its own paths against the blend file's folder, and
+    a headless run has none, so relative arguments used to fail unless
+    the caller made them absolute first (Director, A5 animate)."""
+    return str(Path(value).resolve())
 
 
 def parse_args(argv=None):
@@ -46,6 +57,10 @@ def parse_args(argv=None):
     parser.add_argument("--met-step", type=int, default=5)
     parser.add_argument("--fps", type=int, default=10)
     parser.add_argument("--engine", default="BLENDER_EEVEE", choices=ENGINES)
+    parser.add_argument("--cut", default="instrument",
+                        choices=("instrument", "clean"),
+                        help="instrument keeps the data cues (VERDA pane); "
+                             "clean is camera-only, for the video")
     parser.add_argument("--samples", type=int, default=32)
     parser.add_argument("--feed", default=None,
                         help="a run's own feed file, when it carries one")
@@ -63,23 +78,32 @@ def parse_args(argv=None):
             parser.error("timeline not found: %s" % args.timeline)
         if not Path(args.inputs).is_dir():
             parser.error("inputs folder not found: %s" % args.inputs)
+    args.timeline = resolved(args.timeline)
+    args.inputs = resolved(args.inputs)
+    args.output = resolved(args.output)
+    if args.feed:
+        args.feed = resolved(args.feed)
     return args
 
 
 def blender_executable(args):
-    return args.blender or os.environ.get("BLENDER") or "blender"
+    exe = args.blender or os.environ.get("BLENDER") or "blender"
+    if os.sep in exe or (os.altsep and os.altsep in exe):
+        return resolved(exe)
+    return shutil.which(exe) or exe
 
 
 def build_command(args):
     """The headless Blender command that builds, renders, and writes sync."""
     command = [blender_executable(args), "-b", "--factory-startup",
-               "--python-exit-code", "1", "-P", str(ROOT / "build_a2.py"),
-               "--", "--timeline", str(args.timeline),
+               "--python-exit-code", "1", "-P", str(ROOT / "build_a5.py"),
+               "--", "--animate", "--timeline", str(args.timeline),
                "--inputs", str(args.inputs),
                "--output-dir", str(args.output),
                "--width", str(args.width), "--height", str(args.height),
                "--step", str(args.met_step), "--fps", str(args.fps),
-               "--engine", args.engine, "--samples", str(args.samples)]
+               "--engine", args.engine, "--samples", str(args.samples),
+               "--cut", args.cut]
     if args.met_start is not None:
         command += ["--met-start", str(args.met_start)]
     if args.met_end is not None:

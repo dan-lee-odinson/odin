@@ -318,7 +318,7 @@ def build_wing(empty, collection, mats, prefix, side):
                     collection=collection, bevel=scaled(0.002))
         # Solar cells on the +Y face: a 4 x 3 grid of thin glossy tiles.
         cols, tile_rows = 4, 3
-        gap = scaled(0.004)
+        gap = scaled(0.006)
         cell_w = panel_w / cols - gap
         cell_h = panel_h / tile_rows - gap
         cell_y = panel_t / 2.0 + scaled(0.0015)
@@ -333,9 +333,11 @@ def build_wing(empty, collection, mats, prefix, side):
                     mat=mats["cell_" + prefix.lower()], parent=empty,
                     collection=collection)
         x += side * (panel_w + scaled(0.006))
-    # Wing name plate on the outer panel's cell side.
+    # Wing name plate on the inner panel's cell side (one panel in from
+    # the tip, so the follow shot's frame does not clip it: Director,
+    # A5 animate).
     outer_x = side * (bus_x / 2.0 + scaled(0.024)
-                      + (S.PANELS_PER_WING - 0.5) * panel_w)
+                      + (S.PANELS_PER_WING - 1.5) * panel_w)
     plate = text_label(prefix + "_Label", prefix, scaled(0.05),
                        (outer_x, panel_t / 2.0 + scaled(0.004),
                         -panel_h / 2.0 + scaled(0.035)),
