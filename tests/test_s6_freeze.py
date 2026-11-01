@@ -17,7 +17,7 @@ from tests.harness_world import SPARK_CONFIG, HarnessWorld
 from tests.repo_checks import REPO_ROOT
 
 RECORD = json.loads((REPO_ROOT / "config" / "frozen.json").read_bytes())
-# The six schemas as they stood at c5895fa, as the Director checked on 28 October 2026, with common and observation
+# The six schemas as they stood at 6b1ec9e, as the Director checked on 28 October 2026, with common and observation
 # re-stamped for phase 1's INST beside HUGINN (his ruling on U58, 28 October 2026), and common again for INST's NaN
 # and infinities in the report format (his ruling of 29 October 2026, after PH1-SHAKEDOWN-SPARK-R3).
 SCHEMA_HASHES = {
@@ -28,8 +28,8 @@ SCHEMA_HASHES = {
     "contract/schemas/observation.schema.json": "sha256:922da49688278ad0db9c3376b0006e21f993513dd355bfac5dc4926373cbfabf",
     "contract/schemas/common.schema.json": "sha256:929284182c6dc7af7fdfb29319d1d21b40dc0e6a83c774553855c46bb492e10d",
 }
-COMMON_BEFORE = "sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378716eb9dc"   # at 592e694
-# Each model's block as the Director ruled it on 27 October 2026 (config/models.yaml at d9531a9).
+COMMON_BEFORE = "sha256:5d2cbe916cee8c68a73d89fe4dab29654cfe9085561b620f3e13d378716eb9dc"   # at da3d8aa
+# Each model's block as the Director ruled it on 27 October 2026 (config/models.yaml at b7193db).
 SPARK = (b'{"date":"2026-10-27","max_output_tokens":32000,"model":"muse-spark-1.3","reasoning_effort":"high",'
          b'"source":"the Director\'s ruling of 27 October 2026, from M3\'s table","timeout_s":120}')
 # Glimmer's, as he approved it on 30 October 2026 ("Approve, but a 60 s timeout"; "Approve the diff").
@@ -142,7 +142,7 @@ def test_red_a_setting_written_twice_is_refused(copies):
 
 def test_red_the_record_refuses_common_schema_as_it_stood_before_the_nan_ruling(copies):
     # The Director's ruling of 29 October 2026 re-stamped common.schema.json; the file as it stood before is refused.
-    before = subprocess.run(["git", "-C", str(REPO_ROOT), "show", "592e694:contract/schemas/common.schema.json"],
+    before = subprocess.run(["git", "-C", str(REPO_ROOT), "show", "da3d8aa:contract/schemas/common.schema.json"],
                             capture_output=True, check=True).stdout
     assert sha256_tag(before) == COMMON_BEFORE != RECORD["schemas"]["contract/schemas/common.schema.json"]
     (copies / "contract" / "schemas" / "common.schema.json").write_bytes(before)

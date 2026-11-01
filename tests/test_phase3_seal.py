@@ -11,7 +11,7 @@ FOLDER = REPO_ROOT / "phase3"
 SEAL = FOLDER / "SEAL.md"
 HASH = re.compile(r"\bsha256:[0-9a-f]{64}\b")
 IN_FORCE = "sha256:bc8ae4ace8a100486cc9b11bad17a4e818893e9d1363e3fc9eb4db4fabf6350e"   # 29 October 2026
-FIRST = "sha256:5d92af90e06031d9f6db889779e27c598766c0074cc1b635692c42431b9ea330"   # 28 October 2026, 554aa09
+FIRST = "sha256:5d92af90e06031d9f6db889779e27c598766c0074cc1b635692c42431b9ea330"   # 28 October 2026, 447c4c3
 CHECKS = "sha256:6edb98286aac5fdd7687d84a0d2cf1a1188fc46dee05f8ae02b9797ec6eaa32d"   # S8's phase-3 checks, with E's, 30 October 2026
 CHECKS_FIRST = "sha256:fe3af633dae31c5304d932317806c0b45043e5588d0e8c575d22432ce996d901"   # their first seal, 30 October 2026
 
