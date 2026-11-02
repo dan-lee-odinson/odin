@@ -1,0 +1,4 @@
+# Local machine only: the Modal client. Everything heavy (AudioCraft,
+# torch, the model weights) stays in Modal's cloud image - see the pins
+# at the top of musicgen_modal.py.
+modal==1.6.3
