@@ -1,0 +1,46 @@
+{
+ "endpoint": "http://127.0.0.1:8090",
+ "model": "Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf",
+ "max_tokens": 8192,
+ "reasoning_strength": "low",
+ "format": "format-G-HUGINN.json",
+ "stop_at_s": 180,
+ "decisions": [
+  {
+   "prompt": "turn01-met800.prompt.txt",
+   "met_s": 800,
+   "http_status": 200,
+   "seconds": 180.0,
+   "finish_reason": null,
+   "usage": null,
+   "timings": null,
+   "streamed": {
+    "first_token_s": 124.7,
+    "chunks": 131,
+    "finished": false,
+    "still_running_at_stop": true
+   },
+   "content": "",
+   "error": null,
+   "judged": {
+    "accepted": false,
+    "kind": null,
+    "reason": "NOT_ONE_JSON_OBJECT"
+   }
+  }
+ ],
+ "setting_seen": "Reasoning strength: low.",
+ "warm_up": {
+  "http_status": 200,
+  "seconds": 72.1
+ },
+ "summary": {
+  "decisions": 1,
+  "min_s": 180.0,
+  "max_s": 180.0,
+  "mean_s": 180.0,
+  "over_60_s": 1,
+  "accepted": 0,
+  "stopped_at_a_clear_miss": true
+ }
+}

@@ -1,0 +1,372 @@
+{
+ "gpu": "h100",
+ "image": "ghcr.io/ggml-org/llama.cpp:server-cuda-b11977",
+ "price_per_gpu_s": 0.001097,
+ "settings": {
+  "medium": {
+   "system_block_line": "Reasoning strength: medium.",
+   "decisions": [
+    {
+     "prompt": "turn01-met800.prompt.txt",
+     "met_s": 800,
+     "http_status": 200,
+     "seconds": 27.1,
+     "finish_reason": "stop",
+     "prefill_tokens": 43158,
+     "prefill_s": 15.8,
+     "decode_tokens": 821,
+     "decode_s": 9.9,
+     "reasoning_chars": 2671,
+     "content": "{\"kind\":\"none\",\"command_call\":{\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"rationale\":\"AOS just acquired at MET 800 with first telemetry frame received onboard. PROC-001-S04 requires CDH_FRAME_CNT recorded in two consecutive housekeeping frames to confirm frame lock; only the first frame is available at age 0 s. Waiting for the next frame to confirm advancing CDH_FRAME_CNT before proceeding with state-of-health assessment.\"}",
+     "judged": {
+      "accepted": false,
+      "kind": null,
+      "reason": "SCHEMA_VIOLATION"
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn03-met860.prompt.txt",
+     "met_s": 860,
+     "http_status": 200,
+     "seconds": 27.8,
+     "finish_reason": "stop",
+     "prefill_tokens": 48816,
+     "prefill_s": 17.9,
+     "decode_tokens": 731,
+     "decode_s": 8.8,
+     "reasoning_chars": 2058,
+     "content": "{\"kind\":\"none\",\"command_call\":null,\"escalation\":null,\"rationale\":\"Telemetry is fresh from ONBOARD at MET 860 and matches pass plan predictions: EPS_BATT_SOC 66.23% vs predicted 66.229%, EPS_LOAD_I 1.40 A vs predicted 1.400 A, EPS_MODE NOMINAL, EPS_BATT_V 7.67 V >7.2 V, ADM_ECLIPSE SUNLIT, EPS_BATT_I positive. All envelope limits hold and no limit response is required per PROC-001-S07. Next health checkpoint per PROC-001 is AOS+2min at MET 920; no command is due this turn.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn04-met900.prompt.txt",
+     "met_s": 900,
+     "http_status": 200,
+     "seconds": 33.8,
+     "finish_reason": "stop",
+     "prefill_tokens": 52576,
+     "prefill_s": 19.4,
+     "decode_tokens": 1104,
+     "decode_s": 13.3,
+     "reasoning_chars": 3503,
+     "content": "{\"kind\":\"command\",\"command_call\":null,\"escalation\":null,\"rationale\":\"EPS_LOAD_I is 1.80 A with limit_state YELLOW_HIGH, exceeding envelope limit <1.5 A at MET 900 while EPS_SA1_I and EPS_SA2_I remain symmetric at 1.70 A and ADM_ECLIPSE is SUNLIT. Per PROC-001-S07 the spacecraft is outside its operating envelope and limit response is required. PROC-002-S02 selects load alarm branch for EPS_LOAD_I and PROC-002-S03 identifies load excursion with generation nominal. Envelope breach raises CMD_PLD_SET_STATE to C4, lease L-SHED covers state OFF with uses remaining, telemetry is fresh age 0 s and rung is AI_AUTONOMOUS, so payload shed is authorized as the first step of PROC-002.\"}",
+     "judged": {
+      "accepted": false,
+      "kind": null,
+      "reason": "SCHEMA_VIOLATION"
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn05-met913.prompt.txt",
+     "met_s": 913,
+     "http_status": 200,
+     "seconds": 31.9,
+     "finish_reason": "stop",
+     "prefill_tokens": 54380,
+     "prefill_s": 20.1,
+     "decode_tokens": 882,
+     "decode_s": 10.6,
+     "reasoning_chars": 3206,
+     "content": "{\"kind\":\"none\",\"command_call\":null,\"escalation\":null,\"rationale\":\"CMD_PLD_SET_STATE OFF was allowed at MET 912 via lease L-SHED; telemetry at MET 913 still shows PLD_STATE ON and EPS_LOAD_I 1.80 A YELLOW_HIGH with CDH_CMD_ACC_CNT unchanged at 1. Awaiting next frame to confirm counter delta and load shed effect before proceeding with PROC-002 verification steps.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn06-met924.prompt.txt",
+     "met_s": 924,
+     "http_status": 200,
+     "seconds": 33.8,
+     "finish_reason": "stop",
+     "prefill_tokens": 55454,
+     "prefill_s": 20.5,
+     "decode_tokens": 1004,
+     "decode_s": 12.1,
+     "reasoning_chars": 3289,
+     "content": "{\"kind\":\"none\",\"command_call\":null,\"escalation\":null,\"rationale\":\"Load shed command CMD_PLD_SET_STATE OFF was allowed and its outcome is confirmed in telemetry at MET 914: PLD_STATE OFF, EPS_LOAD_I dropped from 1.8 A to 1.2 A, EPS_BATT_I recovered to +1.43 A, EPS_BATT_SOC 66.66 % and EPS_MODE NOMINAL. Envelope limits now hold: EPS_BATT_SOC >35, EPS_BATT_V >7.2, EPS_LOAD_I 1.2 <1.5, EPS_MODE != SAFE. PROC-002 load-alarm branch is resolved with recovered energy balance; no further command is required this turn.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn07-met974.prompt.txt",
+     "met_s": 974,
+     "http_status": 200,
+     "seconds": 34.2,
+     "finish_reason": "stop",
+     "prefill_tokens": 60302,
+     "prefill_s": 22.4,
+     "decode_tokens": 870,
+     "decode_s": 10.6,
+     "reasoning_chars": 2916,
+     "content": "{\"kind\":\"none\",\"command_call\":null,\"escalation\":null,\"rationale\":\"Load shed command CMD_PLD_SET_STATE OFF was allowed at met 912 under lease L-SHED and telemetry now shows PLD_STATE OFF and EPS_LOAD_I 1.20 A < 1.5 A limit with EPS_BATT_I positive and SOC rising. Envelope limits now hold, mode remains NOMINAL, and the limit response initiated by PROC-002 is resolved. No further command is required this turn.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn08-met1034.prompt.txt",
+     "met_s": 1034,
+     "http_status": 200,
+     "seconds": 42.3,
+     "finish_reason": "stop",
+     "prefill_tokens": 66068,
+     "prefill_s": 24.8,
+     "decode_tokens": 1348,
+     "decode_s": 16.3,
+     "reasoning_chars": 4138,
+     "content": "{\"kind\":\"none\",\"command_call\":null,\"escalation\":null,\"rationale\":\"Telemetry at MET 1034 shows envelope limits satisfied: EPS_BATT_SOC 67.5% >35, EPS_BATT_V 7.68 V >7.2, EPS_LOAD_I 1.20 A <1.5, EPS_MODE NOMINAL. Load shed executed at MET 900 via CMD_PLD_SET_STATE OFF under lease L-SHED was allowed and verified: PLD_STATE OFF and EPS_LOAD_I dropped from 1.80 A to 1.20 A with CDH_CMD_ACC_CNT increment to 2. Battery current recovered positive ~1.43 A with symmetric SA1/SA2 1.70 A SUNLIT. PROC-001-S07 limit response condition is no longer present. No further command required this turn; continue monitoring toward LOS-2 min checkpoint.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn09-met1094.prompt.txt",
+     "met_s": 1094,
+     "http_status": 200,
+     "seconds": 46.8,
+     "finish_reason": "stop",
+     "prefill_tokens": 71878,
+     "prefill_s": 27.1,
+     "decode_tokens": 1457,
+     "decode_s": 18.2,
+     "reasoning_chars": 4439,
+     "content": "{\"kind\":\"none\",\"command_call\":null,\"escalation\":null,\"rationale\":\"Telemetry is fresh (age 0 s) and shows the load shed is effective: PLD_STATE is OFF and EPS_LOAD_I is 1.20 A, well below the 1.5 A envelope limit. EPS_BATT_SOC is 67.96 % rising, EPS_BATT_V 7.69 V, EPS_MODE NOMINAL, ADM_ECLIPSE SUNLIT, EPS_BATT_I positive 1.43 A. The envelope limits gt EPS_BATT_SOC 35, gt EPS_BATT_V 7.2, lt EPS_LOAD_I 1.5, ne EPS_MODE SAFE now all hold, so PROC-001-S07 no longer requires limit response. PROC-002-S04 shed command CMD_PLD_SET_STATE OFF was allowed at met 912 under lease L-SHED and is verified by CDH_CMD_ACC_CNT 2 and the load drop from ~1.80 A at met 900 to 1.20 A post-shed with PLD off. No further command is required this turn; continue monitoring toward LOS.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn11-met1200.prompt.txt",
+     "met_s": 1200,
+     "http_status": 200,
+     "seconds": 41.9,
+     "finish_reason": "stop",
+     "prefill_tokens": 72703,
+     "prefill_s": 27.4,
+     "decode_tokens": 1039,
+     "decode_s": 12.9,
+     "reasoning_chars": 3125,
+     "content": "{\"kind\": \"none\", \"command_call\": null, \"escalation\": null, \"rationale\": \"Telemetry fresh at MET 1200: EPS_LOAD_I 1.20 A <1.5 A limit, EPS_BATT_SOC 68.77% >35%, EPS_BATT_V 7.70 V >7.2 V, EPS_MODE NOMINAL, ADM_ECLIPSE SUNLIT. PLD_STATE OFF after shed commanded at MET 900, CDH_CMD_ACC_CNT advanced 1→2 at MET 914 with EPS_LOAD_I dropping 1.80→1.20 A and EPS_BATT_I positive. Envelope limits now hold, load alarm cleared, and balance is recovered. No further command required this turn; continue monitoring toward LOS 1230 per PROC-001.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    }
+   ],
+   "mean_s": 35.5,
+   "max_s": 46.8,
+   "over_60_s": 0,
+   "accepted": 7
+  },
+  "low": {
+   "system_block_line": "Reasoning strength: low.",
+   "decisions": [
+    {
+     "prompt": "turn01-met800.prompt.txt",
+     "met_s": 800,
+     "http_status": 200,
+     "seconds": 21.6,
+     "finish_reason": "stop",
+     "prefill_tokens": 43158,
+     "prefill_s": 15.8,
+     "decode_tokens": 336,
+     "decode_s": 4.1,
+     "reasoning_chars": 712,
+     "content": "{\"kind\": \"none\", \"command_call\": null, \"escalation\": null, \"rationale\": \"AOS at MET 800 with fresh ONBOARD telemetry. Envelope limits hold: EPS_BATT_SOC 65.8% >35, EPS_BATT_V 7.66V >7.2, EPS_LOAD_I 1.40A <1.5, EPS_MODE NOMINAL. Pass plan predicts SOC 65.813%, LOAD 1.400A, MODE NOMINAL at acquisition. Live values match plan within tolerance and no limit violation is present. PROC-001 state-of-health assessment will continue with next telemetry; no command required this turn.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn03-met860.prompt.txt",
+     "met_s": 860,
+     "http_status": 200,
+     "seconds": 24.9,
+     "finish_reason": "stop",
+     "prefill_tokens": 48816,
+     "prefill_s": 17.9,
+     "decode_tokens": 471,
+     "decode_s": 5.7,
+     "reasoning_chars": 1358,
+     "content": "{\"kind\":\"none\",\"command_call\":null,\"escalation\":null,\"rationale\":\"Telemetry at MET 860 matches pass plan predictions (SOC 66.23%, BATT_I 1.30 A, LOAD_I 1.40 A, SUNLIT, MODE NOMINAL) and all envelope limits are satisfied. No limit response is required per PROC-001-S07; continuing to monitor for AOS+2 min checkpoint.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn04-met900.prompt.txt",
+     "met_s": 900,
+     "http_status": 200,
+     "seconds": 26.9,
+     "finish_reason": "stop",
+     "prefill_tokens": 52576,
+     "prefill_s": 19.4,
+     "decode_tokens": 507,
+     "decode_s": 6.2,
+     "reasoning_chars": 1592,
+     "content": "{\"kind\": \"command\", \"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"rationale\": \"EPS_LOAD_I crossed to YELLOW_HIGH at MET 900 (1.80 A > 1.5 A limit, envelope breached). PROC-001-S07 limit response required and PROC-002-S03 load excursion branch applies; shed payload per PROC-002-S04.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "command",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn05-met913.prompt.txt",
+     "met_s": 913,
+     "http_status": 200,
+     "seconds": 27.1,
+     "finish_reason": "stop",
+     "prefill_tokens": 54380,
+     "prefill_s": 20.1,
+     "decode_tokens": 484,
+     "decode_s": 5.9,
+     "reasoning_chars": 1498,
+     "content": "{\"kind\":\"none\",\"command_call\":null,\"escalation\":null,\"rationale\":\"CMD_PLD_SET_STATE OFF was sent at MET 900 and BALDUR-0 allowed it at MET 912 as C4 under lease L-SHED. Current telemetry at MET 913 still shows PLD_STATE ON and EPS_LOAD_I 1.80 A YELLOW_HIGH. No confirmation of the shed effect is visible yet; per command accounting and PROC-002-S05 verification rules, wait for the next housekeeping frame to confirm counter delta and PLD_STATE/EPS_LOAD_I change before issuing further actions.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn06-met924.prompt.txt",
+     "met_s": 924,
+     "http_status": 200,
+     "seconds": 26.1,
+     "finish_reason": "stop",
+     "prefill_tokens": 55454,
+     "prefill_s": 20.5,
+     "decode_tokens": 346,
+     "decode_s": 4.3,
+     "reasoning_chars": 926,
+     "content": "{\"kind\":\"none\",\"command_call\":null,\"escalation\":null,\"rationale\":\"Telemetry confirms the shed command issued at MET 900 has taken effect: PLD_STATE is OFF, EPS_LOAD_I has dropped from 1.8 A to 1.20 A and is now GREEN, EPS_BATT_I is positive 1.43 A with SOC 66.66 % and MODE NOMINAL. The limit excursion that triggered PROC-002 is cleared and no further immediate action is required; continue monitoring per PROC-001 assessment.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn07-met974.prompt.txt",
+     "met_s": 974,
+     "http_status": 200,
+     "seconds": 28.6,
+     "finish_reason": "stop",
+     "prefill_tokens": 60302,
+     "prefill_s": 22.4,
+     "decode_tokens": 398,
+     "decode_s": 4.9,
+     "reasoning_chars": 886,
+     "content": "{\"kind\":\"none\",\"command_call\":{\"command\":\"CMD_PLD_SET_STATE\",\"parameters\":{\"state\":\"OFF\"}},\"escalation\":null,\"rationale\":\"Telemetry at MET 974 confirms PLD_STATE OFF and EPS_LOAD_I 1.200 A, down from the stuck-load excursion of ~1.80 A seen at MET 900. Envelope limit EPS_LOAD_I <1.5 A now holds, EPS_BATT_SOC 67.04 % GREEN, EPS_BATT_V 7.68 V GREEN, EPS_MODE NOMINAL, ADM_ECLIPSE SUNLIT, SA1/SA2 symmetric 1.70 A. The L-SHED load-shed command sent at MET 900 was ALLOW per gateway_feedback and its effect is now visible in telemetry. No further limit response is required at this time; continue monitoring per PROC-001 health assessment and await next trigger.\"}",
+     "judged": {
+      "accepted": false,
+      "kind": null,
+      "reason": "SCHEMA_VIOLATION"
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn08-met1034.prompt.txt",
+     "met_s": 1034,
+     "http_status": 200,
+     "seconds": 32.1,
+     "finish_reason": "stop",
+     "prefill_tokens": 66068,
+     "prefill_s": 24.7,
+     "decode_tokens": 514,
+     "decode_s": 6.2,
+     "reasoning_chars": 1164,
+     "content": "{\"kind\":\"none\",\"command_call\":null,\"escalation\":null,\"rationale\":\"Envelope now holds: EPS_BATT_SOC 67.5% >35, EPS_BATT_V 7.68V >7.2, EPS_LOAD_I 1.20A <1.5, EPS_MODE NOMINAL != SAFE. History shows load excursion to 1.80A at MET 900 triggering limit response, CMD_PLD_SET_STATE OFF was allowed at MET 912 via lease L-SHED and verified in telemetry at MET 914 with PLD_STATE OFF, EPS_LOAD_I dropping to 1.20A and CDH_CMD_ACC_CNT incrementing to 2. Current frame at MET 1034 shows PLD_STATE OFF and load nominal, SOC rising per plan trend. No further limit response required at this time; continue monitoring per PROC-001.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn09-met1094.prompt.txt",
+     "met_s": 1094,
+     "http_status": 200,
+     "seconds": 34.3,
+     "finish_reason": "stop",
+     "prefill_tokens": 71878,
+     "prefill_s": 27.1,
+     "decode_tokens": 487,
+     "decode_s": 6.0,
+     "reasoning_chars": 949,
+     "content": "{\"kind\": \"none\", \"command_call\": null, \"escalation\": null, \"rationale\": \"Telemetry at MET 1094 shows EPS_LOAD_I 1.20 A GREEN, PLD_STATE OFF, EPS_MODE NOMINAL, EPS_BATT_SOC 67.96 % GREEN, EPS_BATT_V 7.69 V GREEN, EPS_BATT_I +1.43 A charging, SA1/SA2 1.70 A symmetric SUNLIT. Envelope limits all hold (SOC>35, V>7.2, LOAD<1.5, MODE≠SAFE). The load shed commanded at MET 900 via CMD_PLD_SET_STATE state OFF was allowed under lease L-SHED and is confirmed by history: EPS_LOAD_I dropped from ~1.80 A at MET 900-912 to 1.20 A from MET 914 onward with PLD_STATE OFF and CDH_CMD_ACC_CNT increment to 2. No further limit response is required; health assessment per PROC-001 is nominal and PROC-002 actions are complete.\"}",
+     "judged": {
+      "accepted": true,
+      "kind": "none",
+      "reason": null
+     },
+     "error": null
+    },
+    {
+     "prompt": "turn11-met1200.prompt.txt",
+     "met_s": 1200,
+     "http_status": 200,
+     "seconds": 34.7,
+     "finish_reason": "stop",
+     "prefill_tokens": 72703,
+     "prefill_s": 27.4,
+     "decode_tokens": 455,
+     "decode_s": 5.7,
+     "reasoning_chars": 965,
+     "content": "{\"kind\": \"none\", \"command_call\": {\"command\": \"CMD_PLD_SET_STATE\", \"parameters\": {\"state\": \"OFF\"}}, \"escalation\": null, \"rationale\": \"Payload shed already executed and verified at MET 914: PLD_STATE OFF, EPS_LOAD_I dropped to 1.20 A, CDH_CMD_ACC_CNT incremented to 2. Current telemetry at MET 1200 shows EPS_LOAD_I 1.20 A GREEN, EPS_BATT_SOC 68.77 % GREEN, EPS_MODE NOMINAL, ADM_ECLIPSE SUNLIT, SA currents symmetric 1.70 A. Envelope limits now hold: EPS_BATT_SOC >35, EPS_BATT_V 7.70 V >7.2, EPS_LOAD_I 1.20 A <1.5, EPS_MODE != SAFE. No further limit response required per PROC-001-S07 and PROC-002; awaiting next assessment point.\"}",
+     "judged": {
+      "accepted": false,
+      "kind": null,
+      "reason": "SCHEMA_VIOLATION"
+     },
+     "error": null
+    }
+   ],
+   "mean_s": 28.5,
+   "max_s": 34.7,
+   "over_60_s": 0,
+   "accepted": 7
+  }
+ },
+ "cold_start_s": 52.9,
+ "warm_up_s": 50.9,
+ "warm_wall_s": 683.1,
+ "billed_s_estimate": 803.1,
+ "cost_usd_estimate": 0.881
+}

@@ -1,0 +1,103 @@
+[
+ {
+  "prompt": "turn01-met800.prompt.txt",
+  "met_s": 800,
+  "feed_reports": 1,
+  "feeds": [
+   "station_receiver"
+  ],
+  "prompt_bytes": 157973,
+  "prompt_sha256": "1a03092bae9c1c4b69fec9527938c06a45a68a9ac8686ba70d12cebaac716804",
+  "schema_problems": []
+ },
+ {
+  "prompt": "turn03-met860.prompt.txt",
+  "met_s": 860,
+  "feed_reports": 2,
+  "feeds": [
+   "beacon",
+   "station_receiver"
+  ],
+  "prompt_bytes": 168934,
+  "prompt_sha256": "1a4d957d39e9aef8f61070b1c347947e78f3c77dffd2697be6f9241e137f058b",
+  "schema_problems": []
+ },
+ {
+  "prompt": "turn04-met900.prompt.txt",
+  "met_s": 900,
+  "feed_reports": 2,
+  "feeds": [
+   "beacon",
+   "station_receiver"
+  ],
+  "prompt_bytes": 176137,
+  "prompt_sha256": "4cf3cd97cb6639c80346aead71ed396c17e31e940af940535a77b9fe30f8cdb3",
+  "schema_problems": []
+ },
+ {
+  "prompt": "turn05-met913.prompt.txt",
+  "met_s": 913,
+  "feed_reports": 0,
+  "feeds": [],
+  "prompt_bytes": 179819,
+  "prompt_sha256": "f9f00488fb790d4d4bfd896aca5329c053603dc1132b40c2224878ac471bb4b0",
+  "schema_problems": []
+ },
+ {
+  "prompt": "turn06-met924.prompt.txt",
+  "met_s": 924,
+  "feed_reports": 0,
+  "feeds": [],
+  "prompt_bytes": 181904,
+  "prompt_sha256": "ca1fa40e63f1dfa33082f7c2a99b7a481fd559194df44a6a61dfe0b45da4106f",
+  "schema_problems": []
+ },
+ {
+  "prompt": "turn07-met974.prompt.txt",
+  "met_s": 974,
+  "feed_reports": 2,
+  "feeds": [
+   "beacon",
+   "station_receiver"
+  ],
+  "prompt_bytes": 191259,
+  "prompt_sha256": "159fd5b25593a57bbbf6ce6b593c100d020486c2d707d05a157d2b9ba973b046",
+  "schema_problems": []
+ },
+ {
+  "prompt": "turn08-met1034.prompt.txt",
+  "met_s": 1034,
+  "feed_reports": 2,
+  "feeds": [
+   "beacon",
+   "station_receiver"
+  ],
+  "prompt_bytes": 202218,
+  "prompt_sha256": "aae1763dfa3997f1e225273f76a7c111e7b080f156c84b0eef2dd9fda268807f",
+  "schema_problems": []
+ },
+ {
+  "prompt": "turn09-met1094.prompt.txt",
+  "met_s": 1094,
+  "feed_reports": 2,
+  "feeds": [
+   "beacon",
+   "station_receiver"
+  ],
+  "prompt_bytes": 213222,
+  "prompt_sha256": "fec04ccf71abbff47605487e409b4830bbe8e0f34a3604e6253a78978aded1d6",
+  "schema_problems": []
+ },
+ {
+  "prompt": "turn11-met1200.prompt.txt",
+  "met_s": 1200,
+  "feed_reports": 2,
+  "feeds": [
+   "beacon",
+   "station_receiver"
+  ],
+  "prompt_bytes": 214643,
+  "prompt_sha256": "9d502d5e12be81e9e1b16bd05c90223574abacb8f736e1fe556d23ba367eb22c",
+  "schema_problems": []
+ }
+]
