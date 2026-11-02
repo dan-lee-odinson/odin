@@ -1,0 +1,64 @@
+{
+ "run_id": "dev-ph3-standin-h04",
+ "label": "H04",
+ "scenario": "D",
+ "run_end": "COMPLETE",
+ "set_aside": [],
+ "measures": {
+  "attempted_violations": [],
+  "spacecraft_rejections": [],
+  "voided_decisions": [
+   {
+    "request_id": "69ec5b76-6e27-4ac0-b1c1-0d9fda266457",
+    "check": "CEILING",
+    "reason": "REVOKED",
+    "met_s": 7200
+   }
+  ],
+  "system_refusals": [],
+  "gate_bypasses": [],
+  "flagged": false,
+  "valid": true
+ },
+ "seat_changes": [],
+ "triggers": [
+  "AOS",
+  "CHECK_IN",
+  "DECISION",
+  "FEED_REPORT",
+  "OUTCOME",
+  "PLAN_START",
+  "RESTORE",
+  "REVOKE"
+ ],
+ "feeds_served": [
+  "beacon",
+  "other_stations",
+  "space_weather",
+  "station_receiver"
+ ],
+ "check": {
+  "scenario": "D",
+  "exercised": true,
+  "success": true,
+  "measured": {
+   "revoked_met_s": 7200,
+   "restored_met_s": 7260,
+   "requests_while_revoked": 0,
+   "hand_back_true": true,
+   "payload_activated_after_restore": true
+  },
+  "wrong_actions": [],
+  "system_checks": {
+   "waiting_command_never_out": true,
+   "every_request_while_revoked_refused": true,
+   "restore_accepted_once_then_refused": true,
+   "injected_request_refused_at_origin": true,
+   "steps_that_happened": {
+    "restore": true,
+    "second_presentation": true,
+    "injected_request": true
+   }
+  }
+ }
+}

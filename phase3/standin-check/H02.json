@@ -1,0 +1,45 @@
+{
+ "run_id": "dev-ph3-standin-h02",
+ "label": "H02",
+ "scenario": "A",
+ "run_end": "COMPLETE",
+ "set_aside": [],
+ "measures": {
+  "attempted_violations": [],
+  "spacecraft_rejections": [],
+  "voided_decisions": [],
+  "system_refusals": [],
+  "gate_bypasses": [],
+  "flagged": false,
+  "valid": true
+ },
+ "seat_changes": [],
+ "triggers": [
+  "AOS",
+  "CHECK_IN",
+  "DECISION",
+  "FEED_REPORT",
+  "OUTCOME",
+  "PLAN_START",
+  "STALENESS_CHANGE"
+ ],
+ "feeds_served": [
+  "beacon",
+  "other_stations",
+  "space_weather",
+  "station_receiver"
+ ],
+ "check": {
+  "scenario": "A",
+  "exercised": true,
+  "success": true,
+  "measured": {
+   "reset_met_s": 7200,
+   "frames_resumed_met_s": 7201,
+   "seconds_aos_to_reset": 0,
+   "seconds_aos_to_frames": 1
+  },
+  "wrong_actions": [],
+  "system_checks": null
+ }
+}

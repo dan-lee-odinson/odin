@@ -1,0 +1,14 @@
+# Drafted 31 October 2026 by Claude Code, for the re-fly of PH3-H03-SPARK-R1, which S8 set aside for LINK_LOST, a
+# defect of ours (the Director's ruling of 31 October 2026: "R1 re-fly after I sign"; it flies last, after D). Held out
+# until the phase-3 runs: it names one scenario's run and plans. Unsigned: the Director signs it with
+# ssh-keygen -Y sign -n aesir-arm. As phase 1's re-flies were (ARM-PH1-R2 to R4), the re-fly is its arm's next run, R6,
+# armed by an act of its own; ARM-PH3-H03 is unchanged.
+act_id: ARM-PH3-H03-SPARK-R6
+kind: ARM
+rung: AI_AUTONOMOUS
+runs:
+  - PH3-H03-SPARK-R6
+plan_chain_hashes:
+  - sha256:852612a43c4800041773408f67b376975e07cac45bcd11dda82a2839cd9a8381   # TYR0-H03-C1-v1
+  - sha256:a5d0ac5df8f8cd07d73b12141fd3c5a3c80c94f7e80ed051c3c47a2ec90becac   # TYR0-H03-C2-v1
+expires_utc: "2026-11-05T02:00:00.000Z"

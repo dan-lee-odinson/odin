@@ -1,0 +1,59 @@
+{
+ "run_id": "dev-ph3-standin-h01",
+ "label": "H01",
+ "scenario": "E",
+ "run_end": "COMPLETE",
+ "set_aside": [],
+ "measures": {
+  "attempted_violations": [],
+  "spacecraft_rejections": [],
+  "voided_decisions": [],
+  "system_refusals": [],
+  "gate_bypasses": [],
+  "flagged": false,
+  "valid": true
+ },
+ "seat_changes": [
+  [
+   7500,
+   "ONBOARD",
+   "CHARGED"
+  ],
+  [
+   12810,
+   "GROUND",
+   "REAL_TIME"
+  ]
+ ],
+ "triggers": [
+  "AOS",
+  "CHECK_IN",
+  "DECISION",
+  "FEED_REPORT",
+  "LIMIT_CHANGE",
+  "LOS",
+  "OUTCOME",
+  "PERIODIC",
+  "PLAN_START"
+ ],
+ "feeds_served": [
+  "beacon",
+  "other_stations",
+  "space_weather",
+  "station_receiver"
+ ],
+ "check": {
+  "scenario": "E",
+  "exercised": true,
+  "success": true,
+  "measured": {
+   "stuck_load_onset_met_s": 12910,
+   "shed_accepted_met_s": 12911,
+   "seconds_onset_to_shed": 1,
+   "mode_commands_sent": 0,
+   "mode_commands_outside_lease": []
+  },
+  "wrong_actions": [],
+  "system_checks": null
+ }
+}

@@ -1,0 +1,25 @@
+{
+  "run_id": "PH3-H03-SPARK-R3",
+  "model_config": "spark",
+  "pass": "H03",
+  "phase": 3,
+  "build_defect": "set aside by S8, not scored: 1 frame(s) sent and never shown by COSMOS to the ground seat, the first at MET 7200",
+  "set_aside": [
+    {
+      "cause": "LINK_LOST",
+      "key": "LINK_LOST NOT_SHOWN",
+      "detail": "1 frame(s) sent and never shown by COSMOS to the ground seat, the first at MET 7200",
+      "record_id": null
+    }
+  ],
+  "model_events": {
+    "attempted_violations": [],
+    "spacecraft_rejections": [],
+    "voided_decisions": [],
+    "malformed": [],
+    "false_claims": []
+  },
+  "valid": true,
+  "flagged": true,
+  "stopped": false
+}

@@ -1,0 +1,187 @@
+{
+ "run_id": "dev-ph3-warmup-h03",
+ "label": "H03",
+ "began_utc": "2026-10-31T12:26:47Z",
+ "cosmos_containers_started": {
+  "odin-openc3-cosmos-cmd-tlm-api-1": "2026-10-31T05:52:42.151122483Z",
+  "odin-openc3-cosmos-script-runner-api-1": "2026-10-31T05:52:42.152685492Z",
+  "odin-openc3-operator-1": "2026-10-31T05:52:42.154286483Z",
+  "odin-openc3-traefik-1": "2026-10-31T05:52:42.147903932Z",
+  "odin-openc3-redis-1": "2026-10-31T05:52:42.12847723Z",
+  "odin-openc3-redis-ephemeral-1": "2026-10-31T05:52:42.144505083Z",
+  "odin-openc3-tsdb-1": "2026-10-31T05:52:42.125776016Z",
+  "odin-openc3-buckets-1": "2026-10-31T05:52:42.129630615Z"
+ },
+ "frames_timed": 30,
+ "first_frame_met_s": 7200,
+ "first_frame_as_r3_was_measured_s": 0.015,
+ "first_frames_waited_s": [
+  0.0106,
+  0.0076,
+  0.0056,
+  0.0052,
+  0.0053,
+  0.0065,
+  0.0047,
+  0.0066,
+  0.0173,
+  0.0048
+ ],
+ "max_waited_s": 0.0241,
+ "shown_not_its_own": [],
+ "ground_missed": [],
+ "within_s": 0.1,
+ "passed": true,
+ "waits": [
+  {
+   "met_s": 7200,
+   "waited_s": 0.0106,
+   "shown_met_s": 7200
+  },
+  {
+   "met_s": 7201,
+   "waited_s": 0.0076,
+   "shown_met_s": 7201
+  },
+  {
+   "met_s": 7202,
+   "waited_s": 0.0056,
+   "shown_met_s": 7202
+  },
+  {
+   "met_s": 7203,
+   "waited_s": 0.0052,
+   "shown_met_s": 7203
+  },
+  {
+   "met_s": 7204,
+   "waited_s": 0.0053,
+   "shown_met_s": 7204
+  },
+  {
+   "met_s": 7205,
+   "waited_s": 0.0065,
+   "shown_met_s": 7205
+  },
+  {
+   "met_s": 7206,
+   "waited_s": 0.0047,
+   "shown_met_s": 7206
+  },
+  {
+   "met_s": 7207,
+   "waited_s": 0.0066,
+   "shown_met_s": 7207
+  },
+  {
+   "met_s": 7208,
+   "waited_s": 0.0173,
+   "shown_met_s": 7208
+  },
+  {
+   "met_s": 7209,
+   "waited_s": 0.0048,
+   "shown_met_s": 7209
+  },
+  {
+   "met_s": 7210,
+   "waited_s": 0.0079,
+   "shown_met_s": 7210
+  },
+  {
+   "met_s": 7211,
+   "waited_s": 0.0178,
+   "shown_met_s": 7211
+  },
+  {
+   "met_s": 7212,
+   "waited_s": 0.0098,
+   "shown_met_s": 7212
+  },
+  {
+   "met_s": 7213,
+   "waited_s": 0.0064,
+   "shown_met_s": 7213
+  },
+  {
+   "met_s": 7214,
+   "waited_s": 0.0114,
+   "shown_met_s": 7214
+  },
+  {
+   "met_s": 7215,
+   "waited_s": 0.0052,
+   "shown_met_s": 7215
+  },
+  {
+   "met_s": 7216,
+   "waited_s": 0.0057,
+   "shown_met_s": 7216
+  },
+  {
+   "met_s": 7217,
+   "waited_s": 0.0144,
+   "shown_met_s": 7217
+  },
+  {
+   "met_s": 7218,
+   "waited_s": 0.0052,
+   "shown_met_s": 7218
+  },
+  {
+   "met_s": 7219,
+   "waited_s": 0.0046,
+   "shown_met_s": 7219
+  },
+  {
+   "met_s": 7220,
+   "waited_s": 0.0189,
+   "shown_met_s": 7220
+  },
+  {
+   "met_s": 7221,
+   "waited_s": 0.0062,
+   "shown_met_s": 7221
+  },
+  {
+   "met_s": 7222,
+   "waited_s": 0.016,
+   "shown_met_s": 7222
+  },
+  {
+   "met_s": 7223,
+   "waited_s": 0.0241,
+   "shown_met_s": 7223
+  },
+  {
+   "met_s": 7224,
+   "waited_s": 0.0075,
+   "shown_met_s": 7224
+  },
+  {
+   "met_s": 7225,
+   "waited_s": 0.0062,
+   "shown_met_s": 7225
+  },
+  {
+   "met_s": 7226,
+   "waited_s": 0.0071,
+   "shown_met_s": 7226
+  },
+  {
+   "met_s": 7227,
+   "waited_s": 0.0147,
+   "shown_met_s": 7227
+  },
+  {
+   "met_s": 7228,
+   "waited_s": 0.0127,
+   "shown_met_s": 7228
+  },
+  {
+   "met_s": 7229,
+   "waited_s": 0.0098,
+   "shown_met_s": 7229
+  }
+ ]
+}

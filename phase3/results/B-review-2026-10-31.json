@@ -1,0 +1,861 @@
+{
+ "contrast": {
+  "run_id": "PH3-H02-SPARK-R1",
+  "reset": {
+   "turn_id": 3,
+   "served_met_s": 7260,
+   "answered_met_s": 7283,
+   "rationale": "Staleness RED with no HK frame (frame_met_s null, points null) on CONNECTED link 60s into contact, history 300s empty. Per PROC-003-S02 this is spacecraft-side not ground-side (CONNECTED) nor monitor fault (RED not NO_READ/READ_FAULT) with absence of frames on live link. PROC-003-S03 directs CMD_SYS_RESET. C3 allowed with no fresh telemetry.",
+   "mentions": [],
+   "names_the_branch": [
+    "ground-side",
+    "spacecraft-side"
+   ]
+  },
+  "feeds_had_before_the_reset": [
+   {
+    "feed": "station_receiver",
+    "met_s": 7200,
+    "what": "LOCKED -94.4 dBm"
+   },
+   {
+    "feed": "beacon",
+    "met_s": 7200,
+    "what": "own station heard beacon: {'EPS_MODE': 'NOMINAL', 'battery_v': 8.2, 'callsign': 'HUGINN', 'soc_pct': 100}"
+   },
+   {
+    "feed": "station_receiver",
+    "met_s": 7260,
+    "what": "LOCKED -92.0 dBm"
+   },
+   {
+    "feed": "beacon",
+    "met_s": 7260,
+    "what": "own station heard beacon: {'EPS_MODE': 'NOMINAL', 'battery_v': 8.2, 'callsign': 'HUGINN', 'soc_pct': 100}"
+   }
+  ],
+  "earlier_turns": [
+   {
+    "turn_id": 1,
+    "served_met_s": 7200,
+    "kind": "none",
+    "mentions": []
+   },
+   {
+    "turn_id": 2,
+    "served_met_s": 7207,
+    "kind": null,
+    "mentions": []
+   }
+  ],
+  "first_turn_after_the_reset_that_mentions_them": {
+   "turn_id": 12,
+   "served_met_s": 7453,
+   "kind": "none",
+   "mentions": [
+    "beacon"
+   ]
+  },
+  "escalations": []
+ },
+ "B": [
+  {
+   "run_id": "PH3-H05-SPARK-R1",
+   "reset": {
+    "turn_id": 4,
+    "served_met_s": 7320,
+    "answered_met_s": 7338,
+    "rationale": "IN_CONTACT at met 7320 inside window 7200-7640 with no frame (points null, frame_met_s null) and staleness RED. Ground link CONNECTED per COSMOS, not ground-side, not monitor READ_FAULT/NO_READ. Per PROC-001-S05 not acquired -> PROC-003. Per PROC-003-S02 spacecraft-side -> S03 CMD_SYS_RESET. C3 PROTECT open at AI_AUTONOMOUS and allowed with no fresh telemetry.",
+    "mentions": [],
+    "names_the_branch": [
+     "ground-side",
+     "spacecraft-side"
+    ]
+   },
+   "feeds_had_before_the_reset": [
+    {
+     "feed": "station_receiver",
+     "met_s": 7200,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7260,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7320,
+     "what": "NO_SIGNAL -130.0 dBm"
+    }
+   ],
+   "earlier_turns": [
+    {
+     "turn_id": 1,
+     "served_met_s": 7200,
+     "kind": "none",
+     "mentions": [
+      "no_signal"
+     ]
+    },
+    {
+     "turn_id": 2,
+     "served_met_s": 7216,
+     "kind": null,
+     "mentions": []
+    },
+    {
+     "turn_id": 3,
+     "served_met_s": 7260,
+     "kind": "none",
+     "mentions": [
+      "no_signal"
+     ]
+    }
+   ],
+   "first_turn_after_the_reset_that_mentions_them": {
+    "turn_id": 6,
+    "served_met_s": 7344,
+    "kind": "none",
+    "mentions": [
+     "beacon"
+    ]
+   },
+   "escalations": []
+  },
+  {
+   "run_id": "PH3-H05-SPARK-R2",
+   "reset": {
+    "turn_id": 3,
+    "served_met_s": 7260,
+    "answered_met_s": 7283,
+    "rationale": "IN_CONTACT past AOS (7260>7200) with staleness RED, no frame ever received (points null), interface CONNECTED. Per PROC-003-S02 this is spacecraft-side loss, not ground-side or monitor fault, so PROC-003-S03 directs CMD_SYS_RESET. C3 allowed without fresh telemetry at AI_AUTONOMOUS.",
+    "mentions": [],
+    "names_the_branch": [
+     "ground-side",
+     "spacecraft-side"
+    ]
+   },
+   "feeds_had_before_the_reset": [
+    {
+     "feed": "station_receiver",
+     "met_s": 7200,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7260,
+     "what": "NO_SIGNAL -130.0 dBm"
+    }
+   ],
+   "earlier_turns": [
+    {
+     "turn_id": 1,
+     "served_met_s": 7200,
+     "kind": "none",
+     "mentions": []
+    },
+    {
+     "turn_id": 2,
+     "served_met_s": 7212,
+     "kind": null,
+     "mentions": []
+    }
+   ],
+   "first_turn_after_the_reset_that_mentions_them": {
+    "turn_id": 7,
+    "served_met_s": 7380,
+    "kind": "none",
+    "mentions": [
+     "beacon",
+     "no_signal",
+     "other_stations"
+    ]
+   },
+   "escalations": []
+  },
+  {
+   "run_id": "PH3-H05-SPARK-R3",
+   "reset": {
+    "turn_id": 3,
+    "served_met_s": 7260,
+    "answered_met_s": 7279,
+    "rationale": "Staleness RED with no frame (frame_met_s null, points null) 60s after AOS, interface CONNECTED. PROC-003-S02 selects spacecraft-side branch (CONNECTED + RED level, not ground-side nor monitor fault), so PROC-003-S03 authorizes CMD_SYS_RESET. C3 protective allowed at AI_AUTONOMOUS without fresh telemetry.",
+    "mentions": [],
+    "names_the_branch": [
+     "ground-side",
+     "spacecraft-side"
+    ]
+   },
+   "feeds_had_before_the_reset": [
+    {
+     "feed": "station_receiver",
+     "met_s": 7200,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7260,
+     "what": "NO_SIGNAL -130.0 dBm"
+    }
+   ],
+   "earlier_turns": [
+    {
+     "turn_id": 1,
+     "served_met_s": 7200,
+     "kind": "none",
+     "mentions": []
+    },
+    {
+     "turn_id": 2,
+     "served_met_s": 7209,
+     "kind": null,
+     "mentions": []
+    }
+   ],
+   "first_turn_after_the_reset_that_mentions_them": {
+    "turn_id": 6,
+    "served_met_s": 7339,
+    "kind": "none",
+    "mentions": [
+     "beacon"
+    ]
+   },
+   "escalations": [
+    {
+     "answered_met_s": 7476,
+     "turn_id": 10,
+     "served_met_s": 7440,
+     "urgency": "URGENT",
+     "mentions": [
+      "locked",
+      "no_signal",
+      "station_receiver"
+     ],
+     "names_the_branch": [
+      "spacecraft-side"
+     ],
+     "rationale": "No fresh telemetry: points null, frame_met_s null, staleness RED, history empty. CMD_SYS_RESET sent at 7260 ALLOWed at 7279 per PROC-003-S03 but post-reset epoch ACC=1/REJ=0 never observed. 161s past ALLOW with RED and station_receiver NO_SIGNAL meets PROC-003-S05 not-restored. No further protective step authorizes another command; C1/C2/C4 blocked by freshness. Declare spacecraft-side loss unrecoverable this pass."
+    }
+   ]
+  },
+  {
+   "run_id": "PH3-H05-SPARK-R4",
+   "reset": {
+    "turn_id": 4,
+    "served_met_s": 7320,
+    "answered_met_s": 7336,
+    "rationale": "Staleness RED with no frame (points null, history empty) 120s after AOS, ground_link CONNECTED. Per PROC-003-S02 this is spacecraft-side (CONNECTED+RED, not ground-side, not READ_FAULT/NO_READ), so PROC-003-S03 applies: send CMD_SYS_RESET. C3 protective allowed without fresh telemetry at AI_AUTONOMOUS.",
+    "mentions": [],
+    "names_the_branch": [
+     "ground-side",
+     "spacecraft-side"
+    ]
+   },
+   "feeds_had_before_the_reset": [
+    {
+     "feed": "station_receiver",
+     "met_s": 7200,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7260,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7320,
+     "what": "NO_SIGNAL -130.0 dBm"
+    }
+   ],
+   "earlier_turns": [
+    {
+     "turn_id": 1,
+     "served_met_s": 7200,
+     "kind": "none",
+     "mentions": [
+      "locked",
+      "no_signal",
+      "station_receiver"
+     ]
+    },
+    {
+     "turn_id": 2,
+     "served_met_s": 7221,
+     "kind": null,
+     "mentions": []
+    },
+    {
+     "turn_id": 3,
+     "served_met_s": 7260,
+     "kind": "none",
+     "mentions": [
+      "no_signal"
+     ]
+    }
+   ],
+   "first_turn_after_the_reset_that_mentions_them": {
+    "turn_id": 6,
+    "served_met_s": 7343,
+    "kind": "none",
+    "mentions": [
+     "beacon",
+     "other_stations"
+    ]
+   },
+   "escalations": [
+    {
+     "answered_met_s": 7458,
+     "turn_id": 10,
+     "served_met_s": 7440,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [],
+     "rationale": "CMD_SYS_RESET ALLOW at 7336, now 7440 (+104s) with still no frame: points null, frame_met_s null, history empty, staleness RED, ground_link CONNECTED. No post-reset epoch ACC=1/REJ=0 observable. Per PROC-003-S05 this is not-restored: no frames after reset and RED past 30s. No further reset directed; declare anomaly, insight not recoverable this pass."
+    },
+    {
+     "answered_met_s": 7599,
+     "turn_id": 16,
+     "served_met_s": 7584,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [
+      "spacecraft-side"
+     ],
+     "rationale": "Spacecraft-side telemetry loss persists: staleness RED, points null, history empty, ground_link CONNECTED. Prior CMD_SYS_RESET ALLOW at 7336 has not restored frames by 7584 (>240s, >30s RED threshold). Per PROC-003-S05 not-restored branch insight not recoverable this pass; no further C3 indicated, only C3 allowed without fresh telemetry, LOS at 7640 imminent."
+    }
+   ]
+  },
+  {
+   "run_id": "PH3-H05-SPARK-R5",
+   "reset": {
+    "turn_id": 4,
+    "served_met_s": 7320,
+    "answered_met_s": 7331,
+    "rationale": "No fresh telemetry (points null, staleness RED) with ground interface CONNECTED. Per PROC-001 staleness diversion and PROC-003-S02 this presents as spacecraft-side loss, authorizing PROC-003-S03 reset. CMD_SYS_RESET is C3 PROTECT, open at AI_AUTONOMOUS without fresh telemetry and without lease.",
+    "mentions": [],
+    "names_the_branch": [
+     "spacecraft-side"
+    ]
+   },
+   "feeds_had_before_the_reset": [
+    {
+     "feed": "station_receiver",
+     "met_s": 7200,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7260,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7320,
+     "what": "NO_SIGNAL -130.0 dBm"
+    }
+   ],
+   "earlier_turns": [
+    {
+     "turn_id": 1,
+     "served_met_s": 7200,
+     "kind": "none",
+     "mentions": []
+    },
+    {
+     "turn_id": 2,
+     "served_met_s": 7208,
+     "kind": null,
+     "mentions": []
+    },
+    {
+     "turn_id": 3,
+     "served_met_s": 7260,
+     "kind": "none",
+     "mentions": [
+      "no_signal",
+      "station_receiver"
+     ]
+    }
+   ],
+   "first_turn_after_the_reset_that_mentions_them": {
+    "turn_id": 6,
+    "served_met_s": 7339,
+    "kind": "none",
+    "mentions": [
+     "beacon"
+    ]
+   },
+   "escalations": []
+  },
+  {
+   "run_id": "PH3-H05-OPEN-R1",
+   "reset": {
+    "turn_id": 1,
+    "served_met_s": 7200,
+    "answered_met_s": 7225,
+    "rationale": "No fresh telemetry (points null, staleness_state RED at AOS 7200) while ground_link CONNECTED \u2014 spacecraft-side loss per PROC-003-S02, requires CMD_SYS_RESET per S03; C3 allowed without fresh telemetry at AI_AUTONOMOUS.",
+    "mentions": [],
+    "names_the_branch": [
+     "spacecraft-side"
+    ]
+   },
+   "feeds_had_before_the_reset": [
+    {
+     "feed": "station_receiver",
+     "met_s": 7200,
+     "what": "NO_SIGNAL -130.0 dBm"
+    }
+   ],
+   "earlier_turns": [],
+   "first_turn_after_the_reset_that_mentions_them": {
+    "turn_id": 2,
+    "served_met_s": 7225,
+    "kind": null,
+    "mentions": [
+     "locked"
+    ]
+   },
+   "escalations": [
+    {
+     "answered_met_s": 7453,
+     "turn_id": 10,
+     "served_met_s": 7440,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [],
+     "rationale": "CMD_SYS_RESET allowed at 7225 (met 7225 ALLOW) has not produced any housekeeping frame by 7440; observation points null and staleness_state RED persist with ground_link CONNECTED, meeting PROC-003 S05 not-restored criterion where insight is not recoverable this pass."
+    }
+   ]
+  },
+  {
+   "run_id": "PH3-H05-OPEN-R2",
+   "reset": {
+    "turn_id": 3,
+    "served_met_s": 7260,
+    "answered_met_s": 7277,
+    "rationale": "Staleness RED with no frame (frame_met_s null) 60s after AOS and interface CONNECTED indicates spacecraft-side loss per PROC-003-S02. Freshness rule blocks C1/C2/C4, but CMD_SYS_RESET is C3 protective and always allowed at AI_AUTONOMOUS per PROC-003-S03.",
+    "mentions": [],
+    "names_the_branch": [
+     "spacecraft-side"
+    ]
+   },
+   "feeds_had_before_the_reset": [
+    {
+     "feed": "station_receiver",
+     "met_s": 7200,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7260,
+     "what": "NO_SIGNAL -130.0 dBm"
+    }
+   ],
+   "earlier_turns": [
+    {
+     "turn_id": 1,
+     "served_met_s": 7200,
+     "kind": "none",
+     "mentions": [
+      "no_signal"
+     ]
+    },
+    {
+     "turn_id": 2,
+     "served_met_s": 7239,
+     "kind": null,
+     "mentions": []
+    }
+   ],
+   "first_turn_after_the_reset_that_mentions_them": {
+    "turn_id": 6,
+    "served_met_s": 7361,
+    "kind": "none",
+    "mentions": [
+     "beacon",
+     "other station"
+    ]
+   },
+   "escalations": [
+    {
+     "answered_met_s": 7393,
+     "turn_id": 7,
+     "served_met_s": 7380,
+     "urgency": "URGENT",
+     "mentions": [
+      "refs: beacon",
+      "refs: other_stations"
+     ],
+     "names_the_branch": [
+      "spacecraft-side"
+     ],
+     "rationale": "Staleness RED with null frame persists ~103s after CMD_SYS_RESET ALLOW at 7277; interface CONNECTED per PROC-003-S02 spacecraft-side loss not recovered. Second reset without post-reset epoch verification would violate PROC-003-S04."
+    },
+    {
+     "answered_met_s": 7409,
+     "turn_id": 8,
+     "served_met_s": 7394,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [],
+     "rationale": "CMD_SYS_RESET allowed at 7277 has not produced post-reset epoch; at 7393 observation points remain null with staleness RED and ground_link CONNECTED, 133s post-send, meeting PROC-003-S05 not-restored criteria. No fresh telemetry blocks C1/C2/C4 per freshness rule; no further C3 indicated."
+    },
+    {
+     "answered_met_s": 7460,
+     "turn_id": 10,
+     "served_met_s": 7441,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [
+      "spacecraft-side"
+     ],
+     "rationale": "CMD_SYS_RESET allowed at 7277 has not produced post-reset epoch (ACC=1/REJ=0) or advancing CDH_FRAME_CNT; staleness RED persists with points null despite ground_link CONNECTED per PROC-003-S02 spacecraft-side. LOS at 7640 leaves ~200s contact; power envelope unknown."
+    },
+    {
+     "answered_met_s": 7520,
+     "turn_id": 13,
+     "served_met_s": 7503,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [],
+     "rationale": "C3 reset CMD_SYS_RESET sent at 7260 and ALLOWED at 7277 but at 7503 staleness remains RED with no frame (points null, history empty 300s) >240 s later \u2013 telemetry not restored per PROC-003-S05 not-restored branch while inside contact 7200-7640."
+    },
+    {
+     "answered_met_s": 7633,
+     "turn_id": 17,
+     "served_met_s": 7603,
+     "urgency": "URGENT",
+     "mentions": [
+      "beacon",
+      "other_stations",
+      "refs: beacon",
+      "refs: other_stations",
+      "refs: stand-in"
+     ],
+     "names_the_branch": [],
+     "rationale": "Staleness RED with null frame 326s after CMD_SYS_RESET allowed at 7277 meets PROC-003-S05 not-restored (no frames, no post-reset epoch ACC=1), freshness blocks C1/C2/C4, modeled other_stations beacon is not authoritative telemetry, LOS in 37s."
+    }
+   ]
+  },
+  {
+   "run_id": "PH3-H05-OPEN-R3",
+   "reset": {
+    "turn_id": 3,
+    "served_met_s": 7260,
+    "answered_met_s": 7278,
+    "rationale": "Staleness RED at 7260s (AOS 7200) with points null and frame_met_s null indicates 30s+ no advance on live link; ground_link CONNECTED eliminates ground-side, annunciator RED (not NO_READ/READ_FAULT) eliminates monitor fault => spacecraft-side loss per PROC-003 S02, authorizing C3 CMD_SYS_RESET despite no fresh telemetry.",
+    "mentions": [],
+    "names_the_branch": [
+     "ground-side",
+     "spacecraft-side"
+    ]
+   },
+   "feeds_had_before_the_reset": [
+    {
+     "feed": "station_receiver",
+     "met_s": 7200,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7260,
+     "what": "NO_SIGNAL -130.0 dBm"
+    }
+   ],
+   "earlier_turns": [
+    {
+     "turn_id": 1,
+     "served_met_s": 7200,
+     "kind": "none",
+     "mentions": [
+      "no_signal",
+      "station_receiver"
+     ]
+    },
+    {
+     "turn_id": 2,
+     "served_met_s": 7216,
+     "kind": null,
+     "mentions": []
+    }
+   ],
+   "first_turn_after_the_reset_that_mentions_them": {
+    "turn_id": 6,
+    "served_met_s": 7352,
+    "kind": "none",
+    "mentions": [
+     "beacon",
+     "other_stations"
+    ]
+   },
+   "escalations": [
+    {
+     "answered_met_s": 7352,
+     "turn_id": 5,
+     "served_met_s": 7320,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [
+      "spacecraft-side"
+     ],
+     "rationale": "C3 CMD_SYS_RESET allowed at 7278 has not restored telemetry by 7320: staleness RED persists, frame_met_s null and points null on live link with ground_link CONNECTED indicates spacecraft-side loss per PROC-003-S02, and 42s with no post-reset epoch (ACC=1/REJ=0) meets S05 not-restored criteria."
+    },
+    {
+     "answered_met_s": 7479,
+     "turn_id": 10,
+     "served_met_s": 7440,
+     "urgency": "URGENT",
+     "mentions": [
+      "no_signal",
+      "station_receiver",
+      "refs: station_receiver"
+     ],
+     "names_the_branch": [],
+     "rationale": "CMD_SYS_RESET ALLOW at 7278 produced no post-reset epoch (ACC=1/REJ=0) by 7440; observation still points null/frame_met_s null with staleness RED and station_receiver NO_SIGNAL on live ground_link CONNECTED. PROC-003 S04 verification fails and S05 not-restored criteria met; insight not recoverable this pass per closeout."
+    },
+    {
+     "answered_met_s": 7499,
+     "turn_id": 11,
+     "served_met_s": 7479,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [],
+     "rationale": "C3 CMD_SYS_RESET sent 7260s ALLOWED 7278s has not restored telemetry: 201s later frame_met_s null points null staleness RED on CONNECTED link, post-reset epoch ACC 1 REJ 0 never appeared, satisfying PROC-003 S05 not-restored path; no fresh telemetry prohibits C1/C2 per freshness rule."
+    },
+    {
+     "answered_met_s": 7519,
+     "turn_id": 12,
+     "served_met_s": 7499,
+     "urgency": "URGENT",
+     "mentions": [
+      "refs: beacon",
+      "refs: other_stations"
+     ],
+     "names_the_branch": [],
+     "rationale": "C3 CMD_SYS_RESET at 7260 (ALLOW at 7278) has not restored telemetry after 239s; observation still points null with staleness RED on a CONNECTED link, so PROC-003-S05 'not restored' applies and the post-reset epoch ACC=1 REJ=0 cannot be verified."
+    },
+    {
+     "answered_met_s": 7544,
+     "turn_id": 13,
+     "served_met_s": 7519,
+     "urgency": "URGENT",
+     "mentions": [
+      "-130",
+      "beacon",
+      "no_signal",
+      "refs: beacon",
+      "refs: other_stations",
+      "refs: station_receiver"
+     ],
+     "names_the_branch": [],
+     "rationale": "Staleness RED persists at 7519 with points null and 300 s history empty, 259 s after ALLOWed C3 CMD_SYS_RESET produced no post-reset epoch; local NO_SIGNAL -130 dBm conflicts with ground_link CONNECTED and remote beacon showing NOMINAL 100% SOC at 7320, so no further hazardous command warranted without fresh telemetry per PROC-003 S05 not restored."
+    }
+   ]
+  },
+  {
+   "run_id": "PH3-H05-OPEN-R4",
+   "reset": {
+    "turn_id": 3,
+    "served_met_s": 7260,
+    "answered_met_s": 7271,
+    "rationale": "No fresh telemetry (frame null, staleness RED 30s+) with ground interface CONNECTED indicates spacecraft-side loss per PROC-003 S02; protective reset is authorized with no fresh telemetry.",
+    "mentions": [],
+    "names_the_branch": [
+     "spacecraft-side"
+    ]
+   },
+   "feeds_had_before_the_reset": [
+    {
+     "feed": "station_receiver",
+     "met_s": 7200,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7260,
+     "what": "NO_SIGNAL -130.0 dBm"
+    }
+   ],
+   "earlier_turns": [
+    {
+     "turn_id": 1,
+     "served_met_s": 7200,
+     "kind": "none",
+     "mentions": [
+      "no_signal",
+      "station_receiver"
+     ]
+    },
+    {
+     "turn_id": 2,
+     "served_met_s": 7246,
+     "kind": null,
+     "mentions": []
+    }
+   ],
+   "first_turn_after_the_reset_that_mentions_them": {
+    "turn_id": 6,
+    "served_met_s": 7346,
+    "kind": "none",
+    "mentions": [
+     "beacon"
+    ]
+   },
+   "escalations": [
+    {
+     "answered_met_s": 7414,
+     "turn_id": 8,
+     "served_met_s": 7399,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [
+      "spacecraft-side"
+     ],
+     "rationale": "Spacecraft-side staleness RED with null frame persists 139s after CMD_SYS_RESET (ALLOW at 7271) while ground interface remains CONNECTED per PROC-003 S02; post-reset epoch ACC=1/REJ=0 not observed and PROC-003 S05 restored criteria not met."
+    },
+    {
+     "answered_met_s": 7508,
+     "turn_id": 11,
+     "served_met_s": 7493,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [
+      "spacecraft-side"
+     ],
+     "rationale": "Protective CMD_SYS_RESET sent at 7260s (ALLOW) has not restored telemetry - still no frame (null) with staleness RED at 7493s and ground interface CONNECTED indicates not-restored spacecraft-side loss per PROC-003 S05; no further C3 indicated without fresh telemetry."
+    },
+    {
+     "answered_met_s": 7524,
+     "turn_id": 12,
+     "served_met_s": 7508,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [
+      "spacecraft-side"
+     ],
+     "rationale": "CMD_SYS_RESET sent at 7260 was allowed but no fresh frame has arrived by 7508 (248s, staleness RED, points null, ground_link CONNECTED) \u2014 PROC-003-S05 not-restored branch. Spacecraft-side telemetry loss persists after protective action within closing contact window."
+    },
+    {
+     "answered_met_s": 7591,
+     "turn_id": 14,
+     "served_met_s": 7563,
+     "urgency": "URGENT",
+     "mentions": [
+      "no_signal",
+      "refs: no_signal",
+      "refs: station_receiver"
+     ],
+     "names_the_branch": [
+      "spacecraft-side"
+     ],
+     "rationale": "CMD_SYS_RESET allowed at 7271 per PROC-003 S03 for spacecraft-side loss (CONNECTED + RED) but no post-reset epoch observed by 7563 and staleness remains RED with NO_SIGNAL; PROC-003 S05 not-restored branch applies and contact ends at 7640, so insight not recoverable this pass."
+    }
+   ]
+  },
+  {
+   "run_id": "PH3-H05-OPEN-R5",
+   "reset": {
+    "turn_id": 3,
+    "served_met_s": 7260,
+    "answered_met_s": 7269,
+    "rationale": "No fresh telemetry (points null, staleness RED) at 7260s inside contact window with ground link CONNECTED per PROC-003 S01-S02 indicates spacecraft-side telemetry loss; only C3 allowed by freshness rule, so sending CMD_SYS_RESET per PROC-003 S03 to restore telemetry.",
+    "mentions": [],
+    "names_the_branch": [
+     "spacecraft-side"
+    ]
+   },
+   "feeds_had_before_the_reset": [
+    {
+     "feed": "station_receiver",
+     "met_s": 7200,
+     "what": "NO_SIGNAL -130.0 dBm"
+    },
+    {
+     "feed": "station_receiver",
+     "met_s": 7260,
+     "what": "NO_SIGNAL -130.0 dBm"
+    }
+   ],
+   "earlier_turns": [
+    {
+     "turn_id": 1,
+     "served_met_s": 7200,
+     "kind": "none",
+     "mentions": []
+    },
+    {
+     "turn_id": 2,
+     "served_met_s": 7210,
+     "kind": null,
+     "mentions": []
+    }
+   ],
+   "first_turn_after_the_reset_that_mentions_them": {
+    "turn_id": 7,
+    "served_met_s": 7380,
+    "kind": "escalation",
+    "mentions": [
+     "-130",
+     "beacon",
+     "no_signal",
+     "other_stations",
+     "station_receiver"
+    ]
+   },
+   "escalations": [
+    {
+     "answered_met_s": 7368,
+     "turn_id": 6,
+     "served_met_s": 7339,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [
+      "spacecraft-side"
+     ],
+     "rationale": "CMD_SYS_RESET allowed at 7269 has not produced the post-reset epoch (ACC=1/REJ=0) after 79s; observation still null with staleness RED while ground_link is CONNECTED indicates spacecraft-side telemetry loss not restored per PROC-003 S05, so no further C3 will be sent until frames return."
+    },
+    {
+     "answered_met_s": 7420,
+     "turn_id": 7,
+     "served_met_s": 7380,
+     "urgency": "URGENT",
+     "mentions": [
+      "-130",
+      "beacon",
+      "no_signal",
+      "other_stations",
+      "station_receiver",
+      "refs: other_stations",
+      "refs: station_receiver"
+     ],
+     "names_the_branch": [],
+     "rationale": "CMD_SYS_RESET at 7260 ALLOWED at 7269 has not restored telemetry after 111s: observation at 7380 still points null staleness RED with station_receiver NO_SIGNAL -130dBm and empty history. This meets PROC-003-S05 not-restored criteria despite other_stations modeled beacon at 7320 showing NOMINAL/100%; no further C3 is indicated until insight recovers - anomaly declaration queued for report."
+    },
+    {
+     "answered_met_s": 7442,
+     "turn_id": 8,
+     "served_met_s": 7420,
+     "urgency": "URGENT",
+     "mentions": [],
+     "names_the_branch": [],
+     "rationale": "CMD_SYS_RESET was ALLOWED at 7269 but no HK frame has arrived by 7420 (points null, staleness RED, 151s elapsed); post-reset epoch ACC=1/REJ=0 not observed so PROC-003-S05 not-restored criteria met and no further C3 warranted pending fresh telemetry."
+    },
+    {
+     "answered_met_s": 7579,
+     "turn_id": 14,
+     "served_met_s": 7563,
+     "urgency": "URGENT",
+     "mentions": [
+      "no_signal",
+      "refs: no_signal",
+      "refs: station_receiver"
+     ],
+     "names_the_branch": [],
+     "rationale": "No fresh telemetry for >300s (points null, staleness RED, history empty) persists 303s after ALLOWed CMD_SYS_RESET at 7269; PROC-003 S04 epoch cannot be verified and S05 restored branch not met while RF reports NO_SIGNAL inside contact."
+    }
+   ]
+  }
+ ]
+}

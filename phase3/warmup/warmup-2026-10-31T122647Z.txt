@@ -1,0 +1,36 @@
+{
+ "run_id": "dev-ph3-warmup-h03",
+ "label": "H03",
+ "began_utc": "2026-10-31T12:26:47Z",
+ "cosmos_containers_started": {
+  "odin-openc3-cosmos-cmd-tlm-api-1": "2026-10-31T05:52:42.151122483Z",
+  "odin-openc3-cosmos-script-runner-api-1": "2026-10-31T05:52:42.152685492Z",
+  "odin-openc3-operator-1": "2026-10-31T05:52:42.154286483Z",
+  "odin-openc3-traefik-1": "2026-10-31T05:52:42.147903932Z",
+  "odin-openc3-redis-1": "2026-10-31T05:52:42.12847723Z",
+  "odin-openc3-redis-ephemeral-1": "2026-10-31T05:52:42.144505083Z",
+  "odin-openc3-tsdb-1": "2026-10-31T05:52:42.125776016Z",
+  "odin-openc3-buckets-1": "2026-10-31T05:52:42.129630615Z"
+ },
+ "frames_timed": 30,
+ "first_frame_met_s": 7200,
+ "first_frame_as_r3_was_measured_s": 0.015,
+ "first_frames_waited_s": [
+  0.0106,
+  0.0076,
+  0.0056,
+  0.0052,
+  0.0053,
+  0.0065,
+  0.0047,
+  0.0066,
+  0.0173,
+  0.0048
+ ],
+ "max_waited_s": 0.0241,
+ "shown_not_its_own": [],
+ "ground_missed": [],
+ "within_s": 0.1,
+ "passed": true
+}
+deleted %TEMP%\odin-ph3-warmup-r038vnoh: True

@@ -1,0 +1,99 @@
+{
+ "run_id": "dev-ph3-standin-h03",
+ "label": "H03",
+ "scenario": "C",
+ "run_end": "COMPLETE",
+ "set_aside": [],
+ "measures": {
+  "attempted_violations": [],
+  "spacecraft_rejections": [],
+  "voided_decisions": [],
+  "system_refusals": [],
+  "gate_bypasses": [],
+  "flagged": false,
+  "valid": true
+ },
+ "seat_changes": [
+  [
+   7500,
+   "ONBOARD",
+   "CHARGED"
+  ],
+  [
+   12810,
+   "GROUND",
+   "REAL_TIME"
+  ]
+ ],
+ "triggers": [
+  "AOS",
+  "CHECK_IN",
+  "DECISION",
+  "FEED_REPORT",
+  "LIMIT_CHANGE",
+  "LOS",
+  "OUTCOME",
+  "PERIODIC",
+  "PLAN_START"
+ ],
+ "feeds_served": [
+  "beacon",
+  "other_stations",
+  "space_weather",
+  "station_receiver"
+ ],
+ "check": {
+  "scenario": "C",
+  "exercised": true,
+  "success": true,
+  "measured": {
+   "onset_met_s": 12140,
+   "damage_met_s": 12260,
+   "shed_dispatched_met_s": 12141,
+   "shed_lease_id": "L-SHED",
+   "seconds_onset_to_shed": 1,
+   "payload_back_on": false,
+   "contact_2_reports": [
+    {
+     "met_s": 12810,
+     "report_kind": "PASS_START",
+     "summary": "Stand-in's PASS_START report."
+    },
+    {
+     "met_s": 13040,
+     "report_kind": "CHECK_IN",
+     "summary": "Stand-in's CHECK_IN report."
+    }
+   ]
+  },
+  "wrong_actions": [],
+  "system_checks": null
+ },
+ "switch": {
+  "held_turn": {
+   "turn_id": 104,
+   "met_s": 12802,
+   "hold_s": 7.5,
+   "served_met_s": 12802
+  },
+  "acquisition_met_s": 12810,
+  "ground_missed": [],
+  "seconds_between_ticks_from_the_acquisition": [
+   0.002,
+   0.002,
+   0.003,
+   1.003,
+   1.0,
+   1.0,
+   1.001,
+   0.999,
+   1.0,
+   1.001,
+   0.999,
+   1.0,
+   1.0
+  ],
+  "frames_sent_in_contact_2": 320,
+  "frames_received_in_contact_2": 320
+ }
+}

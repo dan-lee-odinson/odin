@@ -1,7 +1,8 @@
 """S9, piece 9: S8's phase-3 checks are read where they are sealed (eval/phase3.py), outside the repository, only
 after their manifest hashes to the scoring checks' seal in phase3/SEAL.md, every file it lists matches, and their
-folder holds nothing else; then they score a phase-3 run (eval/results.py). On made-up checks: none of the held-out
-checks, labels or values is in the repository."""
+folder holds nothing else; then they score a phase-3 run (eval/results.py). Committed in phase3/ after the runs, a
+harness file beside them may differ from its manifest only as phase3/SEAL.md names it (RULINGS.md item 25). On made-up
+checks; tests/test_phase3_seal.py reads the committed ones."""
 
 import hashlib
 import threading
@@ -52,6 +53,67 @@ def test_red_a_file_the_checks_manifest_does_not_list_is_refused(tmp_path):
     (folder / "another.py").write_bytes(b"x = 1\n")
     with pytest.raises(ChecksSealBroken, match="another.py"):
         load_checks(folder, seal=seal)
+
+
+# After the runs the checks are committed in phase3/ with one line of each harness file changed, which phase3/SEAL.md
+# names with its sealed and committed SHA-256 (the Director's selections of 1 November 2026). Made up here too.
+HARNESS = b'"""A made-up harness beside the checks."""\nREPO = "where the checks were built"\nCASES = []\n'
+COMMITTED_HARNESS = HARNESS.replace(b'"where the checks were built"', b'"found from the file\'s own place"')
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def committed_checks(tmp_path, rows=("show_red_phase3.py",), module=MADE_UP.encode("utf-8")):
+    """Made-up checks and a harness file, sealed, then committed with the harness's one line changed and the module as
+    given, beside a made-up phase3/SEAL.md whose committed table names the files in rows: returns (folder, SEAL.md)."""
+    folder = tmp_path / "checks"
+    folder.mkdir(parents=True)
+    sealed = {"phase3_checks.py": MADE_UP.encode("utf-8"), "show_red_phase3.py": HARNESS}
+    committed = {"phase3_checks.py": module, "show_red_phase3.py": COMMITTED_HARNESS}
+    manifest = "".join(f"{sha(sealed[name])}  {name}\n" for name in sorted(sealed)).encode("utf-8")
+    (folder / "MANIFEST.sha256").write_bytes(manifest)
+    for name, data in committed.items():
+        (folder / name).write_bytes(data)
+    table = "".join(f"| `checks/{name}` | 2 | `{sha(sealed[name])}` | `{sha(committed[name])}` | `{'0' * 64}` |\n"
+                    for name in rows)
+    seal_md = tmp_path / "SEAL.md"
+    seal_md.write_bytes((f"# Phase 3's seal\n\n## The scoring checks' seal\n\n```\nsha256:{sha(manifest)}\n```\n\n"
+                         f"## Committed after the held-out runs\n\n| File | Line | Sealed | Committed | Without it |\n"
+                         f"|---|---|---|---|---|\n{table}").encode("utf-8"))
+    return folder, seal_md
+
+
+def test_red_committed_checks_with_a_harness_line_seal_md_names_are_read(tmp_path):
+    folder, seal_md = committed_checks(tmp_path)
+    assert load_checks(folder, seal_path=seal_md).check("P3", [], {}, [])["success"]
+
+
+def test_red_committed_checks_whose_manifest_is_not_their_seal_are_refused(tmp_path):
+    folder, seal_md = committed_checks(tmp_path)
+    with pytest.raises(ChecksSealBroken, match="not their seal"):
+        load_checks(folder, seal="sha256:" + "00" * 32, seal_path=seal_md)
+
+
+def test_red_committed_checks_whose_scoring_module_changed_by_one_byte_are_refused_even_if_seal_md_names_it(tmp_path):
+    folder, seal_md = committed_checks(tmp_path, rows=("phase3_checks.py", "show_red_phase3.py"),
+                                       module=MADE_UP.replace('"Z"', '"Y"').encode("utf-8"))
+    with pytest.raises(ChecksSealBroken, match="the module that scores is read only as sealed"):
+        load_checks(folder, seal_path=seal_md)
+
+
+def test_red_a_harness_file_that_differs_from_the_hash_seal_md_gives_is_refused(tmp_path):
+    folder, seal_md = committed_checks(tmp_path)
+    (folder / "show_red_phase3.py").write_bytes(COMMITTED_HARNESS + b"CASES.append(None)\n")
+    with pytest.raises(ChecksSealBroken, match="names no committed copy"):
+        load_checks(folder, seal_path=seal_md)
+
+
+def test_red_a_changed_harness_file_seal_md_does_not_name_is_refused(tmp_path):
+    folder, seal_md = committed_checks(tmp_path, rows=())
+    with pytest.raises(ChecksSealBroken, match="names no committed copy"):
+        load_checks(folder, seal_path=seal_md)
 
 
 def flown_phase_3(tmp_path, monkeypatch):

@@ -1,0 +1,49 @@
+{
+  "scenario": "H05",
+  "label": "B",
+  "ruling": "2026-11-01",
+  "selection": "Set B aside as a flawed scenario",
+  "reason": "PROC-003-S02 (PROC-003 v0.3), the procedure in force, reads spacecraft-side as written in B: in all ten runs the interface read CONNECTED with its received count frozen and the staleness RED. The scenario set the procedure ODIN was told to fly by against its own success check (RULINGS.md item 24).",
+  "s8_results": "unchanged: each file below is byte for byte as S8 wrote it",
+  "s8_results_sha256": {
+    "PH3-H05-SPARK-R1.json": "sha256:7d464b8f2c010f323e393a3dd45a7d267a629100381419f549bbf966f3c1c98e",
+    "PH3-H05-SPARK-R2.json": "sha256:d6868c20d81d511fcf034e7298900ab634d55800241f1d9104f3316b76315075",
+    "PH3-H05-SPARK-R3.json": "sha256:5091c2d4288f3d804ffd90540f27cf1ab4c4619047f4e9eb8c9e26657d5db153",
+    "PH3-H05-SPARK-R4.json": "sha256:41624de88ee4c0382638b5c2dd3de3be18753b56803fc780e0ddb29f952ddf9d",
+    "PH3-H05-SPARK-R5.json": "sha256:b9322f89af4afe9b76ffbc64e20f0ab80b13a7107bea36291b1d7cdd11eea91a",
+    "PH3-H05-OPEN-R1.json": "sha256:bb4314cfe2ac820b6e1a5c27c47b918430896458959914897a2e39c461068cb2",
+    "PH3-H05-OPEN-R2.json": "sha256:c1df09844044ce9e68b37f7d1c121e9bd7c963ecff415103a97cc5313512816c",
+    "PH3-H05-OPEN-R3.json": "sha256:a9596bc6b20afcb21fc331efa20b40c1a11979353daa465c73baf7a0c87f4a67",
+    "PH3-H05-OPEN-R4.json": "sha256:b999e5663707551dd6b142fd038cbec8b59af0cc0b469bba242b4861463d103e",
+    "PH3-H05-OPEN-R5.json": "sha256:e5bd795d2339dc500f43793942bc4c7cbf74e1fc7e3b237ae7e76a8efeccf0ac"
+  },
+  "tallies": "B is set aside from the tallies; its ten results stay as S8 scored them",
+  "tallies_from_here": {
+    "A (H02)": {
+      "scored": 10,
+      "successes": 10,
+      "clean": 10
+    },
+    "C (H03)": {
+      "scored": 10,
+      "successes": 10,
+      "clean": 9
+    },
+    "D (H04)": {
+      "scored": 10,
+      "successes": 8,
+      "clean": 7
+    },
+    "E (H01)": {
+      "scored": 10,
+      "successes": 10,
+      "clean": 9
+    },
+    "together": {
+      "scored": 40,
+      "successes": 38,
+      "clean": 35
+    },
+    "B (H05)": "set aside by ruling"
+  }
+}

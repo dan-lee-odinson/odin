@@ -1,9 +1,62 @@
 # The runs the Director has set aside by ruling: each kept as evidence, listed by S8 as a build defect with the
 # ruling's reason, and not scored (eval/results.py, set_aside). A run S8 already finds to be a build defect by its
 # own checks (RUN_END ERROR, U59; a lost turn) needs no entry here.
+# A scenario entry (scope: scenario) sets a whole scenario aside from the tallies by ruling. Keyed by the scenario,
+# not a run, it changes no run's score and stops no series: its runs stay scored as S8 scored them, and the results
+# table (eval/results.py, summarize and totals) marks their rows "set aside by ruling" and leaves them out of its totals.
 PH1-SHAKEDOWN-SPARK-R2:
   ruling: "2026-10-29"
   reason: "BALDUR-0's CLOCK_SKEW system refusal at MET 1013, caused by the loop's timestamp: Muse Code's loop stamped the request with its turn bundle's time, and that turn's two model calls took 32.4 s, past the ORIGIN check's 30 s"
 PH1-SHAKEDOWN-SPARK-R3:
   ruling: "2026-10-29"
   reason: "the frozen report format refused the NaN that COSMOS showed for TEMP2: the MET 720 check-in's report gave TEMP2 at MET 735 as COSMOS gave it, NaN, and common.schema.json's value_fits_point required a number for a numeric point, so its turn ended MALFORMED and filed no report"
+PH3-H03-SPARK-R1:
+  found_by: S8
+  phase: 3
+  date: '2026-10-30'
+  causes:
+  - cause: LINK_LOST
+    key: LINK_LOST NOT_SHOWN
+    detail: 2 frame(s) sent and never shown by COSMOS to the ground seat, the first at MET 12810
+    record_id: null
+PH3-H03-SPARK-R3:
+  found_by: S8
+  phase: 3
+  date: '2026-10-31'
+  causes:
+  - cause: LINK_LOST
+    key: LINK_LOST NOT_SHOWN
+    detail: 1 frame(s) sent and never shown by COSMOS to the ground seat, the first at MET 7200
+    record_id: null
+  lifted: "the Director's ruling of 31 October 2026, Lift it; warm COSMOS first; re-fly R3 as R8: R3's cause, COSMOS's first frame after the machine's restart shown 0.516 s late, differs from R1's, fixed in 15637d9"
+PH3-H03-SPARK-R5:
+  found_by: S8
+  phase: 3
+  date: '2026-10-31'
+  causes:
+  - cause: MODEL_CALL_ERROR
+    key: MODEL_CALL ERROR
+    detail: 'turn 49, call 1: the model call came back ERROR'
+    record_id: 300
+  - cause: MODEL_CALL_ERROR
+    key: MODEL_CALL ERROR
+    detail: 'turn 50, call 1: the model call came back ERROR'
+    record_id: 303
+  - cause: MODEL_CALL_ERROR
+    key: MODEL_CALL ERROR
+    detail: 'turn 51, call 1: the model call came back ERROR'
+    record_id: 306
+  - cause: MODEL_CALL_ERROR
+    key: MODEL_CALL ERROR
+    detail: 'turn 52, call 1: the model call came back ERROR'
+    record_id: 309
+  - cause: MODEL_CALL_ERROR
+    key: MODEL_CALL ERROR
+    detail: 'turn 53, call 1: the model call came back ERROR'
+    record_id: 312
+PH3-H05:
+  ruling: "2026-11-01"
+  scope: scenario
+  runs: [PH3-H05-SPARK-R1, PH3-H05-SPARK-R2, PH3-H05-SPARK-R3, PH3-H05-SPARK-R4, PH3-H05-SPARK-R5, PH3-H05-OPEN-R1, PH3-H05-OPEN-R2, PH3-H05-OPEN-R3, PH3-H05-OPEN-R4, PH3-H05-OPEN-R5]
+  scored: "S8's ten results stand as scored; the ruling sets them aside from the tallies only"
+  reason: "a flawed scenario: PROC-003-S02's table as written read spacecraft-side in B (the interface CONNECTED, its received count frozen), against B's own success check; RULINGS.md item 24"

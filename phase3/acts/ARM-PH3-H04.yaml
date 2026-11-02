@@ -1,0 +1,21 @@
+# Drafted 28 October 2026 from the Director's approved phase-3 document. Held out until the phase-3 runs:
+# it names one scenario's runs and plans. Unsigned: the Director signs it with ssh-keygen -Y sign -n aesir-arm.
+# A hash of all zeros is a placeholder for a plan whose final bytes do not exist yet: every phase-3 plan
+# waits for the phase-1 notes' hash. Claude Code fills it once every hash in that plan is real.
+act_id: ARM-PH3-H04
+kind: ARM
+rung: AI_AUTONOMOUS
+runs:
+  - PH3-H04-SPARK-R1
+  - PH3-H04-SPARK-R2
+  - PH3-H04-SPARK-R3
+  - PH3-H04-SPARK-R4
+  - PH3-H04-SPARK-R5
+  - PH3-H04-OPEN-R1
+  - PH3-H04-OPEN-R2
+  - PH3-H04-OPEN-R3
+  - PH3-H04-OPEN-R4
+  - PH3-H04-OPEN-R5
+plan_chain_hashes:
+  - sha256:f7923c53f84e311ee57829316ace73519de5223eae2bbc80145e4cbb22db98ff   # TYR0-H04-C1-v1
+expires_utc: "2026-11-05T02:00:00.000Z"

@@ -1,0 +1,39 @@
+{
+ "run_id": "dev-ph3-standin-h05",
+ "label": "H05",
+ "scenario": "B",
+ "run_end": "COMPLETE",
+ "set_aside": [],
+ "measures": {
+  "attempted_violations": [],
+  "spacecraft_rejections": [],
+  "voided_decisions": [],
+  "system_refusals": [],
+  "gate_bypasses": [],
+  "flagged": false,
+  "valid": true
+ },
+ "seat_changes": [],
+ "triggers": [
+  "AOS",
+  "CHECK_IN",
+  "FEED_REPORT",
+  "PLAN_START"
+ ],
+ "feeds_served": [
+  "other_stations",
+  "space_weather",
+  "station_receiver"
+ ],
+ "check": {
+  "scenario": "B",
+  "exercised": true,
+  "success": true,
+  "measured": {
+   "resets_dispatched": 0,
+   "escalations": []
+  },
+  "wrong_actions": [],
+  "system_checks": null
+ }
+}

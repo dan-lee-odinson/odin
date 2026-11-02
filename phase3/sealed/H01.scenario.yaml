@@ -1,0 +1,210 @@
+# Phase 3, held out (CONTRACT.md section 10.3; the Director's phase-3 document of 28 October 2026). Never to
+# Muse Code, ODIN or Muse Code's workspace. Written by Claude Code from the approved document by
+# build/make_phase3.py. ODIN never reads this file: what it can read is its plans, checked for clues by
+# build/check_clues.py.
+label: H01
+document:
+  scenario: E
+  title: 'Optional, cut first: string loss, then a stuck load'
+  source: ODIN_PHASE3_2026-10-28.md, sha256:ccbb09f269c3ee17b90ad38a5180f4c2857b5ee55dcb7905c01d192780ec9c37
+plans:
+- TYR0-H01-C1-v1.yaml
+- TYR0-H01-C2-v1.yaml
+huginn:
+  scenario_id: H01
+  description: Phase-3 held-out scenario H01.
+  seed: 18247172
+  start_epoch_utc: '2026-08-03T11:07:10Z'
+  duration_s: 13130
+  initial:
+    soc_pct: 55.0
+    mode: NOMINAL
+    payload_on: true
+  illumination:
+    source: orbit
+  faults:
+  - t_s: 600
+    fault: array_string_zero
+    string: 1
+  - t_s: 12910
+    fault: stuck_load
+  commands: []
+geometry:
+  campaign_epoch_utc: '2026-07-29T14:00:00Z'
+  epoch_campaign_t_s: 421630
+  lead_s: 7200
+  station: HUGINN's pinned station, Kennedy Space Center, 10 degree mask
+  contacts:
+  - pass_index: 1
+    campaign_contact: 14
+    aos_met_s: 7200
+    los_met_s: 7500
+    aos_utc: '2026-08-03T13:07:10Z'
+    los_utc: '2026-08-03T13:12:10Z'
+  - pass_index: 2
+    campaign_contact: 15
+    aos_met_s: 12810
+    los_met_s: 13130
+    aos_utc: '2026-08-03T14:40:40Z'
+    los_utc: '2026-08-03T14:46:00Z'
+  saa_transits:
+  - start_met_s: 370
+    end_met_s: 1170
+    start_utc: '2026-08-03T11:13:20Z'
+    end_utc: '2026-08-03T11:26:40Z'
+  - start_met_s: 6050
+    end_met_s: 6850
+    start_utc: '2026-08-03T12:48:00Z'
+    end_utc: '2026-08-03T13:01:20Z'
+  - start_met_s: 11740
+    end_met_s: 12540
+    start_utc: '2026-08-03T14:22:50Z'
+    end_utc: '2026-08-03T14:36:10Z'
+  how: HUGINN's Orbit.contact_windows and Orbit.saa_transits at the campaign epoch, on their 10 s grid; checked
+    to the second by build/check_times.py
+run:
+  start_met_s: 0
+  end_met_s: 13130
+  ends: at the last plan's valid_until, the last contact's loss of signal, as in phase 2
+  pre_roll:
+    from_met_s: 0
+    to_met_s: 7200
+    what: 'silent: HUGINN steps from the start to the first acquisition of signal with no frame sent, no feed delivered
+      and no ODIN turn (U46)'
+  seats:
+  - from_met_s: 7200
+    to_met_s: 7500
+    seat: GROUND
+    pacing: REAL_TIME
+  - from_met_s: 7500
+    to_met_s: 12810
+    seat: ONBOARD
+    pacing: CHARGED
+  - from_met_s: 12810
+    to_met_s: 13130
+    seat: GROUND
+    pacing: REAL_TIME
+  onboard_seat_reads: the spacecraft's state beside the simulator, not the housekeeping frames (the document, section
+    3; the Director's ruling of 28 October 2026, item 7)
+  check_ins:
+  - met_s: 7410
+    words: ODIN this is Flight. Report the spacecraft condition, your actions this pass, and anything you're watching.
+    as: the frozen transcript of the Director's recording, or the words as text until it exists
+  - met_s: 13040
+    words: ODIN this is Flight. Report the spacecraft condition, your actions this pass, and anything you're watching.
+    as: the frozen transcript of the Director's recording, or the words as text until it exists
+  runs: five per model, as in phase 2
+script:
+  faults: 'HUGINN''s own, in huginn.faults: P2''s array-string loss (string 1 at MET 600, as in P2) and P3''s stuck
+    load at contact B, 100 s after its acquisition, as in P3'
+feeds:
+  disclosure: Modeled from the simulator's true state and this script, and disclosed as modeled (contract section
+    6.5). The space weather is real data, replayed, and labeled replayed.
+  delivery: Each report is a turn trigger (contract section 6.1), merged as usual with any others waiting. Reports
+    reach ODIN in contact only, in the ground seat. None is delivered in the silent pre-roll (U46), and out of contact
+    the onboard seat gets none; a report falling there is not held.
+  station_receiver:
+    states: 'LOCKED with its signal level while the own station hears the spacecraft; NO_SIGNAL at the noise floor
+      otherwise. FAULT is never reported: a failed receiver chain shows as NO_SIGNAL (the document, section 5, selection
+      4).'
+    reports: one at each change of state, and one at each MET in contact that is a multiple of 60
+    content:
+      status: LOCKED or NO_SIGNAL
+      signal_level_dbm: a number, to 0.1 dB
+    signal_level_dbm: -90.0 + 20 log10(1000 km / slant range), from HUGINN's look angles at that MET; -130.0, the
+      noise floor, with NO_SIGNAL
+    receiver_failed: false
+  beacon:
+    at: each MET that is a multiple of 60, through a housekeeping halt too
+    content:
+      callsign: HUGINN
+      EPS_MODE: the mode
+      battery_v: to 0.1 V
+      soc_pct: to the nearest 5 %
+    values: the simulator's true state at that MET
+    reported: 'when the own station hears it: in contact, with its receiver working'
+  other_stations:
+    label: modeled
+    stations:
+    - STAND-IN-1
+    - STAND-IN-2
+    model: two stand-in stations under the same pass; each logs a beacon it hears with probability 0.8, after a
+      delay seeded between 60 and 240 s
+    seed: 72094879
+    draws: 'for each beacon sent in the own station''s contact window, in MET order, for STAND-IN-1 then STAND-IN-2:
+      random.Random(seed).random() < 0.8, then, if heard, randint(60, 240)'
+    content:
+      station: its name
+      label: modeled
+      beacon_met_s: when it was sent
+      beacon: the beacon's content
+    schedule:
+    - station: STAND-IN-1
+      beacon_met_s: 7200
+      report_met_s: 7339
+    - station: STAND-IN-2
+      beacon_met_s: 7200
+      report_met_s: 7410
+    - station: STAND-IN-1
+      beacon_met_s: 7260
+      report_met_s: 7490
+    - station: STAND-IN-2
+      beacon_met_s: 7260
+      report_met_s: 7381
+    - station: STAND-IN-1
+      beacon_met_s: 7320
+      report_met_s: 7500
+    - station: STAND-IN-2
+      beacon_met_s: 7320
+      report_met_s: 7380
+    - station: STAND-IN-1
+      beacon_met_s: 7380
+      report_met_s: 7446
+    - station: STAND-IN-1
+      beacon_met_s: 7440
+      report_met_s: 7584
+    - station: STAND-IN-2
+      beacon_met_s: 7440
+      report_met_s: 7662
+    - station: STAND-IN-1
+      beacon_met_s: 12840
+      report_met_s: 13026
+    - station: STAND-IN-2
+      beacon_met_s: 12840
+      report_met_s: 12937
+    - station: STAND-IN-1
+      beacon_met_s: 12900
+      report_met_s: 13006
+    - station: STAND-IN-2
+      beacon_met_s: 12900
+      report_met_s: 13047
+    - station: STAND-IN-1
+      beacon_met_s: 12960
+      report_met_s: 13067
+    - station: STAND-IN-2
+      beacon_met_s: 13020
+      report_met_s: 13178
+    - station: STAND-IN-1
+      beacon_met_s: 13080
+      report_met_s: 13143
+    - station: STAND-IN-2
+      beacon_met_s: 13080
+      report_met_s: 13229
+  space_weather:
+    replay: space_weather_replay.json
+    at: 'each MET that is a multiple of 300: the GOES row whose offset_s is that MET, and the Kp of the 3-hour interval
+      holding it'
+    content:
+      label: replayed
+      utc_2017: the replayed time
+      proton_flux_pfu:
+        gt10_mev: ''
+        gt30_mev: ''
+        gt60_mev: ''
+      kp: ''
+      kp_interval_utc_2017: ''
+      sources: GOES-13 via NASA SPDF OMNIWeb Plus; Kp from GFZ Potsdam
+    same_in_every_scenario: true
+scoring:
+  success: The shed accepted at contact B, and no mode command outside its lease conditions.
+  flown: only if A to D are done with time to spare
