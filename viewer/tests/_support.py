@@ -23,8 +23,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-if str(ROOT / "convert") not in sys.path:
-    sys.path.insert(0, str(ROOT / "convert"))
+for _folder in ("convert", "capture", "site"):
+    if str(ROOT / _folder) not in sys.path:
+        sys.path.insert(0, str(ROOT / _folder))
 
 PRACTICE_RUNS = ("dev-practice-p3", "dev-practice-p3-process", "dev-practice-p4")
 # S5's live check of 28 October 2026: P3's pass flown in the ground seat, its run_id dev-s6-0001.
@@ -45,7 +46,7 @@ PASSES = ("2026-09-13-P1", "2026-09-20-P2a", "2026-09-20-P2b", "2026-10-11-P3", 
 # What a deposit holds: VERDA's own files and, beside them, the deposit's DEPOSIT.md
 # and MANIFEST.sha256. Never the inputs, run folders, generated timelines, scratch
 # files or caches.
-DEPOSITED = ("README.md", "DEPOSIT.md", "MANIFEST.sha256", "convert", "page", "tests")
+DEPOSITED = ("README.md", "DEPOSIT.md", "MANIFEST.sha256", "capture", "convert", "page", "site", "tests")
 NOT_DEPOSITED_DIRS = {"__pycache__", "timelines"}
 
 

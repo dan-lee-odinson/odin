@@ -18,6 +18,10 @@ file's run_id and timeline_sha256 match the timeline on screen; that check is
 the page's, so that a clip copied here from another rendering still shows why it
 is not played.
 
+A clip may also have a caption beside it, <stem>.caption.txt, the full caption
+its renderer gives it. It is copied with the clip and its text listed with it in
+index.js, for the page to show on request.
+
 This module reads the clips folder it is given and writes only inside the
 output folder's clips/ folder.
 """
@@ -30,6 +34,7 @@ import shutil
 from pathlib import Path
 
 CLIPS = "clips"
+CAPTION = ".caption.txt"
 VIDEO_TYPES = (".mp4", ".webm", ".m4v", ".mov", ".ogv")
 FIELDS = ("run_id", "timeline_sha256", "first_frame_met_s", "met_step_s", "fps")
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$")
@@ -84,6 +89,15 @@ def clip_beside(sync_path):
     return found
 
 
+def caption_beside(sync_path):
+    """The clip's caption, <stem>.caption.txt beside its sync file, or None."""
+    sync_path = Path(sync_path)
+    name = sync_path.name
+    stem = name[:-len(".sync.json")] if name.endswith(".sync.json") else name[:-len(".json")]
+    caption = sync_path.with_name(stem + CAPTION)
+    return caption if caption.is_file() else None
+
+
 def sync_files(clips_dir):
     return sorted(p for p in Path(clips_dir).rglob("*.json") if p.is_file())
 
@@ -96,10 +110,11 @@ def place_clips(clips_dir, out_dir):
     for sync_path in sync_files(clips_dir):
         sync, problems = read_sync(sync_path)
         found = clip_beside(sync_path)
+        caption = caption_beside(sync_path)
         if len(found) != 1:
             problems.append("%s: %s" % (sync_path.name, "no clip beside it" if not found else
                                         "more than one clip beside it: %s" % ", ".join(p.name for p in found)))
-        for p in [sync_path] + found:
+        for p in [sync_path] + found + ([caption] if caption else []):
             if not _NAME.match(p.name):
                 problems.append("%s cannot name a file in the output folder" % p.name)
         if problems:
@@ -110,7 +125,12 @@ def place_clips(clips_dir, out_dir):
             temporary = target / (source.name + ".tmp")
             shutil.copyfile(source, temporary)
             os.replace(temporary, target / source.name)
-        yield sync_path, {"clip": found[0].name, "sync": sync_path.name}, []
+        placed = {"clip": found[0].name, "sync": sync_path.name}
+        if caption:
+            shutil.copyfile(caption, target / (caption.name + ".tmp"))
+            os.replace(target / (caption.name + ".tmp"), target / caption.name)
+            placed["caption"] = caption.name
+        yield sync_path, placed, []
 
 
 def index_entries(out_dir):
@@ -122,8 +142,9 @@ def index_entries(out_dir):
     for sync_path in sorted(folder.glob("*.json")):
         sync, problems = read_sync(sync_path)
         found = clip_beside(sync_path)
+        caption = caption_beside(sync_path)
         entry = dict(sync, sync_file="%s/%s" % (CLIPS, sync_path.name), sync_sha256=sha256_of(sync_path),
-                     problems=problems)
+                     caption=caption.read_text(encoding="utf-8") if caption else None, problems=problems)
         if len(found) == 1:
             entry.update(file="%s/%s" % (CLIPS, found[0].name), clip_sha256=sha256_of(found[0]))
         else:

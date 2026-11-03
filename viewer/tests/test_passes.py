@@ -225,8 +225,11 @@ class ScenarioCommands(unittest.TestCase):
             ("P1", 240, "CMD_PLD_SET_RATE", "in contact", False),
             ("P2A", 120) + on, ("P2B", 120) + on, ("P3", 120) + on, ("P4", 120) + on,
             ("P4", 1320, "CMD_SYS_RESET", "in contact", False)])
-        # Each pass's window is its plan file's, read here without the reader.
-        for plan_file in sorted(S.plans_dir().glob("*.yaml")):
+        # Each pass's window is its plan file's, read here without the reader: the five phase-2
+        # plans, the ones the Director flew passes under (phase 3's plans have none).
+        phase2 = sorted(p for p in S.plans_dir().glob("*.yaml") if p.name.startswith("TYR0-P2-"))
+        self.assertEqual(len(phase2), 5)
+        for plan_file in phase2:
             text = plan_file.read_text(encoding="utf-8")
 
             def field(key):

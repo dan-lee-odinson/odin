@@ -73,20 +73,42 @@ class PlacedClips(unittest.TestCase):
             vc.write_index(out)
             entries, listed = index_of(out)
             copied = {p.name: p.read_bytes() for p in (out / "clips").iterdir()}
-        self.assertEqual([(s.name, p, problems) for s, p, problems in placed],
-                         [(S.PREVIEW_RUN + "_preview.sync.json",
-                           {"clip": S.PREVIEW_RUN + "_preview.mp4", "sync": S.PREVIEW_RUN + "_preview.sync.json"}, [])])
+        # Every clip in the folder, each with its sync file: the preview and SPARK-R2's two.
+        names = [p.name for p in S.clips_dir().glob("*.sync.json")]
+        self.assertIn(S.PREVIEW_RUN + "_preview.sync.json", names)
+        self.assertEqual({s.name: (p, problems) for s, p, problems in placed},
+                         {n: ({"clip": n[:-len(".sync.json")] + ".mp4", "sync": n}, []) for n in names})
+        self.assertEqual(len(copied), 2 * len(names))
         for name, data in copied.items():
             self.assertEqual(data, (S.clips_dir() / name).read_bytes(), name)
         sync = json.loads((S.clips_dir() / (S.PREVIEW_RUN + "_preview.sync.json")).read_text(encoding="utf-8"))
-        self.assertEqual(len(listed), 1)
-        entry = listed[0]
+        self.assertEqual(len(listed), len(names))
+        entry = next(e for e in listed if e["run_id"] == S.PREVIEW_RUN)
         self.assertEqual({k: entry[k] for k in ("run_id", "first_frame_met_s", "met_step_s", "fps")},
                          {k: sync[k] for k in ("run_id", "first_frame_met_s", "met_step_s", "fps")})
         self.assertEqual(entry["timeline_sha256"], "sha256:" + sync["timeline_sha256"])
         self.assertEqual(entry["timeline_sha256"], entries[0]["sha256"])
         self.assertEqual((entry["file"], entry["problems"]), ("clips/%s_preview.mp4" % S.PREVIEW_RUN, []))
         self.assertEqual(entry["clip_sha256"], clips.sha256_of(S.clips_dir() / (S.PREVIEW_RUN + "_preview.mp4")))
+        self.assertIsNone(entry["caption"])
+
+    def test_a_clips_caption_goes_with_it_into_the_index(self):
+        name = S.PREVIEW_RUN + "_preview"
+        caption = "A clip's caption, as its renderer wrote it — a dash and all."
+        with tempfile.TemporaryDirectory() as tmp:
+            source, out = Path(tmp, "clips"), Path(tmp, "out")
+            source.mkdir()
+            for ext in (".mp4", ".sync.json"):
+                shutil.copy(S.clips_dir() / (name + ext), source / (name + ext))
+            (source / (name + clips.CAPTION)).write_bytes(caption.encode("utf-8"))
+            vc.convert(S.runs_dir() / S.PREVIEW_RUN, out, S.dictionary_path())
+            placed = [p for _, p, problems in clips.place_clips(source, out)]
+            vc.write_index(out)
+            _, listed = index_of(out)
+            copied = (out / "clips" / (name + clips.CAPTION)).read_bytes()
+        self.assertEqual(placed, [{"clip": name + ".mp4", "sync": name + ".sync.json", "caption": name + clips.CAPTION}])
+        self.assertEqual(copied, caption.encode("utf-8"))
+        self.assertEqual([c["caption"] for c in listed], [caption])
 
     def test_a_sync_file_with_no_clip_or_a_bad_field_is_not_placed(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -44,8 +44,9 @@ def user_folder_paths(text):
 
 
 # What is not VERDA's own: the inputs Claude Code placed, deposits already made,
-# scratch files, generated timelines, caches.
-SKIP_DIRS = {"inputs", "to-claude-code", ".scratch", "timelines", "__pycache__", ".git"}
+# scratch files, generated timelines, caches, and the pinned ffmpeg build the
+# capture tool encodes with (a third-party program no deposit takes).
+SKIP_DIRS = {"inputs", "to-claude-code", ".scratch", "timelines", "__pycache__", ".git", "ffmpeg"}
 # The Director's brief to this session: an input that names the folders VERDA must
 # never open. It is not VERDA's file and is never deposited.
 SKIP_FILES = {"VERDA_BRIEF.md"}

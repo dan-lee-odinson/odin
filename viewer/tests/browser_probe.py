@@ -1,4 +1,5 @@
-"""Opens VERDA's page from disk in headless Chrome or Edge, and reports what it did.
+"""Opens VERDA's page from disk or from a local HTTP server in headless Chrome or Edge,
+and reports what it did.
 
 It drives the browser through the DevTools protocol on 127.0.0.1, with a small
 WebSocket client written here (the standard library has none). It records every
@@ -6,13 +7,21 @@ request the page starts, every script error and console error, and can run a
 line of JavaScript in the page to read what the page drew. It belongs to the
 tests only; VERDA's page needs no browser but the reader's own.
 
+Served is how the replay site is read: Server serves a folder on 127.0.0.1 as
+GitHub Pages serves one, with each file's type, byte ranges for the clips, and
+nosniff, and records every path asked of it.
+
     python tests/browser_probe.py [RUN_ID]    prints what one load of the page did
 """
 
 import base64
 import http.client
+import http.server
 import json
 import os
+import re
+import threading
+import urllib.parse
 import shutil
 import socket
 import struct
@@ -218,6 +227,79 @@ class Page:
 
 def page_url(page_dir, run_id, extra=""):
     return Path(page_dir, "index.html").resolve().as_uri() + "#run=" + run_id + extra
+
+
+TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+         ".json": "application/json", ".mp4": "video/mp4", ".ttf": "font/ttf", ".txt": "text/plain; charset=utf-8"}
+
+
+class Server:
+    """A folder served on 127.0.0.1, as GitHub Pages serves one. Use it in a with-block."""
+
+    def __init__(self, folder):
+        root = Path(folder).resolve()
+        asked = self.asked = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.serve(True)
+
+            def do_HEAD(self):
+                self.serve(False)
+
+            def serve(self, body):
+                path = urllib.parse.unquote(urllib.parse.urlsplit(self.path).path)
+                asked.append(path)
+                rel = path.lstrip("/") or "index.html"
+                target = (root / rel).resolve()
+                if root not in target.parents or not target.is_file():
+                    self.send_error(404)
+                    return
+                data = target.read_bytes()
+                first, last, status = 0, len(data) - 1, 200
+                m = re.fullmatch(r"bytes=(\d*)-(\d*)", self.headers.get("Range", ""))
+                if m and (m.group(1) or m.group(2)):
+                    if m.group(1):
+                        first = int(m.group(1))
+                        last = min(int(m.group(2)), len(data) - 1) if m.group(2) else len(data) - 1
+                    else:
+                        first = max(0, len(data) - int(m.group(2)))
+                    if first > last:
+                        self.send_error(416)
+                        return
+                    status = 206
+                self.send_response(status)
+                self.send_header("Content-Type", TYPES.get(target.suffix, "application/octet-stream"))
+                self.send_header("Content-Length", str(last - first + 1))
+                self.send_header("Accept-Ranges", "bytes")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                if status == 206:
+                    self.send_header("Content-Range", "bytes %d-%d/%d" % (first, last, len(data)))
+                self.end_headers()
+                if body:
+                    try:
+                        self.wfile.write(data[first:last + 1])
+                    except ConnectionError:
+                        pass
+
+            def log_message(self, *args):
+                pass
+
+        self.httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.origin = "http://127.0.0.1:%d" % self.httpd.server_address[1]
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+
+    def __enter__(self):
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        self.thread.join(timeout=10)
+
+    def url(self, run_id, extra=""):
+        return self.origin + "/index.html#run=" + run_id + extra
 
 
 if __name__ == "__main__":

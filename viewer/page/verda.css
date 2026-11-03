@@ -53,7 +53,9 @@ body {
   color: var(--text);
   font: 15px/1.4 var(--font);
   display: grid;
-  grid-template-rows: auto auto auto 1fr auto;
+  /* Header, banner, controls, the timeline and side column, footer. The fourth row takes all the
+     height the rest leaves, whatever it holds. */
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   gap: 6px;
   padding: 6px;
   overflow: hidden;
@@ -96,6 +98,8 @@ button { cursor: pointer; margin-left: 0; min-width: 36px; font-size: 15px; }
 button:hover, select:hover { border-color: var(--bracket); }
 button.play { min-width: 82px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
 .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+/* What the page is, said once: replays, not a live feed, and of a simulation. */
+.about { margin: 0 0 0 auto; color: var(--text-2); font-size: 13px; white-space: nowrap; }
 .badge {
   border: 1px solid var(--hair-2); padding: 2px 9px; font-size: 11.5px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--text-2); background: var(--bg);
@@ -123,19 +127,34 @@ label.check { display: flex; align-items: center; gap: 5px; white-space: nowrap;
 label.check.small { font-size: 11px; color: var(--text-2); }
 input[type=checkbox] { accent-color: var(--bracket); }
 
-main { display: grid; grid-template-columns: 1fr 540px; gap: 6px; min-height: 0; }
+/* Placed in their rows by number: the banner is hidden most of the time, and a hidden item takes no row. */
+main { grid-row: 4; display: grid; grid-template-columns: 1fr 540px; gap: 6px; min-height: 0; }
 #lanes { overflow-x: hidden; overflow-y: auto; min-height: 0; padding: 0; background: var(--panel); }
 #lanes svg { display: block; }
 #side { display: grid; grid-template-rows: auto auto minmax(80px, 1fr) minmax(120px, 1.25fr); gap: 6px; min-height: 0; }
 /* The animation pane: the clip locked to the playhead, or a line saying why there is none. */
 .clip-box { background: #000; border: 1px solid var(--hair); aspect-ratio: 16 / 9; }
 .clip-box video { display: block; width: 100%; height: 100%; object-fit: contain; }
-.clip-note { margin: 5px 0 0; font-size: 12px; line-height: 1.35; color: var(--text-2); }
+.clip-note { margin: 3px 0 0; font-size: 12px; line-height: 1.35; color: var(--text-2); }
 .clip-panel.none .clip-note { margin: 0; color: var(--text-3); font-style: italic; }
+.clip-caption { margin: 2px 0 0; font-size: 12px; line-height: 1.35; color: var(--text-2); }
+button.as-link { min-width: 0; margin: 0; padding: 0; border: 0; background: none; clip-path: none; font: inherit; color: var(--info);
+  text-decoration: underline; text-underline-offset: 2px; }
+button.as-link[hidden] { display: none; }
 /* With a clip on screen, the event log gives its place to the pane, and the readouts drop their gauges. */
-#side.with-clip { grid-template-rows: auto auto minmax(90px, 1fr); }
+#side.with-clip { grid-template-rows: auto auto minmax(80px, 1fr); }
 #side.with-clip .feed-panel { display: none; }
 #side.with-clip .gauge, #side.with-clip .truth-note { display: none; }
+/* With no clip listed for the run, the pane steps aside and the event log takes its place. */
+#side.no-clip { grid-template-rows: minmax(120px, 1fr) auto minmax(110px, 0.65fr); }
+#side.no-clip .clip-panel { display: none; }
+#side.no-clip .feed-panel { order: -1; }
+/* With a long read open in the Record panel, one of ODIN's reports beside the records it links or a
+   clip's full caption, the readouts give it their place. */
+#side.citing .now-panel { display: none; }
+#side.citing { grid-template-rows: auto minmax(80px, 1fr) minmax(120px, 1.25fr); }
+#side.citing.no-clip { grid-template-rows: minmax(120px, 1fr) minmax(120px, 1.25fr); }
+#side.citing.with-clip { grid-template-rows: auto minmax(80px, 1fr); }
 .panel { padding: 8px 12px 10px; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 /* Section headers: a short accent bar, the title in spaced capitals, a thin rule. */
@@ -211,13 +230,35 @@ main { display: grid; grid-template-columns: 1fr 540px; gap: 6px; min-height: 0;
 #feed li .t { color: var(--text-3); margin-right: 6px; }
 #feed li .k { color: var(--info); margin-right: 6px; }
 #feed li.newest { background: var(--panel-3); border-left: 2px solid var(--highlight); }
+#feed li.cited { border-left: 2px solid var(--odin-2); }
 
 #inspector {
   flex: 1; min-height: 0; overflow: auto; margin: 0; font: 13px/1.35 var(--mono); color: var(--text);
   white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); border: 1px solid var(--hair); padding: 8px;
 }
 
-footer#foot { padding: 5px 18px; display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
+.panel h2 > button { order: 3; min-width: 0; padding: 1px 10px; font-size: 12px; letter-spacing: 0.06em; }
+.panel h2 > button[hidden], #inspector[hidden], #cites[hidden] { display: none; }
+#cites {
+  flex: 1; min-height: 0; overflow: auto; background: var(--bg); border: 1px solid var(--hair); padding: 8px 10px;
+}
+.cites-label { margin: 0 0 3px; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+.cites-label + .cites-label, .cites-answer + .cites-label { margin-top: 8px; }
+.cites-answer {
+  margin: 0; padding: 1px 0 1px 10px; border-left: 2px solid var(--odin-2); font: 13.5px/1.36 var(--font); color: var(--text);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+pre.cites-answer { font: 12.5px/1.35 var(--mono); }
+.cites-group h3 { margin: 5px 0 1px; font-size: 12.5px; font-weight: 600; color: var(--text-2); overflow-wrap: anywhere; }
+.cites-group ol { list-style: none; margin: 0; padding: 0; font: 13.5px var(--mono); }
+.cites-group li { padding: 1px 6px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-left: 2px solid transparent; }
+.cites-group li .t { color: var(--text-3); margin-right: 6px; }
+.cites-group li .k { color: var(--info); margin-right: 6px; }
+.cites-group li.selected { background: var(--panel-3); border-left-color: var(--highlight); }
+.cites-group li.none, .cites-none { color: var(--text-3); font-style: italic; cursor: default; }
+
+footer#foot { grid-row: 5; padding: 5px 18px; display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
 .legend { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
 .legend .key { display: inline-flex; align-items: center; gap: 6px; }
 .legend svg { overflow: visible; }

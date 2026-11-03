@@ -26,7 +26,7 @@
   const S = {
     tl: null, view: [0, 1], met: 0, playing: false, speed: 10, last: 0,
     showTruth: true, showFuture: false, showInternal: false,
-    hits: [], geo: null, feedKey: '', marks: [], ask: null,
+    hits: [], geo: null, feedKey: '', marks: [], ask: null, cites: null,
   };
 
   // ---- small helpers -------------------------------------------------
@@ -603,25 +603,42 @@
       const key = e.row || 0;
       const text = shortLabel(e);
       if (below) {
-        const x0 = cx - 4;
-        if (lastEnd[key] !== undefined && x0 < lastEnd[key] + 8) continue;
-        const t = svgText(names, x0, ry.top + ry.h - 4, text, 'ev-label');
+        // A turn's name goes after its mark. Near the right edge, where it will not fit
+        // there, it is written before the mark, ending at it, if the row is clear; where
+        // it fits neither way, the turn's number alone is written. The hover has the rest.
+        const clearFrom = lastEnd[key] === undefined ? -Infinity : lastEnd[key] + 8;
+        const room = S.geo.width - 26;
+        let name = null, x0 = 0, end = false;
+        for (const n of [text, text.split(' ')[0]]) {
+          const w = n.length * CHAR_W;
+          if (cx - 4 >= clearFrom && cx - 4 + w <= room) { name = n; x0 = cx - 4; break; }
+          if (cx - 4 + w > room && cx + 4 - w >= clearFrom) { name = n; x0 = cx + 4 - w; end = true; break; }
+        }
+        if (name === null) continue;
+        const t = end ? svgText(names, cx + 4, ry.top + ry.h - 4, name, 'ev-label', 'end')
+                      : svgText(names, x0, ry.top + ry.h - 4, name, 'ev-label');
         t.classList.add('hit');
         t.setAttribute('data-hit', m.getAttribute('data-hit'));
-        lastEnd[key] = x0 + text.length * CHAR_W;
+        lastEnd[key] = x0 + name.length * CHAR_W;
       } else if (lastEnd[key] === undefined || cx > lastEnd[key] + 6) {
         const next = events.find((o) => o.met_s > e.met_s && (o.row || 0) === key);
         const room = next ? x(next.met_s) - cx - 16 : S.geo.width - cx - 30;
         const label = fit(text, Math.min(room, 420));
-        // Near the right edge, with nothing after it on its row, a name that will not fit
-        // after its mark is written whole before it, if the row is clear there.
+        // A name that will not fit after its mark, near the right edge or before the next
+        // mark on its row, is written whole before it, if the row is clear there.
         const clear = cx - r - 4 - (lastEnd[key] === undefined ? PLOT_X : lastEnd[key] + 6);
-        if (!next && label !== text && fit(text, Math.min(clear, 420)) === text) {
-          svgText(names, cx - r - 4, cy + 4.5, text, 'ev-label', 'end');
+        let t = null;
+        if (label !== text && fit(text, Math.min(clear, 420)) === text) {
+          t = svgText(names, cx - r - 4, cy + 4.5, text, 'ev-label', 'end');
           lastEnd[key] = cx + r;
         } else if (label) {
-          svgText(names, cx + r + 4, cy + 4.5, label, 'ev-label');
+          t = svgText(names, cx + r + 4, cy + 4.5, label, 'ev-label');
           lastEnd[key] = cx + r + 4 + label.length * CHAR_W;
+        }
+        // A name opens what its mark opens, as a request's or a command's does.
+        if (t) {
+          t.classList.add('hit');
+          t.setAttribute('data-hit', m.getAttribute('data-hit'));
         }
       }
     }
@@ -1049,6 +1066,7 @@
     const p = hit.payload;
     if (p.event) {
       const recs = recordsFor(p.event.refs);
+      if (recs.length === 1 && recs[0] && recs[0].type === 'REPORT') { openReport(recs[0]); return; }
       inspect(hit.title + ' · MET ' + p.event.met_s, JSON.stringify(recs.length === 1 ? recs[0] : recs, null, 2));
     } else if (p.span) {
       const recs = recordsFor(p.span.refs);
@@ -1071,6 +1089,7 @@
         his_telemetry_next: c.outcome.text + (c.outcome.kind === 'outside' ? '' : ' (derived by VERDA)'),
         rows: recordsFor(c.refs) }, null, 2));
     } else if (p.record) {
+      if (p.record.type === 'REPORT') { openReport(p.record); return; }
       inspect('Record ' + p.record.record_id + ' · ' + p.record.type, JSON.stringify(p.record, null, 2));
     } else if (p.note) {
       inspect('About this lane', p.note);
@@ -1078,9 +1097,100 @@
   }
 
   function inspect(title, body) {
+    closeCites();
     $('inspector-title').textContent = title;
     $('inspector').textContent = body;
     $('inspector').scrollTop = 0;
+  }
+
+  // ---- one of ODIN's reports, beside the records it links by ID --------------
+  // Only links the records make by ID: the trigger of the report's turn (its turn_id),
+  // and the records of each request its actions name (their request_id), as far as
+  // the log had come when the report was written. Nothing is matched by time or by
+  // text, and nothing is said of whether the report is right.
+  function reportLinks(rec) {
+    const b = rec.body || {};
+    const before = S.tl._records.filter((r) => r.record_id < rec.record_id && r.body);
+    const groups = [];
+    if (b.turn_id !== undefined && b.turn_id !== null) {
+      groups.push({ head: 'The trigger of its turn, turn_id ' + b.turn_id,
+        records: before.filter((r) => r.type === 'TRIGGER' && r.body.turn_id === b.turn_id) });
+    }
+    const ids = [];
+    for (const a of b.actions || []) if (a && typeof a.request_id === 'string' && ids.indexOf(a.request_id) < 0) ids.push(a.request_id);
+    for (const id of ids) groups.push({ head: 'Its request, request_id ' + id, records: before.filter((r) => r.body.request_id === id) });
+    return groups;
+  }
+
+  function openReport(rec) {
+    const b = rec.body || {};
+    const view = $('cites');
+    clear(view);
+    $('inspector-title').textContent = 'Report ' + (b.report_kind || '') + ' · MET ' + rec.met_s;
+    if (typeof b.answer === 'string') {
+      html('p', 'cites-label', view, 'The answer, as written in record ' + rec.record_id);
+      html('blockquote', 'cites-answer', view, b.answer);
+    } else {
+      html('p', 'cites-label', view, 'Record ' + rec.record_id + ', as written');
+      html('pre', 'cites-answer', view, JSON.stringify(b, null, 2));
+    }
+    html('p', 'cites-label', view, 'The records it links by ID');
+    const groups = reportLinks(rec);
+    S.cites = new Set();
+    for (const g of groups) {
+      const sec = html('section', 'cites-group', view);
+      html('h3', null, sec, g.head);
+      const list = html('ol', null, sec);
+      if (!g.records.length) html('li', 'none', list, 'No record in the log carries it.');
+      for (const r of g.records) {
+        S.cites.add(r.record_id);
+        const li = html('li', null, list);
+        li.setAttribute('data-record', String(r.record_id));
+        html('span', 't', li, String(r.met_s).padStart(5, ' '));
+        html('span', 'k', li, r.type);
+        html('span', null, li, describe(r));
+        li.title = 'Record ' + r.record_id + ' (click to pick it out)';
+        li.addEventListener('click', () => {
+          view.querySelectorAll('li.selected').forEach((o) => o.classList.remove('selected'));
+          li.classList.add('selected');
+          li.scrollIntoView({ block: 'nearest' });
+        });
+      }
+    }
+    if (!groups.length) html('p', 'cites-none', view, 'It links no record by ID.');
+    $('inspector').hidden = true;
+    view.hidden = false;
+    view.scrollTop = 0;
+    $('btn-cites-close').hidden = false;
+    $('side').classList.add('citing');
+    S.feedKey = '';
+    drawFeed();
+  }
+
+  // A clip's full caption, as its renderer wrote it, read as a report is: the readouts
+  // give it their place until it is closed.
+  function openCaption(c) {
+    const view = $('cites');
+    clear(view);
+    $('inspector-title').textContent = 'Caption';
+    html('p', 'cites-label', view, 'The full caption of ' + c.file.replace(/^clips\//, '') + ', as its renderer wrote it');
+    html('blockquote', 'cites-answer', view, c.caption);
+    S.cites = new Set();
+    $('inspector').hidden = true;
+    view.hidden = false;
+    view.scrollTop = 0;
+    $('btn-cites-close').hidden = false;
+    $('side').classList.add('citing');
+  }
+
+  function closeCites() {
+    const open = !!S.cites;
+    S.cites = null;
+    $('side').classList.remove('citing');
+    $('cites').hidden = true;
+    $('inspector').hidden = false;
+    $('btn-cites-close').hidden = true;
+    if (open && S.tl) { S.feedKey = ''; drawFeed(); }
   }
 
   // A run opens on its pass: its contact windows, flown and planned, and a little
@@ -1129,7 +1239,7 @@
     const entry = (window.VERDA_INDEX || []).find((e) => e.id === tl.id) || {};
     const have = bareHash(entry.sha256);
     const listed = (window.VERDA_CLIPS || []).filter((c) => c.run_id === runId || (have && bareHash(c.timeline_sha256) === have));
-    if (!listed.length) return { reason: passOnly(tl) ? 'No ODIN run in this timeline, so no animation clip.' : 'No animation clip for this run.' };
+    if (!listed.length) return { listed: false, reason: passOnly(tl) ? 'No ODIN run in this timeline, so no animation clip.' : 'No animation clip for this run.' };
     const fit = listed.filter((c) => c.run_id === runId && have && bareHash(c.timeline_sha256) === have);
     if (fit.length === 1) {
       const c = fit[0];
@@ -1152,6 +1262,10 @@
     v.onloadedmetadata = null;
     v.onerror = null;
     $('side').classList.remove('with-clip');
+    // With no clip listed for it, the pane steps aside and the event log takes its place.
+    $('side').classList.toggle('no-clip', found.listed === false);
+    $('clip-caption').hidden = !found.clip;
+    $('btn-caption').hidden = !(found.clip && found.clip.caption);
     if (!found.clip) {
       v.removeAttribute('src');
       v.load();
@@ -1175,6 +1289,7 @@
       if (S.clip.clip !== c) return;
       S.clip = { clip: null, frames: 0 };
       $('clip-box').hidden = true;
+      $('clip-caption').hidden = true;
       $('clip-note').textContent = 'Could not read timelines/' + c.file + '. Run the converter with --clips again.';
     };
     v.src = 'timelines/' + c.file;
@@ -1460,8 +1575,10 @@
       html('span', 't', li, String(r.met_s).padStart(5, ' '));
       html('span', 'k', li, r.type);
       html('span', null, li, describe(r));
+      if (S.cites && S.cites.has(r.record_id)) li.classList.add('cited');
       li.title = 'Record ' + r.record_id + ' (click to show it)';
-      li.addEventListener('click', () => inspect('Record ' + r.record_id + ' · ' + r.type + ' · MET ' + r.met_s, JSON.stringify(r, null, 2)));
+      li.addEventListener('click', () => (r.type === 'REPORT' ? openReport(r) :
+        inspect('Record ' + r.record_id + ' · ' + r.type + ' · MET ' + r.met_s, JSON.stringify(r, null, 2))));
     });
   }
 
@@ -1469,6 +1586,12 @@
   function wireControls() {
     $('run-select').addEventListener('change', (e) => loadRun(e.target.value));
     $('btn-play').addEventListener('click', () => (S.playing ? pause() : play()));
+    $('btn-cites-close').addEventListener('click', () => closeCites());
+    // The clip's full caption, as its renderer wrote it, in the Record panel.
+    $('btn-caption').addEventListener('click', () => {
+      const c = S.clip && S.clip.clip;
+      if (c && c.caption) openCaption(c);
+    });
     $('btn-start').addEventListener('click', () => { pause(); if (S.tl) setMet(S.tl.met_range[0]); });
     $('btn-end').addEventListener('click', () => { pause(); if (S.tl) setMet(S.tl.met_range[1]); });
     $('btn-prev').addEventListener('click', () => jump(-1));

@@ -2,6 +2,8 @@
 
 VERDA is a watch-only viewer for ODIN's runs. It plays back a finished run's records on one mission-elapsed-time (MET) axis: the contact windows, the telemetry that matters to a pass with its limit states, telemetry age and the ground link, each of ODIN's requests with BALDUR-0's decision, the dispatch and the outcome, and ODIN's reports and escalations beside the Director's check-ins. Beside the run, on the same axis, it shows the Director's own flown pass of the same scenario: the commands he sent, when each went out, what his telemetry showed after it, and his telemetry; and, apart from his, the commands the scenario sent by itself, which his pass carried. Beside the timeline, an animation pane plays the clip rendered from the run on screen, locked to the playhead.
 
+The same page is VERDA's replay site: `site/build_site.py` builds it from the repository's committed records, for GitHub Pages to serve as it is. And the VERDA shots in the demo video were filmed from the page, a frame at a time, by `capture/verda_capture.py`.
+
 VERDA was written during the Meta Global AI Developer Hackathon by a Claude Code session (the VERDA session), directed by Dan Lee-Odinson, Director. It is new code. It uses no third-party library; its one pre-existing file is the Michroma font (see Pre-existing).
 
 ## Use
@@ -20,6 +22,12 @@ VERDA was written during the Meta Global AI Developer Hackathon by a Claude Code
 
 2. Open `page/index.html` from disk in a browser. Pick a run (or a pass of the Director's that no run pairs with yet), then press Play. A run opens on its pass, its contact windows and a little either side; "Whole run" (or `0`) shows all of it.
 
+3. Build the replay site (see The replay site):
+
+   ```
+   python site/build_site.py --runs <folder of run folders> --passes <folder of pass folders> --plans <folder of plans> --scripted <scripted-commands file> --dictionary <tlm_cmd.yaml> --clip <the site clip's sync file> --out <site folder>
+   ```
+
 Keys: Space plays and pauses; Left and Right step to the previous and next event; Home and End; `+` and `-` zoom around the playhead; `0` shows the whole run. Hover over anything to see what it is; click it to show its record.
 
 A link can open the page at a chosen moment: `index.html#run=<run_id>&met=<seconds>&future=1&truth=0&view=<from>-<to>`.
@@ -30,10 +38,11 @@ The page is drawn as a working spacecraft console: hairline-framed panels with n
 
 The colors are deep navy panels, cyan hairlines and ice-white text. Status colors keep one meaning (green good, amber caution, red alarm), and decoration is drawn only in lines and thin bars, never filled, hatched or worded. The one amber decoration is the short bar on each section header, kept off the data; the playhead and its MET marker are ice-white. A limit state always carries its name in words, and a shape: a green chip is an outline, a yellow one is filled and pointed on the right, a red one is filled and pointed at both ends; yellow and red limit bands are hatched and named on the chart.
 
-## Watch-only, from disk
+## Watch-only, from disk or served
 
-- The page is static HTML, CSS and JavaScript. It reads only the files beside it: its own three files, its font, `timelines/index.js`, the timeline file it plays (and its beside file, for a run beside the Director's pass) and that run's animation clip, if one is placed. It makes no network request; its Content-Security-Policy refuses every connection and lets media come only from the page's own folder, and a test opens it in a browser and checks every request it makes.
+- The page is static HTML, CSS and JavaScript, the same whether it is opened from disk or served, as the replay site is. It reads only the files beside it: its own three files, its font, `timelines/index.js`, the timeline file it plays (and its beside file, for a run beside the Director's pass) and that run's animation clip, if one is placed. It makes no network request; its Content-Security-Policy refuses every connection and lets media come only from the page's own folder, and a test opens it in a browser and checks every request it makes.
 - The page writes nothing: no storage, no downloads, no forms.
+- The site build reads the records and writes only the site's folder; the capture tool reads the same inputs and writes only its video, its frame log and any frames it is asked to keep. Neither writes into a run folder.
 - The converter reads run folders, the Director's pass folders, the plans, the scripted-commands file and the clips folder, and writes one timeline file for each run and for each pass no run pairs with, `<out>/<id>.js`, a beside file for each run paired with a pass, `<out>/<id>.beside.js`, `<out>/index.js`, and a copy of each clip and its sync file in `<out>/clips/`. It never writes into a run folder, a pass folder, a plan, the scripted-commands file or the clips folder.
 - Text from the records (ODIN's rationales, reports, the Director's words) is always shown as text, never read as HTML.
 
@@ -89,11 +98,32 @@ Beside the timeline, a pane plays the animation clip of the run on screen, locke
 | `met_step_s` | The MET between one frame and the next |
 | `fps` | Its frames a second |
 
-- **Which clip plays.** A page opened from disk can read neither a JSON file nor a file's bytes, so the converter (`--clips`, `convert/clips.py`) copies each clip and its sync file into `<out>/clips/` and lists them in `index.js`, beside the SHA-256 of each timeline file. The page plays a clip only when its sync file's `run_id` and `timeline_sha256` match the timeline on screen. Otherwise it shows nothing and says why: no clip for this run, or a clip rendered from another timeline file, with both hashes.
+- **Which clip plays.** A page opened from disk can read neither a JSON file nor a file's bytes, so the converter (`--clips`, `convert/clips.py`) copies each clip and its sync file into `<out>/clips/` and lists them in `index.js`, beside the SHA-256 of each timeline file. The page plays a clip only when its sync file's `run_id` and `timeline_sha256` match the timeline on screen. When a clip is listed for the run but not played, the pane shows nothing and says why: a clip rendered from another timeline file, with both hashes, or two clips claiming one timeline. With no clip listed for the run, the pane steps aside and the event log takes its place.
+- **Its caption.** Under a clip, one line says what it is: "The animation shows simulated data drawn from the run's own record. The spacecraft's look and pose are drawn." A clip may have its full caption beside it, `<name>.caption.txt`, copied and listed with it; then "Full caption" opens it in the Record panel, as its renderer wrote it.
 - **Where the clip sits.** At playhead MET t, the clip is (t − `first_frame_met_s`) / `met_step_s` frames in, at that over `fps` seconds. The pane counts frames from 1, as the sync file's notes and the renderer do. Before the first frame or after the last, it holds there and says so.
 - **Moving with the timeline.** While the timeline plays, the clip plays on its own at the timeline's pace (its speed over `fps` × `met_step_s`), and is put back on the playhead if it drifts more than two frames; when that pace is outside what the browser can play, the clip steps from frame to frame instead. Pausing pauses it on the playhead's frame, and scrubbing moves it there. It uses the browser's own video element, muted.
 - **With a clip on screen**, the event log gives its place to the pane and the readouts drop their gauges, so that all of it fits a 1920 × 1080 screen.
 - **A clip pins the run's own timeline.** A run beside the Director's pass is written as two files (see The timeline format): `<id>.js`, the run's own timeline, byte for byte what the converter makes of the run alone, and `<id>.beside.js`, what pairing adds. A clip rendered from `<id>.js` keeps matching whatever changes on the Director's side.
+
+## One of ODIN's reports
+
+Clicking one of ODIN's reports (on the reports lane, or in the event log) opens it in the Record panel: its answer exactly as written and, under it, the records it links by ID, the trigger of its turn (by `turn_id`) and the records of each request its actions name (by `request_id`), as far as the log had come when it was written. Nothing is matched by time or by text, and nothing on the page says whether the report is right. A record can be picked out in turn. While it is open the readouts give it their place; Close returns them.
+
+## The replay site
+
+`site/build_site.py` builds the site's folder: the page as it is, its Content-Security-Policy with it, and `timelines/` as the converter writes it. It converts exactly the runs it names: phase 2's fifty scored runs, each beside the Director's pass flown under its plan, and phase 3's scenarios A (`PH3-H02-*`) and D (`PH3-H04-*`), each alone. Phase 3's B, C and E stay off: VERDA would show C's and E's onboard turns as ground turns, and B's set-aside runs as ordinary runs. It places one clip, PH2-PASS3-SPARK-R2's site clip, with its full caption from the render session's CAPTIONS.md, and never the footage clip.
+
+It fails, and leaves no site, if a run is missing or will not convert, if a run's check fails or the converter warns of a file it could not read, if a clip is not the one it allows, if a clip pins a timeline file the site does not hold byte for byte, or if PH2-PASS3-SPARK-R2's own timeline is not the file its clips were rendered from (sha256 `d0f1a57349d60cbee5835f3bac6a945e02762ecf49387ebca6caa968d12fe617`). The site's folder must not exist yet; the build writes beside it and renames it into place when whole. What it writes is generated, and is never committed.
+
+## The video's VERDA shots
+
+`capture/verda_capture.py` films the page a frame at a time. It makes the page as the converter makes it, in a temporary folder, with one clip at most, the one named, and adds one hook of its own to its copy of `verda.js`: `VERDA_SEEK`, which moves the playhead to any fraction of a second. The site's page has no such hook. For each video frame it moves the playhead to that frame's MET, waits until the page is drawn and the pane shows the clip frame the sync file gives, checks that frame and that the page's layout has not moved, and takes a screenshot in headless Chrome or Edge at 1920 × 1080. ffmpeg encodes the frames as H.264. The tool never overwrites a file.
+
+```
+python capture/verda_capture.py --run <run folder> --passes <folder> --plans <folder> --scripted <file> [--clip <sync file>] (--from MET --to MET --speed S | --hold MET --seconds N) [--view FROM-TO] [--steps <clicks.json>] --ffmpeg <ffmpeg> --out <video>
+```
+
+ffmpeg is not part of VERDA and no deposit takes it. The shots were encoded with ffmpeg 9.0.2, gyan.dev's essentials build (GPL v3), from `ffmpeg-9.0.2-essentials_build.zip`, SHA-256 `60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba`.
 
 ## Pre-existing
 
@@ -148,7 +178,7 @@ The page draws whatever lanes, spans, events and series a timeline holds. A pass
 ## Checks
 
 ```
-python -m unittest discover -s tests          the tests (about five minutes)
+python -m unittest discover -s tests          the tests (about six minutes)
 python tests/show_red.py                       every red case, then the suite again
 python tests/browser_probe.py <run_id>         what one load of the page asked for
 ```
@@ -158,12 +188,14 @@ Each test has a red case in `tests/show_red.py`: a change planted in VERDA's sou
 | Test file | What it checks |
 |---|---|
 | `test_convert.py` | Canonical JSON against the contract's vectors; every run's hash chains, the ground-seat run's and the fifty scored runs' included; that a changed record breaks the chain; limit states against every limit state the bundles recorded; the truth mapping against every observed frame; each practice run's timeline; the ground-seat run's staleness state and ground link against what each bundle recorded, and its derived frame age against the age it recorded; the fifty scored runs: their gzipped truth read and checked, each beside the Director's pass of its plan with every check passing, their four tool uses on their turns, and each kind of truth flag on a row of its own; a file the converter does not read named in its warnings, and a folder with no event log named by `--all`; that the same inputs give the same files, byte for byte, under four hash seeds |
-| `test_clips.py` | A run beside his pass written as its own timeline, byte for byte the run alone, and a beside file that pins it and puts together to the pair; the preview clip's pinned hash against the run's own timeline as converted, alone or paired; each clip and its sync file placed and listed in `index.js`; a sync file with no clip, or a bad field, not placed |
+| `test_clips.py` | A run beside his pass written as its own timeline, byte for byte the run alone, and a beside file that pins it and puts together to the pair; the preview clip's pinned hash against the run's own timeline as converted, alone or paired; each clip and its sync file placed and listed in `index.js`, with its caption when it has one; a sync file with no clip, or a bad field, not placed |
 | `test_record_types.py` | Every record type the contract lists is shown or listed as not shown |
 | `test_watch_only.py` | The converter writes only its timeline files, beside files, index and placed clips, and leaves every run folder, pass folder, plan, the scripted-commands file and the clips folder unchanged; output names cannot leave the output folder |
 | `test_passes.py` | The Director's five passes read, each with its plan; P1's repeated columns; what his counters showed after each command; one known command time on each side against its source file (his P3 load shed from his two CSV files, ODIN's from its DISPATCH record); each run lined up with the Director's pass of its plan, all fifty scored runs included; a run paired by its plan when its span covers two passes; his frame age through the gap in his P4 frames (MET 1199 to 1320); the seven scripted commands, each checked against its plan's window; the scenario's commands on his side and never among his, with the lane saying ODIN's runs drop the in-contact ones; what his counters showed after the scenario's commands (P1's at MET 180 and 240, read from his CSV file too); a span his command shares with the scenario's credited to neither; and ODIN's runs dropping exactly the in-contact ones, against each run's own truth records |
 | `test_page.py` | The page's source: no network calls or addresses, a policy that refuses connections and lets scripts, styles, fonts and media come only from the page's folder, no writing, no HTML built from recorded text |
-| `test_page_in_browser.py` | The page opened from disk in headless Chrome or Edge: it asks only for its own files, has no script or console errors, draws every lane of each run beside its pass and of each pass alone, shows a request's records, the Director's command and his rows, and the scenario's command apart from his on hover and click; names in words what the ground-seat run's bundles recorded of staleness and the ground link; writes a name near the right edge whole, before its mark; opens a run on its pass; plays the animation clip on the frame its sync file gives for a known MET, shows nothing for a clip whose pinned hash does not match, holds the clip outside its frames and moves it with play and pause; fits every lane of a run beside the Director's pass on a 1920 × 1080 screen; and plays |
+| `test_page_in_browser.py` | The page opened from disk in headless Chrome or Edge: it asks only for its own files, has no script or console errors, draws every lane of each run beside its pass and of each pass alone, shows a request's records, the Director's command and his rows, and the scenario's command apart from his on hover and click; names in words what the ground-seat run's bundles recorded of staleness and the ground link; writes a name near the right edge whole, before its mark, a name cut short by the next mark too, and a turn's number alone where its name fits neither way; opens a run on its pass; plays the animation clip on the frame its sync file gives for a known MET, shows nothing for a clip whose pinned hash does not match, holds the clip outside its frames and moves it with play and pause; puts the footage clip, through the capture tool's seek, on the frame of each MET filmed, and ODIN's request and BALDUR-0's ALLOW under the playhead on the frame the clip's lamps light; with no clip, shows the event log in the pane's place and no notice; opens one of ODIN's reports beside only the records it links by ID, its answer as written; holds its layout still as the playhead moves; fits every lane of a run beside the Director's pass on a 1920 × 1080 screen; and plays |
+| `test_site.py` | The replay site built from the inputs: exactly its seventy runs and the page as it is, each phase-2 run beside its pass and each phase-3 run alone, SPARK-R2 with the site clip and no other, its timeline the file the clips were rendered from; each refusal of the build at work (a missing run, a clip the site does not carry, a clip pinned to another timeline, SPARK-R2's timeline in other bytes, a failed check, a folder that exists); the page served over HTTP, as GitHub Pages serves it, and opened from disk: it works, asks only for its own files, and plays the clip; the pane's caption line and full caption, with the column holding them at 1920 × 1080 |
+| `test_capture.py` | The capture tool's seek lives in its own copy of the page and not in VERDA's; a shot runs from its first MET to its last; it names each clip frame as the page does; it never films a clip pinned to another timeline file |
 | `test_clean_room.py` | No VERDA file imports HUGINN's old viewer package or names the folders of HUGINN's old viewer or its replay schema; no file a deposit takes holds a path under a user's own folder (`Users` on Windows and macOS, `home` on Linux) |
 
 The tests read their inputs from `inputs/` beside VERDA, or from the folders named by `VERDA_INPUTS`, `VERDA_RUNS`, `VERDA_DICTIONARY`, `VERDA_SCRIPTED`, `VERDA_CLIPS` and `VERDA_PAGE`. A test whose inputs are missing fails; none skips. The browser test needs Chrome or Edge installed (or `VERDA_BROWSER` naming one).

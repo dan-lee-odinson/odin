@@ -20,6 +20,7 @@
   </label>
   <div id="title" class="title"></div>
   <div id="badges" class="badges"></div>
+  <p class="about">These are replays of recorded runs in a simulation.</p>
 </header>
 <div id="banner" class="banner" hidden></div>
 <nav id="transport" class="frame" aria-label="Playback">
@@ -48,6 +49,7 @@
       <h2><span id="clip-title">Animation</span></h2>
       <div id="clip-box" class="clip-box" hidden><video id="clip" muted playsinline preload="auto"></video></div>
       <p id="clip-note" class="clip-note"></p>
+      <p id="clip-caption" class="clip-caption" hidden>The animation shows simulated data drawn from the run's own record. The spacecraft's look and pose are drawn. <button id="btn-caption" class="as-link" type="button" hidden>Full caption</button></p>
     </section>
     <section class="panel frame now-panel">
       <h2><span id="now-title">At the playhead</span></h2>
@@ -60,8 +62,9 @@
       <ol id="feed"></ol>
     </section>
     <section class="panel frame inspector-panel">
-      <h2><span id="inspector-title">Record</span></h2>
+      <h2><span id="inspector-title">Record</span><button id="btn-cites-close" type="button" hidden>Close</button></h2>
       <pre id="inspector">Hover over anything on the timeline to see what it is. Click it to show its record here.</pre>
+      <div id="cites" class="cites" hidden></div>
     </section>
   </aside>
 </main>

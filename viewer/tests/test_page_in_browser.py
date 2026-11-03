@@ -17,6 +17,7 @@ from pathlib import Path
 import _support as S
 import browser_probe
 import clips
+import verda_capture
 import verda_convert as vc
 
 # Waits until the clip has settled on the playhead (or 8 s), then says where it is.
@@ -298,6 +299,177 @@ class PageInBrowser(unittest.TestCase):
         frame = (met - 890) // 5
         self.assertTrue(stopped["note"].startswith("Frame %d of 9, MET %d" % (frame + 1, 890 + 5 * frame)), (met, stopped["note"]))
         self.assertTrue(frame / 10 <= stopped["time"] < (frame + 1) / 10, stopped["time"])
+
+    def test_a_turn_name_near_the_right_edge_is_written_whole(self):
+        # The development run beside P3: ODIN's last turn sits near the right edge of its opening view.
+        page = self.page
+        page.call("Emulation.setDeviceMetricsOverride", {"width": 1920, "height": 1080, "deviceScaleFactor": 1, "mobile": False})
+        try:
+            page.open("about:blank", settle=0.3)
+            page.open(browser_probe.page_url(self.page_dir, S.PREVIEW_RUN))
+            names = page.evaluate("""(() => {
+                const edge = document.querySelector('#lanes svg').getBoundingClientRect().right;
+                return [...document.querySelectorAll('text.ev-label')].filter((t) => /^T\\d+( |$)/.test(t.textContent)).map((t) => {
+                    const r = t.getBoundingClientRect(); return {text: t.textContent, right: r.right, edge: edge}; }); })()""")
+        finally:
+            page.call("Emulation.clearDeviceMetricsOverride")
+        # T11's name fits neither after its mark nor, past T10's, before it: its number is written alone, whole.
+        last = max(names, key=lambda n: int(n["text"].split()[0][1:]))
+        self.assertIn(last["text"], ("T11 MALFORMED", "T11"), [n["text"] for n in names])
+        self.assertLessEqual(last["right"], last["edge"] - 4, last)
+
+    def test_the_layout_holds_still_as_the_playhead_moves(self):
+        # Scenario D's run, whose readouts change length as its revocation and restores come and go.
+        run = "PH3-H04-SPARK-R1"
+        page = self.page
+        with tempfile.TemporaryDirectory() as tmp:
+            # The capture tool's copy of the page, whose seek moves the playhead as a frame of footage does.
+            page_dir = verda_capture.copy_page(Path(tmp, "page"))
+            vc.convert(S.runs_dir() / run, page_dir / "timelines", S.dictionary_path())
+            page.call("Emulation.setDeviceMetricsOverride", {"width": 1920, "height": 1080, "deviceScaleFactor": 1, "mobile": False})
+            try:
+                page.open("about:blank", settle=0.3)
+                page.open(browser_probe.page_url(page_dir, run, "&met=7159&view=7150-7320"))
+                found = {}
+                for met in (7159, 7209, 7269, 7279, 7299):
+                    page.evaluate("window.VERDA_SEEK(%d)" % met)
+                    found[met] = page.evaluate("""(() => {
+                        const r = (q) => { const b = document.querySelector(q).getBoundingClientRect(); return [b.top, b.height]; };
+                        const l = document.getElementById('lanes');
+                        return {main: r('main'), foot: r('#foot'), over: l.scrollHeight - l.clientHeight}; })()""")
+            finally:
+                page.call("Emulation.clearDeviceMetricsOverride")
+        first = found[7159]
+        for met, layout in found.items():
+            with self.subTest(met=met):
+                self.assertEqual((layout["main"], layout["foot"]), (first["main"], first["foot"]))
+                self.assertLessEqual(layout["over"], 0)
+
+    def test_a_name_cut_short_by_the_next_mark_is_written_whole_before_its_own(self):
+        # Scenario D's restore, accepted at MET 7269, ten seconds before the second restore is refused.
+        run = "PH3-H04-SPARK-R1"
+        page = self.page
+        with tempfile.TemporaryDirectory() as tmp:
+            page_dir = Path(tmp, "page")
+            page_dir.mkdir()
+            for name in PAGE_FILES:
+                shutil.copy(S.page_dir() / name, page_dir / name)
+            vc.convert(S.runs_dir() / run, page_dir / "timelines", S.dictionary_path())
+            page.call("Emulation.setDeviceMetricsOverride", {"width": 1920, "height": 1080, "deviceScaleFactor": 1, "mobile": False})
+            try:
+                page.open("about:blank", settle=0.3)
+                page.open(browser_probe.page_url(page_dir, run, "&met=7300&view=7150-7320"))
+                names = page.evaluate("""[...document.querySelectorAll('text.ev-label')].map((t) => {
+                    const r = t.getBoundingClientRect(); return {text: t.textContent, left: r.left, right: r.right}; })""")
+            finally:
+                page.call("Emulation.clearDeviceMetricsOverride")
+        accepted = [n for n in names if n["text"] == "Restore ACCEPTED"]
+        refused = [n for n in names if n["text"].startswith("Restore REFUSED")]
+        self.assertEqual(len(accepted), 1, [n["text"] for n in names if "Rest" in n["text"]])
+        self.assertLess(accepted[0]["right"], refused[0]["left"])
+
+    def test_a_run_with_no_clip_shows_its_event_log_and_no_clip_notice(self):
+        page = self.page
+        page.call("Emulation.setDeviceMetricsOverride", {"width": 1920, "height": 1080, "deviceScaleFactor": 1, "mobile": False})
+        try:
+            page.open("about:blank", settle=0.3)
+            page.open(browser_probe.page_url(self.page_dir, "PH2-PASS3-OPEN-R1", "&met=950"))
+            found = page.evaluate("""(() => {
+                const shown = (q) => { const el = document.querySelector(q); return !!el && el.getClientRects().length > 0; };
+                const box = document.getElementById('feed').getBoundingClientRect();
+                const rows = [...document.querySelectorAll('#feed li')].filter((li) => {
+                    const r = li.getBoundingClientRect(); return r.height > 0 && r.top >= box.top && r.bottom <= box.bottom; });
+                return {clip: shown('#clip-panel'), feed: shown('.feed-panel'), now: shown('.now-panel'), rows: rows.length,
+                        top: document.querySelector('.feed-panel').getBoundingClientRect().top - document.getElementById('side').getBoundingClientRect().top,
+                        text: document.getElementById('side').innerText};
+            })()""")
+        finally:
+            page.call("Emulation.clearDeviceMetricsOverride")
+        self.assertFalse(found["clip"], "the animation pane is on screen for a run with no clip")
+        self.assertNotIn("No animation clip", found["text"])
+        self.assertTrue(found["feed"] and found["now"], found)
+        # The event log takes the pane's place, at the top of the column.
+        self.assertLess(abs(found["top"]), 1, found["top"])
+        self.assertGreaterEqual(found["rows"], 10, "at 1920 x 1080 the event log shows fewer than ten of its entries")
+
+    def test_a_report_opens_beside_the_records_it_names_by_id(self):
+        run = "PH2-PASS3-SPARK-R2"
+        report = self.timelines[run]["records"]["72"]
+        page = self.page
+        page.open("about:blank", settle=0.3)
+        page.open(browser_probe.page_url(self.page_dir, run, "&met=1158"))
+        found = page.evaluate("""(() => {
+            const shown = (q) => { const el = document.querySelector(q); return !!el && el.getClientRects().length > 0; };
+            const label = [...document.querySelectorAll('text[data-hit]')].find((t) => t.textContent === 'Report CHECK_IN');
+            if (!label) return null;
+            label.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+            const cites = document.getElementById('cites');
+            const answer = cites.querySelector('.cites-answer');
+            const rest = cites.cloneNode(true);
+            rest.querySelectorAll('.cites-answer').forEach((a) => a.remove());
+            const groups = [...cites.querySelectorAll('.cites-group')].map((g) => ({head: g.querySelector('h3').textContent,
+                records: [...g.querySelectorAll('li[data-record]')].map((li) => Number(li.getAttribute('data-record')))}));
+            const open = {cites: shown('#cites'), record: shown('#inspector'), now: shown('.now-panel')};
+            const row = cites.querySelector('li[data-record="32"]');
+            row.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+            const picked = {selected: row.classList.contains('selected'), others: cites.querySelectorAll('li.selected').length,
+                            cites: shown('#cites')};
+            document.getElementById('btn-cites-close').click();
+            const closed = {cites: shown('#cites'), record: shown('#inspector'), now: shown('.now-panel')};
+            return {answer: answer ? answer.textContent : null, rest: rest.textContent, groups: groups,
+                    open: open, picked: picked, closed: closed};
+        })()""")
+        self.assertIsNotNone(found, "no Report CHECK_IN mark on the timeline")
+        # The answer exactly as written, and nothing said of whether it is right.
+        self.assertEqual(found["answer"], report["body"]["answer"])
+        self.assertNotRegex(found["rest"], r"(?i)verif|correct|confirm")
+        # Only what the records link by ID: its turn's trigger, and the records of the request it names.
+        self.assertEqual([g["records"] for g in found["groups"]], [[66], [31, 32, 33, 36]])
+        self.assertIn("turn_id 10", found["groups"][0]["head"])
+        self.assertIn("request_id 16ad3729-8ffc-48d8-afe8-410d03d15dc9", found["groups"][1]["head"])
+        self.assertEqual(found["open"], {"cites": True, "record": False, "now": False})
+        self.assertEqual(found["picked"], {"selected": True, "others": 1, "cites": True})
+        self.assertEqual(found["closed"], {"cites": False, "record": True, "now": True})
+
+    def test_the_capture_seek_puts_the_footage_clip_on_the_frame_of_each_met(self):
+        run, footage = "PH2-PASS3-SPARK-R2", "PH2-PASS3-SPARK-R2_instrument_footage"
+        page = self.page
+        with tempfile.TemporaryDirectory() as tmp:
+            # The capture tool's copy of the page, with its seek.
+            page_dir, source = verda_capture.copy_page(Path(tmp, "page")), Path(tmp, "clips")
+            source.mkdir()
+            for ext in (".mp4", ".sync.json"):
+                shutil.copy(S.clips_dir() / (footage + ext), source / (footage + ext))
+            vc.convert(next(r for r in S.all_runs() if r.name == run), page_dir / "timelines", S.dictionary_path())
+            self.assertEqual([p for _, p, problems in clips.place_clips(source, page_dir / "timelines") if p][0]["clip"],
+                             footage + ".mp4")
+            vc.write_index(page_dir / "timelines")
+            page.open("about:blank", settle=0.3)
+            page.open(browser_probe.page_url(page_dir, run, "&met=880"), settle=1.5)
+            page.evaluate(CLIP_STATE)
+            found = {}
+            # Two seconds of MET for each second of video at 30 fps: video frame k shows MET 880 + k / 15.
+            for k in (2, 434, 435, 436, 1800):
+                page.evaluate("window.VERDA_SEEK(%r)" % (880 + k * 2 / 30))
+                state = page.evaluate(CLIP_STATE)
+                state.update(page.evaluate("""(() => {
+                    const head = document.querySelector('line.playhead').getBoundingClientRect().left;
+                    const label = [...document.querySelectorAll('text[data-hit]')].find((t) => t.textContent.startsWith('CMD_PLD_SET_STATE state=OFF -> ALLOW'));
+                    const marks = [...document.querySelectorAll('[data-hit="' + label.getAttribute('data-hit') + '"]')]
+                        .filter((m) => m.tagName !== 'text' && m.tagName !== 'line')
+                        .map((m) => { const r = m.getBoundingClientRect(); return r.left + r.width / 2; });
+                    return {head: head, marks: marks};
+                })()"""))
+                found[k] = state
+        for k, state in found.items():
+            with self.subTest(frame=k + 1):
+                self.assertTrue(state["note"].startswith("Frame %d of 1801," % (k + 1)), state["note"])
+                self.assertTrue(k / 30 <= state["time"] < (k + 1) / 30, state["time"])
+        # ODIN's request and BALDUR-0's ALLOW sit at MET 909: the playhead reaches them on frame 436, as the lamps light.
+        first = min(found[435]["marks"])
+        self.assertEqual(len([m for m in found[435]["marks"] if abs(m - first) < 0.01]), 3, found[435]["marks"])
+        self.assertAlmostEqual(found[435]["head"], first, delta=0.01)
+        self.assertLess(found[434]["head"], first - 0.05)
 
     def test_every_lane_fits_a_1920_by_1080_screen(self):
         page = self.page
