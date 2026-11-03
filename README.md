@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="media/odin-hero.jpg" alt="ODIN, Autonomous Mission Operations: Odin with a spear and a raven on his shoulder, Earth and a CubeSat behind him">
+</p>
+
 # ODIN
 
 ODIN is an AI flight operator. In this build it operates HUGINN, a simulated 6U CubeSat, through OpenC3 COSMOS, an open-source ground system. It never commands the spacecraft directly. Every command it wants goes to BALDUR-0, a deterministic gate that checks it against a mission plan the Director signed, and every turn, request, decision and outcome goes into an event log that ODIN cannot write to. ODIN was built and run during the Meta Global AI Developer Hackathon, 26 October to 4 November 2026, by the team Ad Astra Simul, for the problem statement Push the Frontier.
@@ -53,7 +57,7 @@ flowchart LR
 | Muse Spark (`muse-spark-1.3`) | Meta Model API | ODIN's ground seat, first arm. Structured output for every answer |
 | Muse Spark Open (`meta-models/muse-spark-open-1026`) | Baseten | ODIN's ground seat, second arm. It answers by tool calls, since the endpoint offers no structured output |
 | Muse Glimmer 30B (open weights) | One H100 GPU on Modal, served by llama.cpp | ODIN's onboard seat in phase 3. Each onboard turn's prompt crosses the internet to Modal and the answer comes back |
-| Muse Voice Transcribe | Meta Model API | The Director's spoken check-in, transcribed once for phase 3's check-ins |
+| Muse Voice Transcribe | Meta Model API | Transcribed the Director's spoken check-in once, on 29 October 2026 (`odin/voice/flight_director_command.json`). No scored run received the transcript; see Known limits |
 | Muse Code (Muse Wonder 1.0 and Muse Wonder Full) | The Director's laptop | Wrote ODIN's model code, and built the 3D animation in Blender |
 
 **Glimmer's onboard test (M5).** The onboard seat must decide in under 60 seconds. Timed on nine real onboard prompts of 43,000 to 73,000 tokens:
@@ -207,6 +211,13 @@ Phase 2's table, each pass beside the Director's own:
 .venv/Scripts/python -m eval.score --summary runs/scored/PH2-*
 ```
 
+The notebook [`notebooks/odin_results.ipynb`](notebooks/odin_results.ipynb) shows the same results, re-derived with the same code from the same records, with D's SPARK-R1 step by step and a chart of model time per turn. GitHub shows it with its outputs. To run it again, top to bottom, install its own packages, pinned in `notebooks/requirements.txt`, and execute it in place:
+
+```bash
+.venv/Scripts/python -m pip install -r notebooks/requirements.txt
+.venv/Scripts/jupyter execute --inplace notebooks/odin_results.ipynb
+```
+
 To watch the runs, see Watching the runs above.
 
 ## What existed before the event, and what was built for it
@@ -259,8 +270,10 @@ ODIN, BALDUR and TYR come from Project AESIR, whose concept and structure the Di
 | The public keys BALDUR-0 verifies signatures with | `keys/` |
 | The Director's recorded check-in, 28 October 2026 | `checkins/` |
 | VERDA, the playback viewer | `viewer/` |
+| The results notebook: the results re-derived from the records, with D's SPARK-R1 step by step | `notebooks/` |
 | The 3D animation of HUGINN in orbit | `render/` |
 | The demo video's music program, MusicGen on Modal, built with Muse Code | `video/music/` |
+| The hero image at the top of this README, also the demo video's thumbnail | `media/` |
 | Muse Code's deposits, committed as delivered | `deposits/` |
 | Muse Code's standing rules, loaded at the start of each of its sessions | `.agents/` |
 | The tests and tools | `tests/`, `tools/` |
@@ -273,13 +286,14 @@ The Director, Dan Lee-Odinson, directed the project: he set the scope, ruled on 
 - **Muse Code**, on Muse Wonder 1.0, wrote ODIN's model code: the turn loop, the answer check, request signing, the model adapters, the spend meter, the study step, the voice check-in and ODIN's instructions, in milestones deposited as numbered zips.
 - **Muse Code**, on Muse Wonder Full, built the 3D animation in Blender. The animation shows simulated data drawn from each run's own record. The spacecraft's look is drawn, since HUGINN's definition gives no panel layout.
 - **Claude**, as the Director's advisor, drafted the build contract, the mission plans and arming acts, the phase-3 scenarios, the relevant-environment document and the messages to each builder, for the Director's review.
+- **Muse Image**, Meta's image model, made the picture at the top of this README from a prompt Claude wrote to the Director's direction, and **Claude** lettered it (`media/SOURCES.md`).
 
 Every check in the repository is a callable that can fail, and each test has a red case: a planted change that makes it fail, run for real before the test was trusted.
 
 ## Known limits
 
 - **Secrets kept as user environment variables can be read by anything running as the Director.** COSMOS's credentials, the `ODIN_COSMOS_*` variables, are Windows user environment variables and are never written to a file. Muse Code's start command removes them from its own process, and whatever launches ODIN passes it no `ODIN_COSMOS_*` or `OPENC3_*` variable, so ODIN holds no ground-system credential (contract §9). But Windows keeps user variables in the registry, under `HKCU\Environment`, where any process running as the Director can read them, Muse Code's shell included. The same holds for the model API keys, `META_API_KEY` and `BASETEN_API_KEY`, when they are kept as user variables. The Director accepted this gap on 27 October 2026.
-- **Recorded check-ins are transcribed once.** In scored runs each recorded check-in goes through Muse Code's real voice-to-text path once, and its transcript is frozen with its audio's hash and delivered at its MET in every run. The contract's §13 has the recording played through the voice path in every run; the Director ruled otherwise on 27 October 2026 (U44), so every run hears the same words.
+- **The check-ins reached ODIN as text.** The Director recorded his check-in on 28 October 2026 (`checkins/`), and Muse Code's voice path transcribed it once, on 29 October (`odin/voice/flight_director_command.json`). His ruling of 29 October was "Text in phase 2, recording in phase 3", but the transcript was never passed to phase 3's runs. Every scored run, phase 3's included, received the check-in's words as typed text: each run's `CHECK_IN` record has `source: "TEXT"` and no audio hash. The words are the same as the recording's. The contract's §13 has the recording played through the voice path in every run; the Director ruled on 27 October 2026 (U44) that each recording be transcribed once instead.
 
 ## License
 

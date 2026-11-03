@@ -1460,6 +1460,20 @@ CASES = {"s0": [
      "tests/test_deposits.py::test_each_committed_deposit_is_odin_at_its_commit",
      change_file("deposits/MC-M1-01.zip", lambda data: data[:len(data) // 2] + bytes([data[len(data) // 2] ^ 0x01])
                  + data[len(data) // 2 + 1:])),
+], "notebook": [
+    ("the results notebook saved with its last cell's run out of order (2 November 2026)",
+     "tests/test_notebook_results.py::test_the_notebook_was_run_top_to_bottom_and_saved_with_its_outputs",
+     change_file("notebooks/odin_results.ipynb", replace_once(b'"execution_count": 15,', b'"execution_count": 16,'))),
+    ("a phase-3 total in the results notebook's saved outputs one more than S8 gives (2 November 2026)",
+     "tests/test_notebook_results.py::test_the_saved_phase_3_totals_are_what_s8_gives_from_the_records",
+     change_file("notebooks/odin_results.ipynb", replace_once(b'"scored: 40\\n",', b'"scored: 41\\n",'))),
+    ("a phase-2 total in the results notebook's saved outputs one less than S8 gives (2 November 2026)",
+     "tests/test_notebook_results.py::test_the_saved_phase_2_totals_are_what_s8_gives_from_the_records",
+     change_file("notebooks/odin_results.ipynb", replace_once(b'"clean: 44\\n",', b'"clean: 43\\n",'))),
+    ("a network import added to the results notebook's first code cell (2 November 2026)",
+     "tests/test_notebook_results.py::test_the_notebook_imports_nothing_that_calls_a_model_or_the_network",
+     change_file("notebooks/odin_results.ipynb", replace_once(b'    "import json\\n",\n',
+                                                         b'    "import json\\n",\n    "import urllib.request\\n",\n'))),
 ]}
 
 
