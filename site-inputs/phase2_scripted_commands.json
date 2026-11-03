@@ -1,0 +1,152 @@
+{
+ "what": "Each phase-2 scenario's scripted commands: the commands HUGINN's scenario file sends by itself, which the Director's flown passes carried.",
+ "derived_from": "HUGINN's sim/scenarios/ files at commit b4dbe61, read in place; no HUGINN file is copied.",
+ "contact_window": "the pass's TYR-0 plan's contact_window, half-open [aos_met_s, los_met_s)",
+ "kept_in_odins_runs": "the Director's ruling on U35 (27 October 2026): in ODIN's runs a scripted command outside every contact window is kept and one inside a window is dropped, so every command during a pass is ODIN's; applied here by ODIN's own simulator code (wrapper/simulator.py, split_scripted_commands)",
+ "source": "the scenario file and the line of the command's entry, at the commit above",
+ "passes": [
+  {
+   "pass": "P1",
+   "plan_id": "TYR0-P2-PASS1-v1",
+   "scenario": "P1_nominal",
+   "contact_window": {
+    "aos_met_s": 0,
+    "los_met_s": 410
+   },
+   "run_met_s": [
+    0,
+    410
+   ],
+   "commands": [
+    {
+     "met_s": 180,
+     "command": "CMD_PLD_SET_STATE",
+     "arguments": {
+      "state": "ON"
+     },
+     "when": "in contact",
+     "kept_in_odins_runs": false,
+     "source": "sim/scenarios/P1_nominal.yaml:24"
+    },
+    {
+     "met_s": 240,
+     "command": "CMD_PLD_SET_RATE",
+     "arguments": {
+      "rate": 2.0
+     },
+     "when": "in contact",
+     "kept_in_odins_runs": false,
+     "source": "sim/scenarios/P1_nominal.yaml:27"
+    }
+   ]
+  },
+  {
+   "pass": "P2A",
+   "plan_id": "TYR0-P2-PASS2A-v1",
+   "scenario": "P2_array_string_loss",
+   "contact_window": {
+    "aos_met_s": 2190,
+    "los_met_s": 2520
+   },
+   "run_met_s": [
+    0,
+    2520
+   ],
+   "commands": [
+    {
+     "met_s": 120,
+     "command": "CMD_PLD_SET_STATE",
+     "arguments": {
+      "state": "ON"
+     },
+     "when": "before contact",
+     "kept_in_odins_runs": true,
+     "source": "sim/scenarios/P2_array_string_loss.yaml:28"
+    }
+   ]
+  },
+  {
+   "pass": "P2B",
+   "plan_id": "TYR0-P2-PASS2B-v1",
+   "scenario": "P2_array_string_loss",
+   "contact_window": {
+    "aos_met_s": 21800,
+    "los_met_s": 22230
+   },
+   "run_met_s": [
+    0,
+    22230
+   ],
+   "commands": [
+    {
+     "met_s": 120,
+     "command": "CMD_PLD_SET_STATE",
+     "arguments": {
+      "state": "ON"
+     },
+     "when": "before contact",
+     "kept_in_odins_runs": true,
+     "source": "sim/scenarios/P2_array_string_loss.yaml:28"
+    }
+   ]
+  },
+  {
+   "pass": "P3",
+   "plan_id": "TYR0-P2-PASS3-v1",
+   "scenario": "P3_stuck_load",
+   "contact_window": {
+    "aos_met_s": 800,
+    "los_met_s": 1230
+   },
+   "run_met_s": [
+    0,
+    1230
+   ],
+   "commands": [
+    {
+     "met_s": 120,
+     "command": "CMD_PLD_SET_STATE",
+     "arguments": {
+      "state": "ON"
+     },
+     "when": "before contact",
+     "kept_in_odins_runs": true,
+     "source": "sim/scenarios/P3_stuck_load.yaml:26"
+    }
+   ]
+  },
+  {
+   "pass": "P4",
+   "plan_id": "TYR0-P2-PASS4-v1",
+   "scenario": "P4_hk_generation_halt",
+   "contact_window": {
+    "aos_met_s": 1100,
+    "los_met_s": 1530
+   },
+   "run_met_s": [
+    0,
+    1530
+   ],
+   "commands": [
+    {
+     "met_s": 120,
+     "command": "CMD_PLD_SET_STATE",
+     "arguments": {
+      "state": "ON"
+     },
+     "when": "before contact",
+     "kept_in_odins_runs": true,
+     "source": "sim/scenarios/P4_hk_generation_halt.yaml:28"
+    },
+    {
+     "met_s": 1320,
+     "command": "CMD_SYS_RESET",
+     "arguments": {},
+     "when": "in contact",
+     "kept_in_odins_runs": false,
+     "source": "sim/scenarios/P4_hk_generation_halt.yaml:31"
+    }
+   ]
+  }
+ ]
+}

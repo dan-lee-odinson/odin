@@ -1,0 +1,88 @@
+# Builds VERDA's replay site from the records in this repository and publishes it to GitHub Pages.
+# viewer/site/build_site.py converts phase 2's fifty scored runs, each beside the Director's pass of its plan, and
+# phase 3's A and D, and places SPARK-R2's site clip; it fails, leaving no site, on any check it makes. HUGINN's
+# submodule is never checked out: the build's one HUGINN file, its dictionary, is fetched at a full commit and checked
+# by its SHA-256. Nothing the build writes is committed.
+name: Replay site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the repository, without HUGINN's submodule
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+          persist-credentials: false
+
+      - name: Set up Python 3.14, the version VERDA built with
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Fetch HUGINN's dictionary at b4dbe61 and check its SHA-256
+        env:
+          DICTIONARY_URL: https://raw.githubusercontent.com/dan-lee-odinson/huginn/b4dbe61d71b86c3d9ad66138f422ab1688a02528/defs/tlm_cmd.yaml
+          DICTIONARY_SHA256: 5e1c2750ef9e0d5463f8b2fcb27abeb1dbde63c1b749717ed170cc2bacd60679
+        run: |
+          mkdir "$RUNNER_TEMP/huginn"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/huginn/tlm_cmd.yaml" "$DICTIONARY_URL"
+          echo "$DICTIONARY_SHA256  $RUNNER_TEMP/huginn/tlm_cmd.yaml" | sha256sum --check --strict
+
+      - name: Copy the five phase-2 plans into a temporary folder
+        run: |
+          mkdir "$RUNNER_TEMP/plans"
+          cp plans/TYR0-P2-PASS1-v1.yaml plans/TYR0-P2-PASS2A-v1.yaml plans/TYR0-P2-PASS2B-v1.yaml \
+            plans/TYR0-P2-PASS3-v1.yaml plans/TYR0-P2-PASS4-v1.yaml "$RUNNER_TEMP/plans/"
+
+      - name: Build the site
+        working-directory: viewer
+        run: |
+          status=0
+          python site/build_site.py \
+            --runs ../runs/scored \
+            --passes ../inputs-pre-existing/comparison-only/pass-records \
+            --plans "$RUNNER_TEMP/plans" \
+            --scripted ../site-inputs/phase2_scripted_commands.json \
+            --dictionary "$RUNNER_TEMP/huginn/tlm_cmd.yaml" \
+            --clip ../site-inputs/PH2-PASS3-SPARK-R2_instrument_site.sync.json \
+            --out "$RUNNER_TEMP/site" > "$RUNNER_TEMP/build.log" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/build.log"
+          if grep -q "SITE NOT BUILT" "$RUNNER_TEMP/build.log"; then
+            echo "::error::The build printed SITE NOT BUILT."
+            exit 1
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "::error::The build exited $status."
+            exit 1
+          fi
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy the site to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -1,0 +1,7 @@
+{
+  "run_id": "PH2-PASS3-SPARK-R2",
+  "timeline_sha256": "d0f1a57349d60cbee5835f3bac6a945e02762ecf49387ebca6caa968d12fe617",
+  "first_frame_met_s": 800,
+  "met_step_s": 1,
+  "fps": 30
+}

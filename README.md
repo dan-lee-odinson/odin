@@ -26,7 +26,7 @@ ODIN is the operational intelligence of Project AESIR, the Director's amateur sp
 - **Held-out tests.** Phase 3's five scenarios were written and sealed by hash before ODIN's instructions were frozen, and kept outside the repository until their runs; the seal's history is in `phase3/`. The model code's builder never saw them. C and E pair a fault with a look-alike: C's latch-up, which turning the payload off clears, and E's stuck load, which it doesn't.
 - **Two seats.** In the ground seat, ODIN works the COSMOS console during contact, as the Director did. In the onboard seat, it runs beside the simulator while the spacecraft is out of contact, and must act on its own within the plan. There its model, Muse Glimmer, answered from Modal's GPU, so each onboard turn crossed the internet.
 - **Scoring from the record alone.** Every measure is computed from the event log and the simulator's truth file, never from ODIN's prose. A report's checkable claims are compared with the log, and a false claim counts against ODIN.
-- **Readiness structured to meet NASA TRL 5.** [`docs/RELEVANT_ENVIRONMENT.md`](docs/RELEVANT_ENVIRONMENT.md) defines the environment ODIN is meant to work in, HUGINN's full mission, and sets out the conditions and pass criteria a NASA TRL 5 test of ODIN has to meet, with the scaling from this test bed to that environment.
+- **Readiness structured to meet NASA TRL 5.** [`docs/RELEVANT_ENVIRONMENT.md`](docs/RELEVANT_ENVIRONMENT.md) defines the environment ODIN is meant to work in, HUGINN's full mission, and sets out the conditions and pass criteria a NASA TRL 5 test of ODIN has to meet, with the scaling from this test bed to that environment. [The readiness map](https://github.com/users/dan-lee-odinson/projects/4) sets the repository against NASA's exit criteria for TRL 1 to 6, with the development goals that follow.
 
 ## How it works
 
@@ -149,7 +149,9 @@ One solar-array string reads zero from the first contact, and at the second the 
 
 ## Watching the runs
 
-VERDA, the playback viewer, replays A's and D's runs as they were recorded. It draws the ground seat's view. It doesn't mark the onboard seat's turns in C and E, the station and space-weather feeds, or the scoring's verdicts, so read those from the results above.
+[Watch the runs in your browser](https://dan-lee-odinson.github.io/odin/). VERDA, the playback viewer, replays phase 2's fifty scored runs, each beside the Director's own pass of the same plan, and phase 3's A and D, as they were recorded. GitHub Actions builds the site from the records in this repository (`.github/workflows/pages.yml`, `viewer/site/build_site.py`). PH2-PASS3-SPARK-R2 plays beside its 3D animation, an instrument cut rendered from that run's record. The animation shows simulated data drawn from the run's own record, and the spacecraft's look and pose are drawn.
+
+B, C and E are not on the site. VERDA draws the ground seat's view: it doesn't mark the onboard seat's turns in C and E or the station and space-weather feeds, and it would show B's set-aside runs as ordinary ones. It doesn't show the scoring's verdicts either, so read those from the results above.
 
 VERDA needs Python 3 and a browser, and nothing beyond Python's own library. From the repository's root, turn A's ten runs (`PH3-H02-*`) and D's ten (`PH3-H04-*`) into timeline files, naming each run's folder:
 
@@ -247,7 +249,8 @@ ODIN, BALDUR and TYR come from Project AESIR, whose concept and structure the Di
 | llama.cpp, which serves Muse Glimmer on Modal | Its server image, `ghcr.io/ggml-org/llama.cpp:server-cuda-b11977`, is pulled by `tools/glimmer_modal.py`; not stored here | ggml-org, MIT License |
 | Blender, which runs the animation scripts | `render/` holds the scripts only | Blender Foundation |
 | Michroma, VERDA's title typeface, by Vernon Adams | `viewer/page/fonts/`, with its license, `OFL.txt` | SIL Open Font License 1.1, from `github.com/google/fonts` |
-| Earth imagery in the animation: NASA's Blue Marble: Next Generation, July 2004, by Reto Stockli; the Blue Marble cloud layer; and the Earth at Night (Black Marble) 2016 map | Rendered frames only; the images are not stored here | NASA imagery is generally not subject to copyright in the United States. Credits: NASA Earth Observatory; NASA Goddard Space Flight Center, image by Reto Stockli; NASA Earth Observatory / Joshua Stevens, Suomi NPP VIIRS data from Miguel Roman, NASA GSFC |
+| ffmpeg 9.0.2, gyan.dev's essentials build, which encoded the demo video's VERDA shots | `viewer/capture/` calls it; not stored here | GNU GPL v3 |
+| Earth imagery in the animation: NASA's Blue Marble: Next Generation, July 2004, by Reto Stockli; the Blue Marble cloud layer; and the Earth at Night (Black Marble) 2016 map | Rendered frames only: the site clip in `site-inputs/` and the demo video. The images are not stored here | NASA imagery is generally not subject to copyright in the United States. Credits: NASA Earth Observatory; NASA Goddard Space Flight Center, image by Reto Stockli; NASA Earth Observatory / Joshua Stevens, Suomi NPP VIIRS data from Miguel Roman, NASA GSFC |
 | GOES-13 integral proton fluxes, 10 and 11 September 2017, replayed as phase 3's space weather | `phase3/space-weather/`, with `SOURCES.md` | Acknowledged: NASA Space Physics Data Facility, OMNIWeb Plus, accessed 28 October 2026; the values come from NOAA's GOES-13 Space Environment Monitor |
 | The Kp index for the same days | `phase3/space-weather/`, with `SOURCES.md` | GFZ German Research Centre for Geosciences, Potsdam, under CC BY 4.0. Matzka, J., Bronkalla, O., Tornow, K., Elger, K. and Stolle, C. (2021), Geomagnetic Kp index, V. 1.0, GFZ Data Services, https://doi.org/10.5880/Kp.0001 |
 | The demo video's music | The program in `video/music/`; the music in the video only | Generated with Meta's MusicGen (AudioCraft 1.3.0), models `facebook/musicgen-stereo-large` and `facebook/musicgen-stereo-melody-large`, whose weights are licensed CC BY-NC 4.0 |
@@ -269,7 +272,9 @@ ODIN, BALDUR and TYR come from Project AESIR, whose concept and structure the Di
 | The records of every run: event logs, truth files and results | `runs/` |
 | The public keys BALDUR-0 verifies signatures with | `keys/` |
 | The Director's recorded check-in, 28 October 2026 | `checkins/` |
-| VERDA, the playback viewer | `viewer/` |
+| VERDA, the playback viewer; the replay site's build; and the capture tool that filmed the demo video's VERDA shots | `viewer/` |
+| The replay site's inputs: SPARK-R2's site clip and the phase-2 scripted commands | `site-inputs/` |
+| The workflow that builds and publishes the replay site | `.github/workflows/` |
 | The results notebook: the results re-derived from the records, with D's SPARK-R1 step by step | `notebooks/` |
 | The 3D animation of HUGINN in orbit | `render/` |
 | The demo video's music program, MusicGen on Modal, built with Muse Code | `video/music/` |
