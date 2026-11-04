@@ -4,6 +4,8 @@
 
 # ODIN
 
+[Watch the 3-minute demo video](https://youtu.be/8r2OI4ip4Og) · [Watch the runs in your browser](https://dan-lee-odinson.github.io/odin/)
+
 ODIN is an AI flight operator. In this build it operates HUGINN, a simulated 6U CubeSat, through OpenC3 COSMOS, an open-source ground system. It never commands the spacecraft directly. Every command it wants goes to BALDUR-0, a deterministic gate that checks it against a mission plan the Director signed, and every turn, request, decision and outcome goes into an event log that ODIN cannot write to. ODIN was built and run during the Meta Global AI Developer Hackathon, 26 October to 4 November 2026, by the team Ad Astra Simul, for the problem statement Push the Frontier.
 
 ODIN is the operational intelligence of Project AESIR, the Director's amateur space program. HUGINN, the simulator it operates, existed before the event and is used unchanged.
@@ -222,9 +224,36 @@ The notebook [`notebooks/odin_results.ipynb`](notebooks/odin_results.ipynb) show
 
 To watch the runs, see Watching the runs above.
 
-## What existed before the event, and what was built for it
+## What was built for the event, and what existed before it
 
-The hackathon's build window ran from 26 October to 4 November 2026. This repository's first commit is dated 26 October 2026 at 18:10 ET, and every file in the last table below was written inside that window. The first two tables list what came from elsewhere. Each pre-existing file's source and SHA-256 are recorded beside it: in `SOURCES.md` files in `inputs-pre-existing/` and `phase3/space-weather/`, and for the Michroma font in `viewer/README.md`. HUGINN is pinned by its commit.
+The hackathon's build window ran from 26 October to 4 November 2026. This repository's first commit is dated 26 October 2026 at 18:10 ET, and every file in the first table below was written inside that window. The two tables after it list what came from elsewhere. Each pre-existing file's source and SHA-256 are recorded beside it: in `SOURCES.md` files in `inputs-pre-existing/` and `phase3/space-weather/`, and for the Michroma font in `viewer/README.md`. HUGINN is pinned by its commit.
+
+### Built for the hackathon, 26 October to 4 November 2026
+
+| What | Where |
+|---|---|
+| ODIN's model code: the turn loop, answer validation, request signing, the model adapters, the spend meter and the voice path | `odin/` |
+| BALDUR-0, the deterministic gate every command passes through | `gateway/` |
+| The hash-chained event log | `log/` |
+| The run harness, HUGINN's wrapper (the run clock and the data feeds) and the COSMOS connector | `harness/`, `wrapper/`, `connector/` |
+| The scoring | `eval/`, `marks/` |
+| The TYR-0 mission plans and arming acts, signed by the Director | `plans/`, `acts/` |
+| The build contract, its schemas and the frozen model settings | `CONTRACT.md`, `contract/`, `config/` |
+| The phase-3 held-out scenarios and their seals | `phase3/` |
+| ODIN's relevant-environment document and M5's timing record | `docs/` |
+| The four reviews of ODIN's instructions, as sent | `messages/muse-code/` |
+| The records of every run: event logs, truth files and results | `runs/` |
+| The public keys BALDUR-0 verifies signatures with | `keys/` |
+| The Director's recorded check-in, 28 October 2026 | `checkins/` |
+| VERDA, the playback viewer; the replay site's build; and the capture tool that filmed the demo video's VERDA shots | `viewer/` |
+| The replay site's inputs: SPARK-R2's site clip and the phase-2 scripted commands | `site-inputs/` |
+| The workflow that builds and publishes the replay site | `.github/workflows/` |
+| The results notebook: the results re-derived from the records, with D's SPARK-R1 step by step | `notebooks/` |
+| The 3D animation of HUGINN in orbit | `render/` |
+| The hero image at the top of this README, also the demo video's thumbnail | `media/` |
+| Muse Code's deposits, committed as delivered | `deposits/` |
+| Muse Code's standing rules, loaded at the start of each of its sessions | `.agents/` |
+| The tests and tools | `tests/`, `tools/` |
 
 ### Pre-existing: the Director's own work, used as it was
 
@@ -253,35 +282,8 @@ ODIN, BALDUR and TYR come from Project AESIR, whose concept and structure the Di
 | Earth imagery in the animation: NASA's Blue Marble: Next Generation, July 2004, by Reto Stockli; the Blue Marble cloud layer; and the Earth at Night (Black Marble) 2016 map | Rendered frames only: the site clip in `site-inputs/` and the demo video. The images are not stored here | NASA imagery is generally not subject to copyright in the United States. Credits: NASA Earth Observatory; NASA Goddard Space Flight Center, image by Reto Stockli; NASA Earth Observatory / Joshua Stevens, Suomi NPP VIIRS data from Miguel Roman, NASA GSFC |
 | GOES-13 integral proton fluxes, 10 and 11 September 2017, replayed as phase 3's space weather | `phase3/space-weather/`, with `SOURCES.md` | Acknowledged: NASA Space Physics Data Facility, OMNIWeb Plus, accessed 28 October 2026; the values come from NOAA's GOES-13 Space Environment Monitor |
 | The Kp index for the same days | `phase3/space-weather/`, with `SOURCES.md` | GFZ German Research Centre for Geosciences, Potsdam, under CC BY 4.0. Matzka, J., Bronkalla, O., Tornow, K., Elger, K. and Stolle, C. (2021), Geomagnetic Kp index, V. 1.0, GFZ Data Services, https://doi.org/10.5880/Kp.0001 |
-| The demo video's music | The program in `video/music/`; the music in the video only | Generated with Meta's MusicGen (AudioCraft 1.3.0), models `facebook/musicgen-stereo-large` and `facebook/musicgen-stereo-melody-large`, whose weights are licensed CC BY-NC 4.0 |
-
-### Built for the hackathon, 26 October to 4 November 2026
-
-| What | Where |
-|---|---|
-| ODIN's model code: the turn loop, answer validation, request signing, the model adapters, the spend meter and the voice path | `odin/` |
-| BALDUR-0, the deterministic gate every command passes through | `gateway/` |
-| The hash-chained event log | `log/` |
-| The run harness, HUGINN's wrapper (the run clock and the data feeds) and the COSMOS connector | `harness/`, `wrapper/`, `connector/` |
-| The scoring | `eval/`, `marks/` |
-| The TYR-0 mission plans and arming acts, signed by the Director | `plans/`, `acts/` |
-| The build contract, its schemas and the frozen model settings | `CONTRACT.md`, `contract/`, `config/` |
-| The phase-3 held-out scenarios and their seals | `phase3/` |
-| ODIN's relevant-environment document and M5's timing record | `docs/` |
-| The four reviews of ODIN's instructions, as sent | `messages/muse-code/` |
-| The records of every run: event logs, truth files and results | `runs/` |
-| The public keys BALDUR-0 verifies signatures with | `keys/` |
-| The Director's recorded check-in, 28 October 2026 | `checkins/` |
-| VERDA, the playback viewer; the replay site's build; and the capture tool that filmed the demo video's VERDA shots | `viewer/` |
-| The replay site's inputs: SPARK-R2's site clip and the phase-2 scripted commands | `site-inputs/` |
-| The workflow that builds and publishes the replay site | `.github/workflows/` |
-| The results notebook: the results re-derived from the records, with D's SPARK-R1 step by step | `notebooks/` |
-| The 3D animation of HUGINN in orbit | `render/` |
-| The demo video's music program, MusicGen on Modal, built with Muse Code | `video/music/` |
-| The hero image at the top of this README, also the demo video's thumbnail | `media/` |
-| Muse Code's deposits, committed as delivered | `deposits/` |
-| Muse Code's standing rules, loaded at the start of each of its sessions | `.agents/` |
-| The tests and tools | `tests/`, `tools/` |
+| The demo video's music | In the video only; not stored here | Made with Suno, on the Director's Pro plan, which licenses it for commercial use |
+| The demo video's narration voice | In the video only; not stored here | An AI voice, ElevenLabs Eleven v4, generated through RunwayML |
 
 ## How it was built
 
@@ -292,6 +294,7 @@ The Director, Dan Lee-Odinson, directed the project: he set the scope, ruled on 
 - **Muse Code**, on Muse Wonder Full, built the 3D animation in Blender. The animation shows simulated data drawn from each run's own record. The spacecraft's look is drawn, since HUGINN's definition gives no panel layout.
 - **Claude**, as the Director's advisor, drafted the build contract, the mission plans and arming acts, the phase-3 scenarios, the relevant-environment document and the messages to each builder, for the Director's review.
 - **Muse Image**, Meta's image model, made the picture at the top of this README from a prompt Claude wrote to the Director's direction, and **Claude** lettered it (`media/SOURCES.md`).
+- **Muse Code**, on Muse Wonder Full, cut the demo video from a scripted edit of VERDA's footage, the animation and the cards. Its narration is an AI voice (ElevenLabs Eleven v4, through RunwayML), and its music was made with Suno.
 
 Every check in the repository is a callable that can fail, and each test has a red case: a planted change that makes it fail, run for real before the test was trusted.
 
