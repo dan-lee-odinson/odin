@@ -10,6 +10,15 @@ ODIN is an AI flight operator. In this build it operates HUGINN, a simulated 6U 
 
 ODIN is the operational intelligence of Project AESIR, the Director's amateur space program. HUGINN, the simulator it operates, existed before the event and is used unchanged.
 
+**For the judges, in one minute**
+
+- **What it is for:** letting small spacecraft teams, such as university and amateur CubeSat operators, hand routine operations and fault response to an AI while a human keeps control of what every command may do.
+- **What sets it apart:** ODIN operates a spacecraft over whole passes, turn after turn, under a signed authority that can be revoked mid-pass. BALDUR-0 checks every request again just before dispatch, so when authority is revoked after approval, the waiting command is voided and never sent. ODIN operated the same passes the Director operated himself, so its results sit beside a human's, and it takes the onboard seat on its own when ground contact is lost.
+- **Meta's models:** Muse Spark (Meta Model API) and Muse Spark Open (Baseten) operate the ground seat during contact; Muse Glimmer 30B, open weights on Modal, operates the onboard seat out of contact; Muse Code wrote ODIN's model code. See [Meta's models in ODIN](#metas-models-in-odin).
+- **Results:** on held-out scenarios ODIN had never seen, 38 of 40 scored runs succeeded, and BALDUR-0 let no request through outside the signed plan. Out of contact, Glimmer shed a latched-up payload 39 to 45 seconds after onset, inside the 120 seconds before damage, in all ten runs. Every scored run, failures included, is in the repository. See [The results in brief](#the-results-in-brief).
+- **Two replays to start with:** [a stuck load, shed under the plan's lease, beside the Director's own pass](https://dan-lee-odinson.github.io/odin/#run=PH2-PASS3-SPARK-R2); [authority revoked after approval, the waiting command voided before dispatch](https://dan-lee-odinson.github.io/odin/#run=PH3-H04-SPARK-R1).
+- **New for the event:** ODIN, BALDUR-0, the event log, the harness, the scoring, the replay viewer and the animation. HUGINN, its procedures and the Director's own passes existed before it. See [What was built for the event, and what existed before it](#what-was-built-for-the-event-and-what-existed-before-it).
+
 ## The results in brief
 
 **ODIN completed 40 scored runs of held-out scenarios it had never seen, and succeeded in 38, inside a gate that held in every run.** It kept to its procedures even where a faulty test scored that as failure, and every shortfall in those runs was in what ODIN reported, never in what it commanded.
@@ -215,7 +224,7 @@ Phase 2's table, each pass beside the Director's own:
 .venv/Scripts/python -m eval.score --summary runs/scored/PH2-*
 ```
 
-The notebook [`notebooks/odin_results.ipynb`](notebooks/odin_results.ipynb) shows the same results, re-derived with the same code from the same records, with D's SPARK-R1 step by step and a chart of model time per turn. GitHub shows it with its outputs. To run it again, top to bottom, install its own packages, pinned in `notebooks/requirements.txt`, and execute it in place:
+The notebook [`notebooks/odin_results.ipynb`](notebooks/odin_results.ipynb) shows the same results, re-derived with the same code from the same records, with D's SPARK-R1 step by step and a chart of model time per turn. GitHub shows it with its outputs; if GitHub's preview doesn't load, [nbviewer shows the same file](https://nbviewer.org/github/dan-lee-odinson/odin/blob/main/notebooks/odin_results.ipynb). To run it again, top to bottom, install its own packages, pinned in `notebooks/requirements.txt`, and execute it in place:
 
 ```bash
 .venv/Scripts/python -m pip install -r notebooks/requirements.txt
