@@ -25,6 +25,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import sync as Y
+
 ROOT = Path(__file__).resolve().parent
 ENGINES = ("BLENDER_EEVEE", "CYCLES")
 
@@ -50,23 +52,43 @@ def parse_args(argv=None):
                         "(default: <run>_preview.mp4)")
     parser.add_argument("--width", type=int, default=640)
     parser.add_argument("--height", type=int, default=360)
-    parser.add_argument("--met-start", type=int, default=None,
-                        help="first MET (default: first telemetry MET)")
-    parser.add_argument("--met-end", type=int, default=None,
-                        help="last MET (default: the orbit's last MET)")
-    parser.add_argument("--met-step", type=int, default=5)
+    parser.add_argument("--met-start", type=Y.to_fraction, default=None,
+                        help="first MET (default: first telemetry MET); "
+                             "a fraction like 13202/15 is exact")
+    parser.add_argument("--met-end", type=Y.to_fraction, default=None,
+                        help="last MET (default: the orbit's last MET); "
+                             "a fraction like 13202/15 is exact")
+    parser.add_argument("--met-step", type=Y.parse_met_step,
+                        default=Y.parse_met_step("5"),
+                        help="MET step per frame; whole (5) or exact "
+                             "fraction (1/15)")
     parser.add_argument("--fps", type=int, default=10)
     parser.add_argument("--engine", default="BLENDER_EEVEE", choices=ENGINES)
     parser.add_argument("--cut", default="instrument",
-                        choices=("instrument", "clean"),
+                        choices=("instrument", "clean", "pullback"),
                         help="instrument keeps the data cues (VERDA pane); "
-                             "clean is camera-only, for the video")
+                             "clean is camera-only, for the video; "
+                             "pullback is camera-only and eases out to "
+                             "the whole Earth")
     parser.add_argument("--samples", type=int, default=32)
     parser.add_argument("--feed", default=None,
                         help="a run's own feed file, when it carries one")
     parser.add_argument("--blender", default=None,
                         help="Blender executable (default: BLENDER env, "
                              "else blender on the PATH)")
+    parser.add_argument("--pullback-met-start", type=Y.to_fraction,
+                        default=None,
+                        help="the pull-back move's full first MET, when "
+                             "rendering only part of it (its probe)")
+    parser.add_argument("--pullback-met-end", type=Y.to_fraction,
+                        default=None,
+                        help="the pull-back move's full last MET")
+    parser.add_argument("--require-gpu", action="store_true",
+                        help="stop if Cycles finds no GPU device "
+                             "(default: fall back to the CPU, as before)")
+    parser.add_argument("--perceptually-lossless", action="store_true",
+                        help="encode H.264 at Blender's perceptually "
+                             "lossless setting (default: unchanged)")
     parser.add_argument("--dry-run", action="store_true",
                         help="print the Blender command and exit")
     args = parser.parse_args(argv)
@@ -101,17 +123,28 @@ def build_command(args):
                "--inputs", str(args.inputs),
                "--output-dir", str(args.output),
                "--width", str(args.width), "--height", str(args.height),
-               "--step", str(args.met_step), "--fps", str(args.fps),
+               "--step", Y.step_text(args.met_step),
+               "--fps", str(args.fps),
                "--engine", args.engine, "--samples", str(args.samples),
                "--cut", args.cut]
     if args.met_start is not None:
-        command += ["--met-start", str(args.met_start)]
+        command += ["--met-start", Y.step_text(args.met_start)]
     if args.met_end is not None:
-        command += ["--met-end", str(args.met_end)]
+        command += ["--met-end", Y.step_text(args.met_end)]
     if args.clip:
         command += ["--clip", args.clip]
+    if args.pullback_met_start is not None:
+        command += ["--pullback-met-start",
+                    Y.step_text(args.pullback_met_start)]
+    if args.pullback_met_end is not None:
+        command += ["--pullback-met-end",
+                    Y.step_text(args.pullback_met_end)]
     if args.feed:
         command += ["--feed", str(args.feed)]
+    if args.require_gpu:
+        command += ["--require-gpu"]
+    if args.perceptually_lossless:
+        command += ["--perceptually-lossless"]
     return command
 
 

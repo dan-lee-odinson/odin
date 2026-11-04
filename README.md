@@ -4,7 +4,7 @@
 
 # ODIN
 
-[Watch the 3-minute demo video](https://youtu.be/8r2OI4ip4Og) · [Watch the runs in your browser](https://dan-lee-odinson.github.io/odin/)
+**[Watch the 3-minute demo video](https://youtu.be/8r2OI4ip4Og)** · **[Watch the runs in your browser](https://dan-lee-odinson.github.io/odin/)**
 
 ODIN is an AI flight operator. In this build it operates HUGINN, a simulated 6U CubeSat, through OpenC3 COSMOS, an open-source ground system. It never commands the spacecraft directly. Every command it wants goes to BALDUR-0, a deterministic gate that checks it against a mission plan the Director signed, and every turn, request, decision and outcome goes into an event log that ODIN cannot write to. ODIN was built and run during the Meta Global AI Developer Hackathon, 26 October to 4 November 2026, by the team Ad Astra Simul, for the problem statement Push the Frontier.
 

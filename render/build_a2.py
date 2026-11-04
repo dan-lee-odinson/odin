@@ -22,6 +22,7 @@ import json
 import math
 import random
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -223,11 +224,7 @@ def apply_state(rig, state, position, sun_dir, frame=None, cue_kinds=()):
         amps = state[key_name]
         level = 1.0 if amps is None else max(0.0, min(1.0, amps / 1.7))
         color = tuple(c * (0.12 + 0.88 * level) for c in CELL_BASE)
-        node = bsdf(rig.mats[mat_name])
-        node.inputs["Base Color"].default_value = (*color, 1.0)
-        if frame is not None:
-            node.inputs["Base Color"].keyframe_insert("default_value",
-                                                      frame=frame)
+        A1.set_cell_color(rig.mats[mat_name], color, frame)
     set_emission(rig.mats["beacon"],
                  MODE_COLORS.get(state["mode"], GRAY), 2.0, frame)
     set_emission(rig.mats["load_bar"], limit_color(state["load_limit"]),
@@ -333,12 +330,31 @@ def build_scene(rows, station, with_weather, settings=None):
     return scene, Rig(mats, station, with_weather)
 
 
+def cue_flash_frames(step):
+    """Frames one cue stays lit: two frames, or two seconds of MET.
+
+    Whichever lasts longer, so a 1/15 s step lights 30 frames (two
+    MET seconds, visible in VERDA at 2x) while whole steps keep the
+    old two frames: at 1 s a frame that is already two seconds, at
+    5 s a frame ten. Exact fraction arithmetic for a Fraction step;
+    a float step is read back to its intended fraction first."""
+    frac = step if isinstance(step, Fraction) else (
+        Fraction(step).limit_denominator(10 ** 9)
+        if isinstance(step, float) else Fraction(step))
+    needed = -(-Fraction(2) // frac)  # ceil(2 / frac)
+    return max(2, needed)
+
+
 def cue_frames(cues, start_met, frame_count, step=MET_STEP_S):
-    """Map frame number -> cue kinds flashing there (two frames each)."""
+    """Map frame number -> cue kinds flashing there.
+
+    Each cue lights cue_flash_frames(step) frames from the frame
+    nearest its record MET."""
     active = {}
+    flash = cue_flash_frames(step)
     for cue in cues:
         frame = int(round((cue["met_s"] - start_met) / step)) + 1
-        for f in (frame, frame + 1):
+        for f in range(frame, frame + flash):
             if 1 <= f <= frame_count:
                 active.setdefault(f, set()).add(cue["kind"])
                 if cue["kind"] == "baldur":
@@ -364,7 +380,8 @@ def run_preview(timeline, timeline_path, rows, station, feed_reports,
         # The clean cut is what a camera would see: no data cues at all.
         rig.clean = True
         for name in ("ModeBeacon", "LoadIndicator", "NamePlate",
-                     "SA1_Label", "SA2_Label"):
+                     "NamePlateBack", "SA1_Caption", "SA2_Caption",
+                     "SA1_CaptionLeader", "SA2_CaptionLeader"):
             obj = bpy.data.objects.get(name)
             if obj is not None:
                 obj.hide_render = True

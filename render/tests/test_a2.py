@@ -28,10 +28,19 @@ A2_REPORT = Path(os.environ.get("ANIM_A2_REPORT",
                                 ROOT / "out" / "a2" / "a2_report.json"))
 
 
+def need(path):
+    """Skip, with the reason stated, when a needed file is absent
+    (the deposit leaves out the inputs' data files and outputs)."""
+    if not Path(path).is_file():
+        raise unittest.SkipTest(
+            "needs %s - inputs/ and out/ are not in the deposit" % path)
+    return path
+
+
 class TestKnownMoments(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tl = T.load_timeline(OPEN01)
+        cls.tl = T.load_timeline(need(OPEN01))
 
     def test_known_moments_open01(self):
         tl = self.tl
@@ -92,7 +101,8 @@ class TestFixtureDrawings(unittest.TestCase):
 
 class TestNoFeedNoOrbit(unittest.TestCase):
     def test_no_feed_no_weather(self):
-        tl = T.load_timeline(OPEN01)
+        tl = T.load_timeline(need(OPEN01))
+        need(FEED)
         for met in (800, 1000, 1229):
             self.assertIsNone(T.state_at(tl, met)["weather"])
         # The made-up feed drives weather state only when handed in.
@@ -104,6 +114,7 @@ class TestNoFeedNoOrbit(unittest.TestCase):
         self.assertTrue(got["made_up"])
 
     def test_phase1_has_no_orbit(self):
+        need(T.P3_ORBIT_CSV)
         self.assertIsNone(T.orbit_path_for("PH1-SHAKEDOWN-SPARK-R4"))
         self.assertIsNone(T.orbit_path_for("something-else"))
         for run in ("dev-ph2-p3-open-01", "dev-ph2-p3-spark-01"):
@@ -114,6 +125,7 @@ class TestNoFeedNoOrbit(unittest.TestCase):
 
 class TestA2Report(unittest.TestCase):
     def test_a2_preview_report(self):
+        need(A2_REPORT)
         self.assertTrue(A2_REPORT.is_file(),
                         "no A2 report - run build_a2.py in Blender")
         report = json.loads(A2_REPORT.read_text(encoding="utf-8"))

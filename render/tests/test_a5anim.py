@@ -25,9 +25,19 @@ TIMELINE = ROOT / "inputs" / "timelines" / "dev-ph2-p3-open-01.js"
 RUN = "dev-ph2-p3-open-01"
 
 
+def need(path):
+    """Skip, with the reason stated, when a needed file is absent
+    (the deposit leaves out the inputs' data files and outputs)."""
+    if not Path(path).is_file():
+        raise unittest.SkipTest(
+            "needs %s - inputs/ and out/ are not in the deposit" % path)
+    return path
+
+
 class TestA5AnimClips(unittest.TestCase):
     def test_clips_syncs_and_frames(self):
-        timeline = T.load_timeline(TIMELINE)
+        timeline = T.load_timeline(need(TIMELINE))
+        need(ANIM_DIR / ("%s_a5_clean.mp4" % RUN))
         for cut in ("instrument", "clean"):
             clip = ANIM_DIR / ("%s_a5_%s.mp4" % (RUN, cut))
             self.assertTrue(clip.is_file(), "missing clip %s" % clip.name)

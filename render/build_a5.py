@@ -20,6 +20,8 @@ Modes after --:
   --check     one instrument frame at 640 x 360, for tuning the look
   --animate   keyframe the scene across one run's MET range and render
               the clip + sync file (render_clip.py drives this mode)
+  --closeup   one still on the Sun's reflection off the arrays
+  --busface   one still of the bus face (--lettering plate|paint)
 Options: --met, --cut, --output-dir, --width, --height, --samples;
 animate adds --timeline, --inputs, --step, --fps, --met-start,
 --met-end, --engine, --clip, --feed.
@@ -46,6 +48,11 @@ ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 CHECK = "--check" in ARGS
 FIXTURE = "--fixture" in ARGS
 ANIMATE = "--animate" in ARGS
+CLOSEUP = "--closeup" in ARGS
+BUSFACE = "--busface" in ARGS
+# Instrument-cut annotations that never appear in the clean cut.
+CAPTION_NAMES = ("SA1_Caption", "SA2_Caption",
+                 "SA1_CaptionLeader", "SA2_CaptionLeader")
 
 
 def arg(flag, default=None):
@@ -65,34 +72,6 @@ FIXTURE_LABELS = {890: "sunlit", 920: "eclipse_red", 945: "safe_deny"}
 
 def bsdf(mat):
     return mat.node_tree.nodes["Principled BSDF"]
-
-
-def add_bump(mat, scale, strength):
-    """Crinkled foil: object-space noise driving bump and roughness, so
-    facets catch the light at varied angles instead of reading flat."""
-    nodes, links = mat.node_tree.nodes, mat.node_tree.links
-    coord = nodes.new("ShaderNodeTexCoord")
-    mapping = nodes.new("ShaderNodeMapping")
-    mapping.inputs["Scale"].default_value = (6.0, 6.0, 6.0)
-    links.new(coord.outputs["Generated"], mapping.inputs["Vector"])
-    noise = nodes.new("ShaderNodeTexNoise")
-    noise.inputs["Scale"].default_value = scale
-    noise.inputs["Detail"].default_value = 6.0
-    noise.inputs["Roughness"].default_value = 0.85
-    links.new(mapping.outputs["Vector"], noise.inputs["Vector"])
-    bump = nodes.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = strength
-    bump.inputs["Distance"].default_value = 0.002
-    links.new(noise.outputs["Fac"], bump.inputs["Height"])
-    links.new(bump.outputs["Normal"], bsdf(mat).inputs["Normal"])
-    rough = nodes.new("ShaderNodeMapRange")
-    rough.inputs["From Min"].default_value = 0.0
-    rough.inputs["From Max"].default_value = 1.0
-    rough.inputs["To Min"].default_value = 0.15
-    rough.inputs["To Max"].default_value = 0.5
-    rough.clamp = True
-    links.new(noise.outputs["Fac"], rough.inputs["Value"])
-    links.new(rough.outputs["Result"], bsdf(mat).inputs["Roughness"])
 
 
 def earth_material(sun_local):
@@ -310,27 +289,14 @@ def add_strikes(camera, state):
 
 
 def detail_materials(mats):
-    """The look pass on the drawn spacecraft (shared by still + clip)."""
-    for name in ("SolarCellSA1", "SolarCellSA2"):
-        node = bsdf(bpy.data.materials[name])
-        # Deep blue-black cells: the Sun's reflection carries the color.
-        node.inputs["Roughness"].default_value = 0.28
-        node.inputs["Metallic"].default_value = 0.15
-        if "Coat Weight" in node.inputs:
-            node.inputs["Coat Weight"].default_value = 1.0
-            node.inputs["Coat Roughness"].default_value = 0.06
-    # Thin silver lines between cells: the bright substrate in the gaps.
+    """The look pass on the drawn spacecraft (shared by still + clip).
+    A6 moved the cell grid, brushed metals, glass and faceted foil
+    into build_a1's materials; what stays here is the true-scale
+    finish: bright silver substrate in the cell gaps."""
     sub = bsdf(bpy.data.materials["PanelSubstrate"])
     sub.inputs["Base Color"].default_value = (0.75, 0.77, 0.8, 1.0)
     sub.inputs["Roughness"].default_value = 0.32
     sub.inputs["Metallic"].default_value = 1.0
-    bsdf(bpy.data.materials["AluminumRail"]).inputs["Roughness"].default_value = 0.38
-    bus = bsdf(bpy.data.materials["BusBody"])
-    bus.inputs["Metallic"].default_value = 0.85
-    bus.inputs["Roughness"].default_value = 0.5
-    gold = bsdf(bpy.data.materials["GoldFoil"])
-    gold.inputs["Base Color"].default_value = (0.95, 0.62, 0.14, 1.0)
-    add_bump(bpy.data.materials["GoldFoil"], scale=90.0, strength=0.7)
 
 
 def beam_material(name, strength, transparent_fac):
@@ -356,7 +322,7 @@ def make_lights(scene, earth, clouds, glow, craft_coll, empty):
     """Two suns (Earth / craft, light-linked), earthshine, eclipse rim."""
     sun_data = bpy.data.lights.new("SunData", "SUN")
     sun_data.energy = 6.0
-    sun_data.angle = 0.009
+    sun_data.angle = 0.0093  # the Sun's real size in the sky, ~0.53 deg
     sun = bpy.data.objects.new("SunLight", sun_data)
     scene.collection.objects.link(sun)
     earth_coll = bpy.data.collections.new("EarthOnly")
@@ -403,7 +369,8 @@ def geometry_at(epoch, rows, met):
             TS.earth_center_m(row["alt_km"]))
 
 
-def build_scene(epoch, rows, met, with_cues=False, with_weather=False):
+def build_scene(epoch, rows, met, with_cues=False, with_weather=False,
+                earth_segments=128):
     """The true-scale follow scene at an initial MET; returns handles."""
     _row, _basis, sun_local, rotation, center = geometry_at(epoch, rows, met)
     scene = A1.reset_scene()
@@ -425,11 +392,15 @@ def build_scene(epoch, rows, met, with_cues=False, with_weather=False):
     A1.box("LoadIndicatorTop", (0.10, 0.012, 0.002), (0.0, 0.04, 0.184),
            mat=mats["load_bar"], parent=empty, collection=craft_coll)
     earth_mat, sun_vec = earth_material(sun_local)
-    earth = make_sphere("Earth", TS.EARTH_RADIUS_M, center, rotation, earth_mat)
+    earth = make_sphere("Earth", TS.EARTH_RADIUS_M, center, rotation,
+                        earth_mat, segments=earth_segments)
+    shell_segments = max(96, earth_segments * 3 // 4)
     clouds = make_sphere("Clouds", TS.EARTH_RADIUS_M + TS.CLOUD_ALTITUDE_M,
-                         center, rotation, cloud_material(), segments=96)
+                         center, rotation, cloud_material(),
+                         segments=shell_segments)
     glow = make_sphere("Atmosphere", TS.EARTH_RADIUS_M * 1.003, center,
-                       rotation, atmosphere_material(), segments=96)
+                       rotation, atmosphere_material(),
+                       segments=shell_segments)
     A1.no_shadow(glow)
     sun, craft_sun, fill, rim = make_lights(scene, earth, clouds, glow,
                                             craft_coll, empty)
@@ -501,7 +472,7 @@ def load_color(state):
 
 
 def apply_met(H, timeline, epoch, rows, met, feed_reports=(), frame=None,
-              cue_kinds=(), clean=False):
+              cue_kinds=(), clean=False, pullback=None):
     """Put one MET's geometry and record state into the scene.
 
     With a frame number, everything is keyframed there; transform curves
@@ -537,21 +508,58 @@ def apply_met(H, timeline, epoch, rows, met, feed_reports=(), frame=None,
         key(light, "location")
         key(light, "rotation_euler")
     sunlit = state["sunlit"]
+    # One hard light, the Sun; the only fill is earthshine from below
+    # (a soft blue area light standing in for sunlit Earth, plus the
+    # bounce Cycles picks up from the planet itself). Faces turned
+    # away from both go nearly black (Director, A6 round two).
     for light, energy in ((H["craft_sun"], 0.05 if sunlit is False else 6.0),
-                          (H["fill"], 32.0 if sunlit is False else 180.0),
-                          (H["rim"], 0.7 if sunlit is False else 0.0)):
+                          (H["fill"], 15.0 if sunlit is False else 85.0),
+                          (H["rim"], 0.5 if sunlit is False else 0.0)):
         light.data.energy = energy
         if frame is not None:
             light.data.keyframe_insert("energy", frame=frame)
     # Side light (Director, round three): south of the craft and somewhat
-    # sunward; from 508 km this height looks down about 26 degrees.
+    # sunward; from 508 km this height looks down about 26 degrees. The
+    # camera's path is drawn, so it also drifts slowly in azimuth across
+    # the run (Director, A6): about 18 degrees from MET 800 to 1225,
+    # enough for a Sun glint to sweep the arrays during a clip. The
+    # Sun's direction itself stays the derived one.
     perp = Vector((-sunward.y, sunward.x, 0.0))
     if perp.y > 0:
         perp = -perp
+    drift = math.radians(-9.0 + 18.0 * max(0.0, min(1.0,
+                                                     (met - 800) / 425.0)))
+    along = 1.6 * math.cos(drift) - 2.3 * math.sin(drift)
+    across = 1.6 * math.sin(drift) + 2.3 * math.cos(drift)
     camera = H["camera"]
-    camera.location = sunward * 1.6 + perp * 2.3 + Vector((0.0, 0.0, 1.35))
-    back = camera.location.normalized()
-    up = (zenith - back * zenith.dot(back)).normalized()
+    camera.location = sunward * along + perp * across \
+        + Vector((0.0, 0.0, 1.35))
+    if pullback is not None:
+        # A9: from this frame's clean framing, ease out to the whole
+        # Earth (truescale.pullback_camera owns the math and its
+        # tests). Lens widens and clip distances track the subjects
+        # on the way, all keyframed like the move itself.
+        pose = TS.pullback_camera(pullback, tuple(camera.location),
+                                  center, sun_local,
+                                  aspect=WIDTH / HEIGHT)
+        camera.location = Vector(pose["location"])
+        back = (camera.location - Vector(pose["target"])).normalized()
+        up_ref = Vector(pose["up_reference"])
+        camera.data.lens = pose["lens_mm"]
+        camera.data.clip_start = pose["clip_start_m"]
+        camera.data.clip_end = pose["clip_end_m"]
+        # No shutter on this move (A9B): it is the one camera move
+        # fast enough for motion blur to streak the sunlit Earth
+        # into the black sky and across the spacecraft. Other cuts
+        # keep set_render_common's motion blur.
+        H["scene"].render.use_motion_blur = False
+        if frame is not None:
+            for prop in ("lens", "clip_start", "clip_end"):
+                camera.data.keyframe_insert(prop, frame=frame)
+    else:
+        back = camera.location.normalized()
+        up_ref = zenith
+    up = (up_ref - back * up_ref.dot(back)).normalized()
     right = up.cross(back).normalized()
     camera.rotation_euler = Matrix((right, up, back)).transposed().to_euler()
     key(camera, "location")
@@ -560,12 +568,9 @@ def apply_met(H, timeline, epoch, rows, met, feed_reports=(), frame=None,
                                ("SolarCellSA2", "sa2_i")):
         amps = state[key_name]
         level = 1.0 if amps is None else max(0.0, min(1.0, amps / 1.7))
-        color = tuple(c * (0.12 + 0.88 * level) for c in (0.01, 0.035, 0.13))
-        node = bsdf(bpy.data.materials[mat_name])
-        node.inputs["Base Color"].default_value = (*color, 1.0)
-        if frame is not None:
-            node.inputs["Base Color"].keyframe_insert("default_value",
-                                                      frame=frame)
+        color = tuple(c * (0.12 + 0.88 * level)
+                      for c in (0.03, 0.035, 0.17))
+        A1.set_cell_color(bpy.data.materials[mat_name], color, frame)
     A2.set_emission(H["mats"]["beacon"],
                     MODE_COLORS.get(state["mode"], (0.4, 0.4, 0.42)),
                     2.0, frame)
@@ -638,6 +643,9 @@ def set_render_common(scene, engine="CYCLES"):
     scene.render.use_motion_blur = True
     scene.render.motion_blur_shutter = 0.5
     scene.view_settings.view_transform = "AgX"
+    # Exposure set so the shadowed side keeps a little detail while
+    # AgX rolls the highlights off (Director, A6 round two).
+    scene.view_settings.exposure = 0.25
     world = bpy.data.worlds.new("Space")
     world.use_nodes = True
     bg = world.node_tree.nodes["Background"]
@@ -688,6 +696,8 @@ def constant_state_curves():
 
 
 def main():
+    if arg("--lettering"):
+        A1.NAMEPLATE_STYLE = arg("--lettering")
     feed_reports = ()
     if FIXTURE:
         timeline = T.load_timeline(
@@ -707,6 +717,67 @@ def main():
 
     set_render_common(scene)
     scene.render.image_settings.file_format = "PNG"
+    if CLOSEUP:
+        # A6 close-up: on the Sun's reflection off the SA2 coverglass,
+        # so the arrays catch the light. Clean of text and cues.
+        _r, _b, sun_local, _rot, _c = geometry_at(epoch, rows, MET)
+        zenith = Vector((0.0, 0.0, 1.0))
+        sun_v = Vector(sun_local)
+        sunward = (sun_v - zenith * sun_v.dot(zenith)).normalized()
+        axis_x = sunward.cross(zenith).normalized()
+        target = axis_x * 0.42
+        incident = -sun_v.normalized()
+        reflected = (incident
+                     - 2.0 * incident.dot(sunward) * sunward).normalized()
+        # Near the reflection but off its axis, so the glint band sweeps
+        # part of the array instead of blowing out the whole frame.
+        look = target - axis_x * 0.22
+        camera.location = target + reflected * 1.9 + axis_x * 0.20 \
+            + zenith * 0.12
+        back = (camera.location - look).normalized()
+        up = (zenith - back * zenith.dot(back)).normalized()
+        right = up.cross(back).normalized()
+        camera.rotation_euler = Matrix(
+            (right, up, back)).transposed().to_euler()
+        for name in ("ModeBeacon", "LoadIndicator", "LoadIndicatorTop",
+                     "ContactBeam", "ContactBeamGlow", "NamePlate",
+                     "NamePlateBack") + CAPTION_NAMES:
+            obj = bpy.data.objects.get(name)
+            if obj is not None:
+                obj.hide_render = True
+        print("A6 CLOSEUP device:", enable_gpu(scene))
+        OUT.mkdir(parents=True, exist_ok=True)
+        scene.render.filepath = str(OUT / "a6_closeup.png")
+        bpy.ops.render.render(write_still=True)
+        print("A6 CLOSEUP OK", scene.render.filepath)
+        return
+    if BUSFACE:
+        # A6 round two: the bus face with its name, one render per
+        # lettering style (--lettering plate|paint) for the Director
+        # to pick. Camera half a meter off the sunlit face, three-
+        # quarter so seams, edges and small parts catch the light.
+        bpy.context.view_layer.update()
+        matrix = H["empty"].matrix_world
+        look = matrix @ Vector((0.0, 0.05, 0.04))
+        camera.location = matrix @ Vector((0.26, 0.78, 0.11))
+        back = (camera.location - look).normalized()
+        zenith = Vector((0.0, 0.0, 1.0))
+        up = (zenith - back * zenith.dot(back)).normalized()
+        right = up.cross(back).normalized()
+        camera.rotation_euler = Matrix(
+            (right, up, back)).transposed().to_euler()
+        camera.data.clip_start = 0.01
+        for name in ("ContactBeam", "ContactBeamGlow") + CAPTION_NAMES:
+            obj = bpy.data.objects.get(name)
+            if obj is not None:
+                obj.hide_render = True
+        style = arg("--lettering", "plate")
+        print("A6 BUSFACE device:", enable_gpu(scene), "style:", style)
+        OUT.mkdir(parents=True, exist_ok=True)
+        scene.render.filepath = str(OUT / ("a6_bus_%s.png" % style))
+        bpy.ops.render.render(write_still=True)
+        print("A6 BUSFACE OK", scene.render.filepath)
+        return
 
     # (Scene, lights, link and camera are built by build_scene and posed
     # by apply_met above; the still renders the one applied MET.)
@@ -720,15 +791,14 @@ def main():
         # The beam's contact-driven hiding from apply_met stands in the
         # instrument cut; the clean cut hides it outright.
         for name in ("ModeBeacon", "LoadIndicator", "LoadIndicatorTop",
-                     "NamePlate", "SA1_Label", "SA2_Label"):
+                     "NamePlate", "NamePlateBack") + CAPTION_NAMES:
             obj = bpy.data.objects.get(name)
             if obj is not None:
                 obj.hide_render = clean
-        if clean:
-            for name in ("ContactBeam", "ContactBeamGlow"):
-                obj = bpy.data.objects.get(name)
-                if obj is not None:
-                    obj.hide_render = True
+        for name in ("ContactBeam", "ContactBeamGlow"):
+            obj = bpy.data.objects.get(name)
+            if obj is not None:
+                obj.hide_render = clean or not state["in_contact"]
         if FIXTURE:
             scene.render.filepath = str(
                 OUT / ("fixture_%d_%s.png" % (MET, FIXTURE_LABELS[MET])))
@@ -755,8 +825,23 @@ def main():
     print("A5 STILL OK check=%s cuts=%s" % (CHECK, CUTS))
 
 
-def enable_gpu(scene):
-    """Use a Cycles GPU when this machine has one; else stay on CPU."""
+def gpu_requirement_error(device, require_gpu):
+    """Error text when a GPU was required but none was found, else None.
+
+    Pure logic (no bpy in the body) so the plain-Python tests can call
+    it straight out of this file's source."""
+    if require_gpu and device == "CPU":
+        return ("--require-gpu: no GPU device found for Cycles; "
+                "refusing to render on the CPU")
+    return None
+
+
+def enable_gpu(scene, require_gpu=False):
+    """Use a Cycles GPU when this machine has one; else stay on CPU.
+
+    With require_gpu (the A7 final), a CPU-only machine stops the
+    render instead of silently falling back to the CPU. The default
+    keeps the old behavior."""
     try:
         prefs = bpy.context.preferences.addons["cycles"].preferences
         for kind in ("OPTIX", "CUDA", "HIP", "ONEAPI"):
@@ -773,6 +858,9 @@ def enable_gpu(scene):
                 return "%s: %s" % (kind, gpus[0].name)
     except Exception as exc:
         print("GPU skipped:", exc)
+    error = gpu_requirement_error("CPU", require_gpu)
+    if error:
+        raise SystemExit(error)
     return "CPU"
 
 
@@ -800,28 +888,42 @@ def run_animate():
     rows = S.read_orbit(orbit_path)
     feed_reports = T.load_feed(arg("--feed"))
     cut = arg("--cut", "instrument")
-    clean = cut == "clean"
-    step = int(arg("--step", "5"))
+    clean = cut in ("clean", "pullback")
+    step = Y.parse_met_step(arg("--step", "5"))
     fps = int(arg("--fps", "10"))
     first_sample, _last = T.telemetry_span(timeline)
     start_met = arg("--met-start")
-    start_met = int(start_met) if start_met is not None else (
+    start_met = Y.to_fraction(start_met) if start_met is not None else (
         int(first_sample) if first_sample is not None else 800)
     end_met = arg("--met-end")
-    end_met = int(end_met) if end_met is not None else int(rows[-1]["met_s"])
-    mets = list(range(start_met, end_met + 1, step))
-    H = build_scene(epoch, rows, mets[0], with_cues=True,
-                    with_weather=bool(feed_reports))
+    end_met = Y.to_fraction(end_met) if end_met is not None else (
+        int(rows[-1]["met_s"]))
+    # A probe renders only a span's first frames; the pull-back's
+    # progress is measured against the full pull-back span when one
+    # is named, so those frames stay at the move's start (A9B).
+    pullback_start = arg("--pullback-met-start")
+    pullback_start = (Y.to_fraction(pullback_start)
+                      if pullback_start is not None else start_met)
+    pullback_end = arg("--pullback-met-end")
+    pullback_end = (Y.to_fraction(pullback_end)
+                    if pullback_end is not None else end_met)
+    mets = Y.frame_mets(start_met, end_met, step)
+    # The pull-back ends on the whole disc, where a coarser sphere's
+    # silhouette would facet; the other cuts keep their tessellation.
+    H = build_scene(epoch, rows, float(mets[0]), with_cues=True,
+                    with_weather=bool(feed_reports),
+                    earth_segments=256 if cut == "pullback" else 128)
     scene = H["scene"]
     if clean:
         for name in ("ModeBeacon", "LoadIndicator", "LoadIndicatorTop",
-                     "NamePlate", "SA1_Label", "SA2_Label"):
+                     "NamePlate", "NamePlateBack") + CAPTION_NAMES:
             obj = bpy.data.objects.get(name)
             if obj is not None:
                 obj.hide_render = True
     engine = arg("--engine", "CYCLES")
     set_render_common(scene, engine)
-    device = enable_gpu(scene) if engine == "CYCLES" else engine
+    device = enable_gpu(scene, require_gpu="--require-gpu" in ARGS) \
+        if engine == "CYCLES" else engine
     print("A5 ANIM device:", device)
     scene.render.fps = fps
     scene.frame_start, scene.frame_end = 1, len(mets)
@@ -840,18 +942,27 @@ def run_animate():
             cue_on.add("odin")
         if any(k.startswith("baldur") for k in kinds):
             cue_on.add("baldur")
-        state = apply_met(H, timeline, epoch, rows, met, feed_reports,
-                          frame=index, cue_kinds=cue_on, clean=clean)
+        state = apply_met(H, timeline, epoch, rows, float(met),
+                          feed_reports, frame=index, cue_kinds=cue_on,
+                          clean=clean,
+                          pullback=(Y.pullback_progress(
+                                        met, pullback_start, pullback_end)
+                                    if cut == "pullback" else None))
         row = S.orbit_row_at(rows, float(met))
-        frames.append({
-            "frame": index, "met_s": met, "sunlit": state["sunlit"],
+        entry = {
+            "frame": index, "met_s": Y.sync_number(met),
+            "sunlit": state["sunlit"],
             "mode": state["mode"], "payload_on": state["payload_on"],
             "load_i": state["load_i"], "load_limit": state["load_limit"],
             "in_contact": state["in_contact"],
             "weather": None if state["weather"] is None
             else state["weather"].get("proton_flux_pfu"),
             "lat_deg": row["lat_deg"], "lon_deg": row["lon_deg"],
-            "alt_km": row["alt_km"]})
+            "alt_km": row["alt_km"]}
+        if cut == "pullback":
+            entry["camera_distance_m"] = H["camera"].location.length
+            entry["lens_mm"] = H["camera"].data.lens
+        frames.append(entry)
     constant_state_curves()
     OUT.mkdir(parents=True, exist_ok=True)
     clip = arg("--clip") or ("%s_a5_%s.mp4" % (timeline["id"], cut))
@@ -861,17 +972,28 @@ def run_animate():
         scene.render.image_settings.media_type = "VIDEO"
         scene.render.image_settings.file_format = "FFMPEG"
     scene.render.ffmpeg.format = "MPEG4"
+    # A7 final only: H.264 at Blender's perceptually lossless setting,
+    # since the edit encodes the clip again. Default (no switch) keeps
+    # the preview commands' encoding exactly as it was.
+    if "--perceptually-lossless" in ARGS:
+        scene.render.ffmpeg.codec = "H264"
+        scene.render.ffmpeg.constant_rate_factor = "PERC_LOSSLESS"
     scene.render.filepath = str(OUT / clip)
     bpy.ops.render.render(animation=True)
     sync_name = clip.replace(".mp4", ".sync.json")
-    Y.write_sync(OUT / sync_name, Y.make_sync(timeline["id"], timeline_path,
-                                              start_met, step, fps))
+    Y.write_sync(OUT / sync_name, Y.make_sync(
+        timeline["id"], timeline_path, Y.sync_number(start_met),
+        Y.sync_number(step), fps))
     report_name = clip.replace(".mp4", "_report.json")
     report = {"milestone": "A5 animate", "run_id": timeline["id"],
               "cut": cut, "resolution": [WIDTH, HEIGHT],
               "engine": engine, "samples": SAMPLES, "device": device,
-              "fps": fps, "met_step_s": step,
-              "met_range": [start_met, end_met], "frames": frames,
+              "encoding": "H264 PERC_LOSSLESS"
+              if "--perceptually-lossless" in ARGS else "default",
+              "fps": fps, "met_step_s": Y.sync_number(step),
+              "met_range": [Y.sync_number(start_met),
+                            Y.sync_number(end_met)],
+              "frames": frames,
               "clip": clip, "sync": sync_name,
               "cues": {
                   "odin": [{"met_s": c["met_s"]} for c in cues

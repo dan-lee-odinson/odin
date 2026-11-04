@@ -28,6 +28,15 @@ A5_REPORT = Path(os.environ.get("ANIM_A5_REPORT",
                                 ROOT / "out" / "a5" / "a5_still_report.json"))
 
 
+def need(path):
+    """Skip, with the reason stated, when a needed file is absent
+    (the deposit leaves out the inputs' data files and outputs)."""
+    if not Path(path).is_file():
+        raise unittest.SkipTest(
+            "needs %s - inputs/ and out/ are not in the deposit" % path)
+    return path
+
+
 def png_size(path):
     data = Path(path).read_bytes()[:24]
     assert data[:8] == b"\x89PNG\r\n\x1a\n", "not a PNG: %s" % path
@@ -36,6 +45,8 @@ def png_size(path):
 
 class TestTrueScale(unittest.TestCase):
     def test_local_basis_known(self):
+        need(S.ORBIT_CSV)
+        need(S.INPUTS / "epochs.json")
         east, north, up = TS.local_basis(0.0, 0.0)
         for got, want in ((up, (1, 0, 0)), (east, (0, 1, 0)),
                           (north, (0, 0, 1))):
@@ -84,6 +95,8 @@ class TestCuts(unittest.TestCase):
 
 class TestStills(unittest.TestCase):
     def test_a5_still_report(self):
+        need(A5_REPORT)
+        need(S.ORBIT_CSV)
         self.assertTrue(A5_REPORT.is_file(),
                         "no A5 still report - run build_a5.py in Blender")
         report = json.loads(A5_REPORT.read_text(encoding="utf-8"))
@@ -108,6 +121,7 @@ class TestStills(unittest.TestCase):
 
 class TestFixtureLook(unittest.TestCase):
     def test_fixture_stills_new_look(self):
+        need(FIXTURES / "fixture_920_eclipse_red.png")
         for name in ("fixture_890_sunlit.png", "fixture_920_eclipse_red.png",
                      "fixture_945_safe_deny.png"):
             path = FIXTURES / name

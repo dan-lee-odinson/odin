@@ -30,6 +30,10 @@ ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 PREVIEW = "--preview" in ARGS or "--calibrate" in ARGS
 CALIBRATE = "--calibrate" in ARGS
 DS = S.SPACECRAFT_DISPLAY_SCALE  # scene units per meter, spacecraft only
+# How the HUGINN name is lettered: an engraved metal plate, or paint
+# sprayed through a stencil (the Director picked the engraved plate
+# from A6 round two's two stills; "paint" stays available).
+NAMEPLATE_STYLE = "plate"
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +58,273 @@ def material(name, color, roughness=0.5, metallic=0.0,
         bsdf.inputs["Emission Color"].default_value = (*emission, 1.0)
         bsdf.inputs["Emission Strength"].default_value = emission_strength
     return mat
+
+
+def _bsdf(mat):
+    return mat.node_tree.nodes["Principled BSDF"]
+
+
+def brushed_metal(mat, rough_lo, rough_hi, mapping_scale, bump_strength=0.12):
+    """A6: brushed/anodized metal from Blender procedural noise only:
+    fine streaks drive roughness and a whisper of bump, so the sheen
+    changes as the light moves (Director, A6)."""
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    coord = nodes.new("ShaderNodeTexCoord")
+    mapping = nodes.new("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = mapping_scale
+    links.new(coord.outputs["Generated"], mapping.inputs["Vector"])
+    noise = nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 1.0
+    noise.inputs["Detail"].default_value = 2.0
+    links.new(mapping.outputs["Vector"], noise.inputs["Vector"])
+    rough = nodes.new("ShaderNodeMapRange")
+    rough.inputs["To Min"].default_value = rough_lo
+    rough.inputs["To Max"].default_value = rough_hi
+    rough.clamp = True
+    links.new(noise.outputs["Fac"], rough.inputs["Value"])
+    links.new(rough.outputs["Result"], _bsdf(mat).inputs["Roughness"])
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = bump_strength
+    bump.inputs["Distance"].default_value = 0.00015
+    links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], _bsdf(mat).inputs["Normal"])
+    return mat
+
+
+def panel_seams(mat, cols=2, rows=3):
+    """A6 round two: panel seams as dark grooves across a face, from
+    the object's own Generated coordinates (procedural only)."""
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    node = _bsdf(mat)
+    base = tuple(node.inputs["Base Color"].default_value)[:3]
+
+    def seam_lines(values, count, width):
+        mult = nodes.new("ShaderNodeMath")
+        mult.operation = "MULTIPLY"
+        mult.inputs[1].default_value = float(count)
+        links.new(values, mult.inputs[0])
+        mod = nodes.new("ShaderNodeMath")
+        mod.operation = "MODULO"
+        mod.inputs[1].default_value = 1.0
+        links.new(mult.outputs["Value"], mod.inputs[0])
+        less = nodes.new("ShaderNodeMath")
+        less.operation = "LESS_THAN"
+        less.inputs[1].default_value = width
+        links.new(mod.outputs["Value"], less.inputs[0])
+        return less.outputs["Value"]
+
+    coord = nodes.new("ShaderNodeTexCoord")
+    sep = nodes.new("ShaderNodeSeparateXYZ")
+    links.new(coord.outputs["Generated"], sep.inputs["Vector"])
+    seam = nodes.new("ShaderNodeMath")
+    seam.operation = "MAXIMUM"
+    links.new(seam_lines(sep.outputs["X"], cols, 0.03), seam.inputs[0])
+    links.new(seam_lines(sep.outputs["Z"], rows, 0.02), seam.inputs[1])
+    mix = nodes.new("ShaderNodeMixRGB")
+    mix.inputs["Color1"].default_value = (*base, 1.0)
+    mix.inputs["Color2"].default_value = tuple(c * 0.4 for c in base) + (1.0,)
+    links.new(seam.outputs["Value"], mix.inputs["Fac"])
+    links.new(mix.outputs["Color"], node.inputs["Base Color"])
+    invert = nodes.new("ShaderNodeMath")
+    invert.operation = "SUBTRACT"
+    invert.inputs[0].default_value = 1.0
+    links.new(seam.outputs["Value"], invert.inputs[1])
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.35
+    bump.inputs["Distance"].default_value = 0.00025
+    links.new(invert.outputs["Value"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], node.inputs["Normal"])
+    return mat
+
+
+def edge_brighten(mat):
+    """Edges catch the light brighter than faces: Cycles pointiness
+    lifts the base color near sharp edges (A6 round two)."""
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    node = _bsdf(mat)
+    geo = nodes.new("ShaderNodeNewGeometry")
+    if "Pointiness" not in geo.outputs:
+        return mat
+    base = tuple(node.inputs["Base Color"].default_value)[:3]
+    ramp = nodes.new("ShaderNodeMapRange")
+    ramp.inputs["From Min"].default_value = 0.55
+    ramp.inputs["From Max"].default_value = 0.95
+    ramp.clamp = True
+    links.new(geo.outputs["Pointiness"], ramp.inputs["Value"])
+    mix = nodes.new("ShaderNodeMixRGB")
+    # If panel seams already drive Base Color, brighten after them.
+    existing = node.inputs["Base Color"].links
+    if existing:
+        links.new(existing[0].from_node.outputs["Color"],
+                  mix.inputs["Color1"])
+    else:
+        mix.inputs["Color1"].default_value = (*base, 1.0)
+    mix.inputs["Color2"].default_value = (
+        tuple(min(1.0, c * 2.2 + 0.12) for c in base) + (1.0,))
+    links.new(ramp.outputs["Result"], mix.inputs["Fac"])
+    links.new(mix.outputs["Color"], node.inputs["Base Color"])
+    return mat
+
+
+def crinkle_foil(mat):
+    """A6 round two: MLI foil as light-catching facets. Voronoi cells
+    give each facet its own shade, roughness, and a stepped relief, so
+    bright patches sit beside dark ones instead of flat mustard."""
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    node = _bsdf(mat)
+    coord = nodes.new("ShaderNodeTexCoord")
+    mapping = nodes.new("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = (3.0, 3.0, 3.0)
+    links.new(coord.outputs["Generated"], mapping.inputs["Vector"])
+    voro = nodes.new("ShaderNodeTexVoronoi")
+    voro.inputs["Scale"].default_value = 9.0
+    links.new(mapping.outputs["Vector"], voro.inputs["Vector"])
+    lum = nodes.new("ShaderNodeRGBToBW")
+    links.new(voro.outputs["Color"], lum.inputs["Color"])
+    mix = nodes.new("ShaderNodeMixRGB")
+    mix.inputs["Color1"].default_value = (0.42, 0.25, 0.04, 1.0)
+    mix.inputs["Color2"].default_value = (1.0, 0.7, 0.18, 1.0)
+    links.new(lum.outputs["Val"], mix.inputs["Fac"])
+    links.new(mix.outputs["Color"], node.inputs["Base Color"])
+    rough = nodes.new("ShaderNodeMapRange")
+    rough.inputs["To Min"].default_value = 0.5
+    rough.inputs["To Max"].default_value = 0.16
+    rough.clamp = True
+    links.new(lum.outputs["Val"], rough.inputs["Value"])
+    links.new(rough.outputs["Result"], node.inputs["Roughness"])
+    fine = nodes.new("ShaderNodeTexNoise")
+    fine.inputs["Scale"].default_value = 60.0
+    fine.inputs["Detail"].default_value = 5.0
+    links.new(mapping.outputs["Vector"], fine.inputs["Vector"])
+    bump_fine = nodes.new("ShaderNodeBump")
+    bump_fine.inputs["Strength"].default_value = 0.35
+    bump_fine.inputs["Distance"].default_value = 0.0004
+    links.new(fine.outputs["Fac"], bump_fine.inputs["Height"])
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 1.0
+    bump.inputs["Distance"].default_value = 0.003
+    links.new(lum.outputs["Val"], bump.inputs["Height"])
+    links.new(bump_fine.outputs["Normal"], bump.inputs["Normal"])
+    links.new(bump.outputs["Normal"], node.inputs["Normal"])
+    return mat
+
+
+def cell_shader(mat):
+    """A6: a real space solar cell per tile (procedural, no downloads):
+    deep blue-violet under coverglass, fine silver grid fingers, two
+    silver busbars, metal where the silver is. Each tile is its own
+    object, so Generated coordinates run 0-1 across each cell; the
+    cell color input stays state-driven via set_cell_color."""
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    node = _bsdf(mat)
+
+    def math_node(operation, a=None, b=None):
+        made = nodes.new("ShaderNodeMath")
+        made.operation = operation
+        if a is not None:
+            links.new(a, made.inputs[0])
+        if b is not None:
+            made.inputs[1].default_value = b
+        return made.outputs["Value"]
+
+    coord = nodes.new("ShaderNodeTexCoord")
+    sep = nodes.new("ShaderNodeSeparateXYZ")
+    links.new(coord.outputs["Generated"], sep.inputs["Vector"])
+    x = sep.outputs["X"]
+    fingers = math_node("LESS_THAN",
+                        math_node("MODULO", math_node("MULTIPLY", x, 24.0),
+                                  1.0),
+                        0.08)
+    bar_a = math_node("LESS_THAN",
+                      math_node("ABSOLUTE", math_node("SUBTRACT", x, 0.33)),
+                      0.02)
+    bar_b = math_node("LESS_THAN",
+                      math_node("ABSOLUTE", math_node("SUBTRACT", x, 0.67)),
+                      0.02)
+    bars_node = nodes.new("ShaderNodeMath")
+    bars_node.operation = "MAXIMUM"
+    links.new(bar_a, bars_node.inputs[0])
+    links.new(bar_b, bars_node.inputs[1])
+    bars = bars_node.outputs["Value"]
+    # Combine fingers and busbars into one silver mask.
+    silver = nodes.new("ShaderNodeMath")
+    silver.operation = "MAXIMUM"
+    links.new(fingers, silver.inputs[0])
+    links.new(bars, silver.inputs[1])
+    mix = nodes.new("ShaderNodeMixRGB")
+    mix.name = "CellColorMix"
+    mix.inputs["Color1"].default_value = (0.02, 0.03, 0.16, 1.0)
+    mix.inputs["Color2"].default_value = (0.75, 0.76, 0.78, 1.0)
+    links.new(silver.outputs["Value"], mix.inputs["Fac"])
+    links.new(mix.outputs["Color"], node.inputs["Base Color"])
+    metallic = math_node("ADD", math_node("MULTIPLY",
+                                          silver.outputs["Value"], 0.9),
+                         0.05)
+    links.new(metallic, node.inputs["Metallic"])
+    # Slight per-cell roughness variation, so cells glint one by one.
+    # The cell body stays fairly matte (anti-reflective), so the Sun's
+    # glint lives in the coverglass coat as a small bright spot instead
+    # of washing the array out; the silver grid is smoother (A6 r2).
+    info = nodes.new("ShaderNodeObjectInfo")
+    rough = nodes.new("ShaderNodeMapRange")
+    rough.inputs["To Min"].default_value = 0.34
+    rough.inputs["To Max"].default_value = 0.48
+    rough.clamp = True
+    links.new(info.outputs["Random"], rough.inputs["Value"])
+    drop = nodes.new("ShaderNodeMath")
+    drop.operation = "SUBTRACT"
+    drop.inputs[1].default_value = 0.18
+    links.new(rough.outputs["Result"], drop.inputs[0])
+    scaled_drop = nodes.new("ShaderNodeMath")
+    scaled_drop.operation = "MULTIPLY"
+    links.new(silver.outputs["Value"], scaled_drop.inputs[0])
+    links.new(drop.outputs["Value"], scaled_drop.inputs[1])
+    # roughness = cell_rough everywhere except silver, where it is 0.18:
+    final_rough = nodes.new("ShaderNodeMath")
+    final_rough.operation = "SUBTRACT"
+    links.new(rough.outputs["Result"], final_rough.inputs[0])
+    links.new(scaled_drop.outputs["Value"], final_rough.inputs[1])
+    links.new(final_rough.outputs["Value"], node.inputs["Roughness"])
+    if "Coat Weight" in node.inputs:  # the coverglass
+        node.inputs["Coat Weight"].default_value = 1.0
+        node.inputs["Coat Roughness"].default_value = 0.012
+    return mat
+
+
+def set_cell_color(mat, color, frame=None):
+    """Set a wing's cell color (state-driven), through the cell shader."""
+    node = mat.node_tree.nodes.get("CellColorMix")
+    sock = node.inputs["Color1"] if node is not None \
+        else _bsdf(mat).inputs["Base Color"]
+    sock.default_value = (*color, 1.0)
+    if frame is not None:
+        sock.keyframe_insert("default_value", frame=frame)
+
+
+def cell_tile(name, size, location, mat=None, parent=None, collection=None):
+    """One solar cell: a thin tile with two cropped corners, as real
+    space cells are cut. size is (width, thickness, height)."""
+    w, t, h = size
+    cut = 0.14 * min(w, h)
+    outline = [(-w / 2, -h / 2 + cut), (-w / 2, h / 2), (w / 2 - cut, h / 2),
+               (w / 2, h / 2 - cut), (w / 2, -h / 2), (-w / 2 + cut, -h / 2)]
+    verts = [(x, -t / 2, z) for x, z in outline] \
+        + [(x, t / 2, z) for x, z in outline]
+    n = len(outline)
+    faces = [tuple(range(n - 1, -1, -1)), tuple(range(n, 2 * n))]
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append((i, j, j + n, i + n))
+    mesh = bpy.data.meshes.new(name + "Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.location = location
+    if mat:
+        obj.data.materials.append(mat)
+    finish(obj, parent, collection)
+    return obj
 
 
 def box(name, size, location, mat=None, parent=None, collection=None, bevel=0.0):
@@ -308,7 +579,7 @@ def build_wing(empty, collection, mats, prefix, side):
     hinge_x = side * (bus_x / 2.0 + scaled(0.012))
     box(prefix + "_Hinge", (scaled(0.024), scaled(0.03), scaled(0.20)),
         (hinge_x, 0.0, 0.0), mat=mats["rail"], parent=empty,
-        collection=collection)
+        collection=collection, bevel=scaled(0.0015))
     x = side * (bus_x / 2.0 + scaled(0.024))
     for index in range(1, S.PANELS_PER_WING + 1):
         center_x = x + side * panel_w / 2.0
@@ -316,7 +587,36 @@ def build_wing(empty, collection, mats, prefix, side):
                     (panel_w, panel_t, panel_h), (center_x, 0.0, 0.0),
                     mat=mats["panel_back"], parent=empty,
                     collection=collection, bevel=scaled(0.002))
-        # Solar cells on the +Y face: a 4 x 3 grid of thin glossy tiles.
+        # A backsheet of its own on the rear face, and an aluminum
+        # border frame around the panel (A6).
+        box("%s_Panel%d_Backsheet" % (prefix, index),
+            (panel_w * 0.98, scaled(0.0015), panel_h * 0.98),
+            (center_x, -panel_t / 2.0 - scaled(0.0008), 0.0),
+            mat=mats["panel_backsheet"], parent=empty,
+            collection=collection)
+        frame_t = panel_t * 1.3
+        for j, (sz, off) in enumerate((
+                ((panel_w, frame_t, scaled(0.008)),
+                 (center_x, 0.0, panel_h / 2.0)),
+                ((panel_w, frame_t, scaled(0.008)),
+                 (center_x, 0.0, -panel_h / 2.0)),
+                ((scaled(0.008), frame_t, panel_h),
+                 (center_x - panel_w / 2.0, 0.0, 0.0)),
+                ((scaled(0.008), frame_t, panel_h),
+                 (center_x + panel_w / 2.0, 0.0, 0.0))), 1):
+            box("%s_Panel%d_Border%d" % (prefix, index, j), sz, off,
+                mat=mats["rail"], parent=empty, collection=collection,
+                bevel=scaled(0.001))
+        for j, (bx, bz) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)), 1):
+            cylinder("%s_Panel%d_Bolt%d" % (prefix, index, j),
+                     scaled(0.0028), scaled(0.002),
+                     (center_x + bx * (panel_w / 2.0 - scaled(0.012)),
+                      panel_t / 2.0 + scaled(0.001),
+                      bz * (panel_h / 2.0 - scaled(0.012))),
+                     mat=mats["rail"], parent=empty, collection=collection,
+                     rotation=(math.radians(90.0), 0.0, 0.0), vertices=10)
+        # Solar cells on the +Y face: a 4 x 3 grid of cropped-corner
+        # tiles, with silver interconnect strips in the gaps.
         cols, tile_rows = 4, 3
         gap = scaled(0.006)
         cell_w = panel_w / cols - gap
@@ -328,21 +628,43 @@ def build_wing(empty, collection, mats, prefix, side):
                 count += 1
                 cx = center_x - panel_w / 2.0 + panel_w * (col + 0.5) / cols
                 cz = -panel_h / 2.0 + panel_h * (row_i + 0.5) / tile_rows
-                box("%s_Panel%d_Cell%02d" % (prefix, index, count),
-                    (cell_w, scaled(0.002), cell_h), (cx, cell_y, cz),
-                    mat=mats["cell_" + prefix.lower()], parent=empty,
-                    collection=collection)
+                cell_tile("%s_Panel%d_Cell%02d" % (prefix, index, count),
+                          (cell_w, scaled(0.002), cell_h), (cx, cell_y, cz),
+                          mat=mats["cell_" + prefix.lower()], parent=empty,
+                          collection=collection)
+        for col in range(1, cols):
+            gx = center_x - panel_w / 2.0 + panel_w * col / cols
+            box("%s_Panel%d_InterV%d" % (prefix, index, col),
+                (scaled(0.0025), scaled(0.0012), panel_h * 0.94),
+                (gx, panel_t / 2.0 + scaled(0.0008), 0.0),
+                mat=mats["panel_back"], parent=empty, collection=collection)
+        for row_i in range(1, tile_rows):
+            gz = -panel_h / 2.0 + panel_h * row_i / tile_rows
+            box("%s_Panel%d_InterH%d" % (prefix, index, row_i),
+                (panel_w * 0.94, scaled(0.0012), scaled(0.0025)),
+                (center_x, panel_t / 2.0 + scaled(0.0008), gz),
+                mat=mats["panel_back"], parent=empty, collection=collection)
         x += side * (panel_w + scaled(0.006))
-    # Wing name plate on the inner panel's cell side (one panel in from
-    # the tip, so the follow shot's frame does not clip it: Director,
-    # A5 animate).
+    # No lettering on the wing itself (Director, A6 round two): an
+    # explanatory caption floats off the wing on a thin leader line.
+    # It is an instrument-cut annotation; the clean cut hides it.
     outer_x = side * (bus_x / 2.0 + scaled(0.024)
                       + (S.PANELS_PER_WING - 1.5) * panel_w)
-    plate = text_label(prefix + "_Label", prefix, scaled(0.05),
-                       (outer_x, panel_t / 2.0 + scaled(0.004),
-                        -panel_h / 2.0 + scaled(0.035)),
-                       mat=mats["plate"], parent=empty, collection=collection)
-    face_plus_y(plate)
+    number = 1 if prefix == "SA1" else 2
+    caption = text_label(prefix + "_Caption",
+                         "Solar-array string %d" % number, scaled(0.026),
+                         (outer_x, panel_t / 2.0 + scaled(0.01),
+                          panel_h / 2.0 + scaled(0.09)),
+                         mat=mats["plate"], parent=empty,
+                         collection=collection)
+    face_plus_y(caption)
+    leader = leader_line(prefix + "_CaptionLeader",
+                         (outer_x, panel_t / 2.0 + scaled(0.005),
+                          panel_h / 2.0 + scaled(0.062)),
+                         (outer_x, 0.0, panel_h / 2.0 + scaled(0.004)),
+                         scaled(0.0007), mat=mats["plate"],
+                         collection=collection)
+    leader.parent = empty
     return panel
 
 
@@ -365,22 +687,79 @@ def build_spacecraft(position, mats):
     bus = box("HUGINN_Bus", (bus_x, bus_y, bus_z), (0.0, 0.0, 0.0),
               mat=mats["bus"], parent=empty, collection=collection,
               bevel=scaled(0.003))
-    # Aluminum rails along the four long edges.
+    # Aluminum rails along the four long edges, edges beveled so they
+    # catch the light (A6).
     for i, (rx, ry) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)), 1):
         box("Rail%d" % i, (scaled(0.012), scaled(0.012), bus_z * 0.99),
             (rx * bus_x / 2.0, ry * bus_y / 2.0, 0.0), mat=mats["rail"],
-            parent=empty, collection=collection)
+            parent=empty, collection=collection, bevel=scaled(0.0015))
     # Side panels on the large faces: dark plate +Y, gold foil patch -Y.
     box("SidePanelPlus", (bus_x * 0.88, scaled(0.003), bus_z * 0.9),
         (0.0, bus_y / 2.0 + scaled(0.0015), 0.0), mat=mats["panel_dark"],
-        parent=empty, collection=collection)
+        parent=empty, collection=collection, bevel=scaled(0.001))
     box("FoilPatch", (bus_x * 0.8, scaled(0.003), bus_z * 0.55),
         (0.0, -bus_y / 2.0 - scaled(0.0015), scaled(0.03)), mat=mats["gold"],
         parent=empty, collection=collection)
-    plate = text_label("NamePlate", "HUGINN", scaled(0.045),
-                       (0.0, bus_y / 2.0 + scaled(0.004), scaled(0.10)),
-                       mat=mats["plate"], parent=empty, collection=collection)
+    # Crinkled gold MLI on both narrow faces too, so a face of foil is
+    # in view from the follow camera's side (Director, A6).
+    for i, sx in enumerate((1, -1), 1):
+        box("FoilSide%d" % i,
+            (scaled(0.003), bus_y * 0.8, bus_z * 0.62),
+            (sx * (bus_x / 2.0 + scaled(0.0015)), 0.0, scaled(-0.02)),
+            mat=mats["gold"], parent=empty, collection=collection)
+    # Two small sun sensors on the sunlit face (standard 6U dressing).
+    for i, sx in enumerate((1, -1), 1):
+        box("SunSensor%d" % i,
+            (scaled(0.014), scaled(0.003), scaled(0.014)),
+            (sx * bus_x * 0.38, bus_y / 2.0 + scaled(0.003),
+             bus_z * 0.40),
+            mat=mats["sun_sensor"], parent=empty, collection=collection,
+            bevel=scaled(0.001))
+    # The name, in one of two lettering styles for the Director to pick
+    # (A6 round two): dark engraved letters on a screwed-on metal
+    # plate, or matte off-white paint sprayed onto the panel itself.
+    if NAMEPLATE_STYLE == "plate":
+        box("NamePlateBack", (scaled(0.17), scaled(0.002), scaled(0.042)),
+            (0.0, bus_y / 2.0 + scaled(0.0045), scaled(0.10)),
+            mat=mats["name_plate"], parent=empty, collection=collection,
+            bevel=scaled(0.001))
+        for i, (sx, sz) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)), 1):
+            cylinder("PlateScrew%d" % i, scaled(0.0018), scaled(0.002),
+                     (sx * scaled(0.078), bus_y / 2.0 + scaled(0.006),
+                      scaled(0.10) + sz * scaled(0.016)),
+                     mat=mats["rail"], parent=empty, collection=collection,
+                     rotation=(math.radians(90.0), 0.0, 0.0), vertices=10)
+        plate = text_label("NamePlate", "HUGINN", scaled(0.034),
+                           (0.0, bus_y / 2.0 + scaled(0.006), scaled(0.10)),
+                           mat=mats["name_engraved"], parent=empty,
+                           collection=collection)
+    else:
+        plate = text_label("NamePlate", "HUGINN", scaled(0.042),
+                           (0.0, bus_y / 2.0 + scaled(0.0032), scaled(0.10)),
+                           mat=mats["name_paint"], parent=empty,
+                           collection=collection)
     face_plus_y(plate)
+    # Small plain parts a 6U carries: an access cover with four screws
+    # and a hex connector, no markings on either (A6 round two).
+    box("AccessCover", (scaled(0.055), scaled(0.0025), scaled(0.045)),
+        (-bus_x * 0.24, bus_y / 2.0 + scaled(0.002), -bus_z * 0.16),
+        mat=mats["rail"], parent=empty, collection=collection,
+        bevel=scaled(0.001))
+    for i, (sx, sz) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)), 1):
+        cylinder("CoverScrew%d" % i, scaled(0.0018), scaled(0.002),
+                 (-bus_x * 0.24 + sx * scaled(0.023),
+                  bus_y / 2.0 + scaled(0.0035),
+                  -bus_z * 0.16 + sz * scaled(0.018)),
+                 mat=mats["bus"], parent=empty, collection=collection,
+                 rotation=(math.radians(90.0), 0.0, 0.0), vertices=10)
+    cylinder("Connector", scaled(0.007), scaled(0.006),
+             (bus_x * 0.30, bus_y / 2.0 + scaled(0.003), -bus_z * 0.30),
+             mat=mats["rail"], parent=empty, collection=collection,
+             rotation=(math.radians(90.0), 0.0, 0.0), vertices=6)
+    cylinder("ConnectorPin", scaled(0.003), scaled(0.008),
+             (bus_x * 0.30, bus_y / 2.0 + scaled(0.004), -bus_z * 0.30),
+             mat=mats["panel_dark"], parent=empty, collection=collection,
+             rotation=(math.radians(90.0), 0.0, 0.0), vertices=12)
     # Separation ring and payload on the nadir (-Z) face.
     cylinder("SeparationRing", scaled(0.045), scaled(0.012),
              (0.0, 0.0, -bus_z / 2.0 - scaled(0.004)), mat=mats["rail"],
@@ -394,7 +773,8 @@ def build_spacecraft(position, mats):
     # Patch antenna on the nadir face; stub antenna on the zenith face.
     box("PatchAntenna", (scaled(0.05), scaled(0.05), scaled(0.004)),
         (scaled(-0.05), 0.0, -bus_z / 2.0 - scaled(0.002)),
-        mat=mats["plate"], parent=empty, collection=collection)
+        mat=mats["antenna_patch"], parent=empty, collection=collection,
+        bevel=scaled(0.001))
     cylinder("StubAntenna", scaled(0.0025), scaled(0.09),
              (scaled(-0.07), 0.0, bus_z / 2.0 + scaled(0.045)),
              mat=mats["rail"], parent=empty, collection=collection)
@@ -406,11 +786,13 @@ def build_spacecraft(position, mats):
     box("LoadIndicator", (bus_x * 0.7, scaled(0.004), scaled(0.02)),
         (0.0, bus_y / 2.0 + scaled(0.0035), scaled(-0.13)),
         mat=mats["load_bar"], parent=empty, collection=collection)
-    # Corner screws on the +Y face.
-    for i, (sx, sz) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)), 1):
+    # Fasteners on the +Y face: corners and mid-edges (A6).
+    for i, (fx, fz) in enumerate(((0.42, 0.44), (0.42, -0.44),
+                                  (-0.42, 0.44), (-0.42, -0.44),
+                                  (0.42, 0.0), (-0.42, 0.0),
+                                  (0.0, 0.44), (0.0, -0.44)), 1):
         cylinder("Screw%d" % i, scaled(0.004), scaled(0.003),
-                 (sx * bus_x * 0.42, bus_y / 2.0 + scaled(0.003),
-                  sz * bus_z * 0.44),
+                 (fx * bus_x, bus_y / 2.0 + scaled(0.003), fz * bus_z),
                  mat=mats["rail"], parent=empty, collection=collection,
                  rotation=(math.radians(90.0), 0.0, 0.0), vertices=12)
     build_wing(empty, collection, mats, "SA1", side=-1)
@@ -422,25 +804,37 @@ def build_spacecraft(position, mats):
 # Cameras, materials, rendering
 # ---------------------------------------------------------------------------
 def make_materials():
-    return {
-        "bus": material("BusBody", (0.16, 0.17, 0.19), roughness=0.45,
-                        metallic=0.6),
+    mats = {
+        "bus": material("BusBody", (0.14, 0.15, 0.18), roughness=0.45,
+                        metallic=0.9),
         "rail": material("AluminumRail", (0.72, 0.74, 0.76), roughness=0.3,
                          metallic=1.0),
-        "panel_dark": material("SidePanel", (0.05, 0.05, 0.06),
-                               roughness=0.35, metallic=0.4),
+        "panel_dark": material("SidePanel", (0.10, 0.105, 0.12),
+                               roughness=0.4, metallic=0.85),
         "panel_back": material("PanelSubstrate", (0.55, 0.57, 0.6),
                                roughness=0.4, metallic=0.9),
-        "cell_sa1": material("SolarCellSA1", (0.02, 0.08, 0.35),
-                             roughness=0.18, metallic=0.25),
-        "cell_sa2": material("SolarCellSA2", (0.02, 0.08, 0.35),
-                             roughness=0.18, metallic=0.25),
+        "panel_backsheet": material("PanelBacksheet", (0.62, 0.63, 0.65),
+                                    roughness=0.55, metallic=0.2),
+        "antenna_patch": material("PatchAntennaMat", (0.82, 0.83, 0.85),
+                                  roughness=0.35, metallic=0.05),
+        "sun_sensor": material("SunSensorMat", (0.01, 0.02, 0.08),
+                               roughness=0.05, metallic=0.0),
+        "name_plate": material("NamePlateMat", (0.58, 0.59, 0.61),
+                               roughness=0.3, metallic=1.0),
+        "name_engraved": material("NameEngravedMat", (0.07, 0.07, 0.075),
+                                  roughness=0.5, metallic=0.8),
+        "name_paint": material("NamePaintMat", (0.88, 0.89, 0.90),
+                               roughness=0.6, metallic=0.0),
+        "cell_sa1": material("SolarCellSA1", (0.02, 0.03, 0.16),
+                             roughness=0.2, metallic=0.05),
+        "cell_sa2": material("SolarCellSA2", (0.02, 0.03, 0.16),
+                             roughness=0.2, metallic=0.05),
         "gold": material("GoldFoil", (0.85, 0.55, 0.12), roughness=0.32,
                          metallic=1.0),
         "payload": material("PayloadBarrel", (0.08, 0.08, 0.09),
                             roughness=0.3, metallic=0.7),
-        "lens": material("PayloadLensMat", (0.05, 0.25, 0.6),
-                         roughness=0.05, metallic=0.1,
+        "lens": material("PayloadLensMat", (0.01, 0.03, 0.10),
+                         roughness=0.04, metallic=0.0,
                          emission=(0.05, 0.2, 0.5), emission_strength=0.4),
         "plate": material("PlateText", (0.9, 0.92, 0.95), roughness=0.5,
                           emission=(0.9, 0.92, 0.95), emission_strength=0.25),
@@ -468,6 +862,44 @@ def make_materials():
         "link": material("LinkLine", (0.5, 0.95, 0.7), roughness=0.4,
                          emission=(0.4, 1.0, 0.6), emission_strength=1.2),
     }
+    # A6 procedural finishes (Blender textures only, no downloads):
+    # brushed rails, anodized bus, real cell grids under coverglass,
+    # a cellular backsheet, and glass on the lens and sun sensors.
+    # Rails and panels get different finishes (Director, A6 round
+    # two): bright brushed rails against matte anodized panels whose
+    # faces carry seams and brighter edges.
+    brushed_metal(mats["rail"], 0.16, 0.34, (90.0, 90.0, 4.0))
+    brushed_metal(mats["bus"], 0.38, 0.48, (30.0, 30.0, 30.0),
+                  bump_strength=0.06)
+    brushed_metal(mats["panel_dark"], 0.4, 0.5, (45.0, 45.0, 45.0),
+                  bump_strength=0.05)
+    panel_seams(mats["panel_dark"])
+    edge_brighten(mats["panel_dark"])
+    edge_brighten(mats["bus"])
+    crinkle_foil(mats["gold"])
+    brushed_metal(mats["payload"], 0.25, 0.4, (50.0, 50.0, 8.0),
+                  bump_strength=0.08)
+    brushed_metal(mats["name_plate"], 0.24, 0.4, (70.0, 70.0, 6.0),
+                  bump_strength=0.05)
+    brushed_metal(mats["name_paint"], 0.5, 0.75, (120.0, 120.0, 120.0),
+                  bump_strength=0.1)
+    cell_shader(mats["cell_sa1"])
+    cell_shader(mats["cell_sa2"])
+    sheet = mats["panel_backsheet"]
+    nodes, links = sheet.node_tree.nodes, sheet.node_tree.links
+    voro = nodes.new("ShaderNodeTexVoronoi")
+    voro.inputs["Scale"].default_value = 14.0
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.18
+    bump.inputs["Distance"].default_value = 0.0003
+    links.new(voro.outputs["Distance"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], _bsdf(sheet).inputs["Normal"])
+    for key in ("lens", "sun_sensor"):
+        node = _bsdf(mats[key])
+        if "Coat Weight" in node.inputs:
+            node.inputs["Coat Weight"].default_value = 1.0
+            node.inputs["Coat Roughness"].default_value = 0.03
+    return mats
 
 
 def add_camera(name, location, target, lens=50.0):

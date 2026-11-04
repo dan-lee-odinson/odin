@@ -24,6 +24,15 @@ FIXTURES = Path(os.environ.get("ANIM_FIXTURE_DIR", ROOT / "out" / "a2"))
 A4_OUT = Path(os.environ.get("ANIM_A4_DIR", ROOT / "out" / "a4"))
 
 
+def need(path):
+    """Skip, with the reason stated, when a needed file is absent
+    (the deposit leaves out the inputs' data files and outputs)."""
+    if not Path(path).is_file():
+        raise unittest.SkipTest(
+            "needs %s - inputs/ and out/ are not in the deposit" % path)
+    return path
+
+
 def png_rows(path):
     """(width, height, rows of RGBA bytes) for an 8-bit RGB/RGBA PNG."""
     data = Path(path).read_bytes()
@@ -88,6 +97,8 @@ class TestEclipseDarkness(unittest.TestCase):
     def test_eclipse_is_darker(self):
         sunlit = FIXTURES / "fixture_890_sunlit.png"
         eclipse = FIXTURES / "fixture_920_eclipse_red.png"
+        need(sunlit)
+        need(eclipse)
         self.assertTrue(sunlit.is_file() and eclipse.is_file(),
                         "fixture stills missing - run build_a2 --fixture")
         bright = region_luminance(sunlit)
@@ -128,6 +139,7 @@ class TestRenderClipArgs(unittest.TestCase):
                           "--output", "some/out"])
 
     def test_a4_short_clip_sync(self):
+        need(A4_OUT / "a2_report.json")
         syncs = sorted(A4_OUT.glob("*.sync.json"))
         self.assertTrue(syncs, "no A4 sync file - run render_clip.py")
         sync = Y.read_sync(syncs[-1])

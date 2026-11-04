@@ -317,6 +317,269 @@ def a5anim_sync_case():
 CASES += [a5anim_sync_case()]
 
 
+def a6_closeup_case():
+    def run():
+        with tempfile.TemporaryDirectory() as tmp:
+            planted = Path(tmp) / "a6_closeup.png"
+            # Same 1920 x 1080 size, but no array glint: an A1 still.
+            shutil.copy2(ROOT / "out" / "a1" / "a1_01_wide.png", planted)
+            return run_one_test("test_closeup_glint",
+                                {"ANIM_A6_CLOSEUP": str(planted)},
+                                pattern="test_a6.py")
+    return "a6_closeup_without_glint", run
+
+
+CASES += [a6_closeup_case()]
+
+
+def a6_busface_case():
+    def run():
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp)
+            # The plate still planted under the paint still's name:
+            # the two lettering styles come out identical.
+            shutil.copy2(ROOT / "out" / "a5" / "a6_bus_plate.png",
+                         staged / "a6_bus_plate.png")
+            shutil.copy2(ROOT / "out" / "a5" / "a6_bus_plate.png",
+                         staged / "a6_bus_paint.png")
+            return run_one_test("test_busface_two_styles",
+                                {"ANIM_A6_BUS_DIR": str(staged)},
+                                pattern="test_a6.py")
+    return "a6_busface_styles_identical", run
+
+
+CASES += [a6_busface_case()]
+
+
+def a6anim_sync_case():
+    def run():
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = Path(tmp)
+            source = ROOT / "out" / "a6anim"
+            for path in source.iterdir():
+                if path.is_file():
+                    shutil.copy2(path, staged / path.name)
+            sync_path = staged / "dev-ph2-p3-open-01_a5_clean.sync.json"
+            sync = json.loads(sync_path.read_text(encoding="utf-8"))
+            sync["first_frame_met_s"] = sync["first_frame_met_s"] + 5
+            sync_path.write_text(json.dumps(sync), encoding="utf-8")
+            return run_one_test("test_clips_syncs_and_frames",
+                                {"ANIM_A6ANIM_DIR": str(staged)},
+                                pattern="test_a6anim.py")
+    return "a6anim_sync_first_met_shifted", run
+
+
+CASES += [a6anim_sync_case()]
+
+CASES += [
+    source_case("a7_blender_hash_pin_changed",
+                "test_blender_version_and_hash_pins",
+                ROOT / "render_modal.py",
+                '"78486c018b4443efe5e75ab54c290ed8c15abafd249b862c2c9ce2530a918eec"',
+                '"88486c018b4443efe5e75ab54c290ed8c15abafd249b862c2c9ce2530a918eec"',
+                pattern="test_a7.py"),
+    source_case("a7_render_command_wrong_met_step",
+                "test_exact_render_command",
+                ROOT / "render_modal.py",
+                '"--met-step", exact_text(met_step)',
+                '"--met-step", "5"',
+                pattern="test_a7.py"),
+    source_case("a7_gpu_switch_on_by_default",
+                "test_new_switch_defaults_leave_preview_command_unchanged",
+                ROOT / "render_clip.py",
+                "    if args.require_gpu:",
+                "    if True:  # planted red case",
+                pattern="test_a7.py"),
+    source_case("a7_manifest_mismatch_accepted",
+                "test_manifest_check_refuses_changed_input",
+                ROOT / "render_modal.py",
+                'raise ValueError("input hash mismatch: %s" % rel)',
+                "pass  # planted red case",
+                pattern="test_a7.py"),
+    source_case("a7_manifest_missing_accepted",
+                "test_manifest_check_refuses_missing_input",
+                ROOT / "render_modal.py",
+                'raise ValueError("manifest file missing: %s" % rel)',
+                "return seen  # planted red case",
+                pattern="test_a7.py"),
+    source_case("a7_gpu_switch_lets_cpu_through",
+                "test_gpu_switch_refuses_cpu_only",
+                ROOT / "build_a5.py",
+                '    if require_gpu and device == "CPU":',
+                "    if False:  # planted red case",
+                pattern="test_a7.py"),
+    source_case("a7_probe_renders_too_far",
+                "test_probe_frame_range",
+                ROOT / "render_modal.py",
+                "PROBE_MET_END = 802",
+                "PROBE_MET_END = 805",
+                pattern="test_a7.py"),
+    source_case("a7_cost_cap_not_enforced",
+                "test_cost_cap",
+                ROOT / "render_modal.py",
+                "    if projected_usd > cap_usd:",
+                "    if projected_usd > cap_usd * 1000:  # planted red case",
+                pattern="test_a7.py"),
+    source_case("a7_save_outputs_overwrites",
+                "test_save_outputs_never_overwrites",
+                ROOT / "render_modal.py",
+                "        if path.exists():",
+                "        if False:  # planted red case",
+                pattern="test_a7.py"),
+    source_case("a7_save_outputs_partial_write",
+                "test_save_outputs_writes_nothing_when_one_target_exists",
+                ROOT / "render_modal.py",
+                "        if path.exists():",
+                "        if False:  # planted red case",
+                pattern="test_a7.py"),
+    source_case("a7b_frame_times_read_as_cumulative",
+                "test_parse_frame_times_from_captured_output",
+                ROOT / "render_modal.py",
+                "            frame_times.append(stamp - previous_stamp)",
+                "            frame_times.append(stamp)  # planted red case",
+                pattern="test_a7.py"),
+    source_case("a7b_projection_back_to_whole_time_rate",
+                "test_probe_projection_from_frame_times",
+                ROOT / "render_modal.py",
+                "        mean_frame = sum(frame_times) / len(frame_times)",
+                "        mean_frame = elapsed_seconds / probe_frames"
+                "  # planted red case: the old whole-time rate",
+                pattern="test_a7.py"),
+    source_case("a7b_fallback_not_named",
+                "test_probe_projection_falls_back_without_frame_times",
+                ROOT / "render_modal.py",
+                '"timing_method": "whole_time_fallback"',
+                '"timing_method": "frame_times"',
+                pattern="test_a7.py"),
+]
+
+
+def a8_scored_input_case():
+    def run():
+        with tempfile.TemporaryDirectory() as tmp:
+            copied = Path(tmp) / "inputs"
+            shutil.copytree(ROOT / "inputs", copied)
+            target = copied / "timelines" / "PH2-PASS3-SPARK-R2.js"
+            target.write_bytes(target.read_bytes() + b"\n")
+            return run_one_test("test_scored_timeline_input",
+                                {"ANIM_A8_INPUTS": str(copied)},
+                                pattern="test_a8.py")
+    return "a8_scored_timeline_byte_added", run
+
+
+CASES += [
+    a8_scored_input_case(),
+    source_case("a8_pass3_orbit_withheld", "test_scored_run_orbit",
+                ROOT / "timeline.py",
+                'if run_id.startswith(("dev-ph2-p3-", "PH2-PASS3-")):',
+                'if run_id.startswith(("dev-ph2-p3-", "PH2-PASS9-")):',
+                pattern="test_a8.py"),
+    source_case("a8_fractional_last_frame_dropped",
+                "test_fractional_step_exact",
+                ROOT / "sync.py",
+                "    count = int((end - start) // step) + 1",
+                "    count = int((end - start) // step)  # planted red case",
+                pattern="test_a8.py"),
+    source_case("a8_whole_step_becomes_float", "test_whole_step_unchanged",
+                ROOT / "sync.py",
+                "    return frac.numerator if frac.denominator == 1"
+                " else float(frac)",
+                "    return float(frac)  # planted red case",
+                pattern="test_a8.py"),
+    source_case("a8_render_clip_step_truncated",
+                "test_render_clip_fractional_command",
+                ROOT / "render_clip.py",
+                '"--step", Y.step_text(args.met_step),',
+                '"--step", str(int(args.met_step) or 1),'
+                "  # planted red case",
+                pattern="test_a8.py"),
+    source_case("a8_modal_final_timing_renamed",
+                "test_modal_defaults_unchanged",
+                ROOT / "render_modal.py",
+                "PROBE_TIMING_NAME if clip == FINAL_CLIP",
+                'PROBE_TIMING_NAME if clip == "never.mp4"',
+                pattern="test_a8.py"),
+    source_case("a8_modal_cut_forced_clean", "test_modal_two_clips_commands",
+                ROOT / "render_modal.py",
+                '"--cut", cut,',
+                '"--cut", "clean",  # planted red case',
+                pattern="test_a8.py"),
+    source_case("a8_all_renders_share_one_timing",
+                "test_each_render_keeps_its_own_probe_timing",
+                ROOT / "render_modal.py",
+                'else stem + "_probe_timing.json"',
+                "else PROBE_TIMING_NAME",
+                pattern="test_a8.py"),
+    source_case("a8b_cue_flash_back_to_two_frames",
+                "test_cue_flash_fractional_step",
+                ROOT / "build_a2.py",
+                "    return max(2, needed)",
+                "    return 2  # planted red case",
+                pattern="test_a8.py"),
+    source_case("a8b_cue_flash_three_frame_floor",
+                "test_cue_flash_whole_steps_unchanged",
+                ROOT / "build_a2.py",
+                "    return max(2, needed)",
+                "    return max(3, needed)  # planted red case",
+                pattern="test_a8.py"),
+    source_case("a9_pullback_distance_linear_jumps",
+                "test_camera_distance_grows_without_a_jump",
+                ROOT / "truescale.py",
+                "    distance = math.exp(math.log(r0)"
+                " + (math.log(r1) - math.log(r0))\n"
+                "                        * eased)",
+                "    distance = r0 + (r1 - r0) * eased  # planted red case",
+                pattern="test_a9.py"),
+    source_case("a9_pullback_disc_overflows_frame",
+                "test_last_frame_holds_whole_earth",
+                ROOT / "truescale.py",
+                "PULLBACK_DISC_FRACTION = 0.84",
+                "PULLBACK_DISC_FRACTION = 1.2  # planted red case",
+                pattern="test_a9.py"),
+    source_case("a9_pullback_first_frame_lens_changed",
+                "test_first_frame_and_existing_cuts_unchanged",
+                ROOT / "truescale.py",
+                '"lens_mm": 85.0 if u <= 0.0 else lens,',
+                '"lens_mm": 50.0 if u <= 0.0 else lens,',
+                pattern="test_a9.py"),
+    source_case("a9_modal_cut_forced_clean",
+                "test_modal_pullback_command_and_spec",
+                ROOT / "render_modal.py",
+                '"--cut", cut,',
+                '"--cut", "clean",  # planted red case',
+                pattern="test_a9.py"),
+    source_case("a9_pullback_caption_section_renamed",
+                "test_pullback_caption",
+                ROOT / "CAPTIONS.md",
+                "## A9 pull-back clip",
+                "## A9 clip",
+                pattern="test_a9.py"),
+    source_case("a9b_probe_progress_spread_over_its_own_frames",
+                "test_probe_progress_is_first_frames_of_full_move",
+                ROOT / "sync.py",
+                "    return float(min(Fraction(1),"
+                " max(Fraction(0), progress)))",
+                "    return float(min(Fraction(1),"
+                " max(Fraction(0), progress * 120)))"
+                "  # planted red case",
+                pattern="test_a9.py"),
+    source_case("a9b_pullback_motion_blur_back_on",
+                "test_pullback_renders_without_motion_blur",
+                ROOT / "build_a5.py",
+                'H["scene"].render.use_motion_blur = False',
+                'H["scene"].render.use_motion_blur = True'
+                "  # planted red case",
+                pattern="test_a9.py"),
+    source_case("a9c_limb_hold_removed",
+                "test_limb_stays_in_frame_through_frame_160",
+                ROOT / "truescale.py",
+                "    delta = max(0.0, alpha_now - 0.35 * beta_now)"
+                " * (1.0 - centering)",
+                "    delta = 0.0  # planted red case",
+                pattern="test_a9.py"),
+]
+
+
 def main(argv):
     wanted = argv[1:]
     cases = [c for c in CASES if not wanted or c[0] in wanted]

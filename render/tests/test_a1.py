@@ -38,9 +38,22 @@ def load_report():
     return json.loads(Path(REPORT).read_text(encoding="utf-8"))
 
 
+def need(path):
+    """Skip, with the reason stated, when a needed file is absent.
+
+    The deposit leaves out the inputs' data files and rendered
+    outputs, so from a fresh unzip the tests that read them skip
+    instead of failing; with them present nothing is skipped."""
+    if not Path(path).is_file():
+        raise unittest.SkipTest(
+            "needs %s - inputs/ and out/ are not in the deposit" % path)
+    return path
+
+
 class TestInputsManifest(unittest.TestCase):
     def test_manifest_hashes_match(self):
         manifest = INPUTS / "MANIFEST.sha256"
+        need(INPUTS / "epochs.json")
         self.assertTrue(manifest.is_file(), "missing %s" % manifest)
         seen = 0
         for line in manifest.read_text(encoding="utf-8").splitlines():
@@ -54,8 +67,9 @@ class TestInputsManifest(unittest.TestCase):
             self.assertEqual(digest, expected.lower(), "hash mismatch: %s" % rel)
             seen += 1
         # 12 at A1; +2 in A3 (epochs, high-resolution texture); +3 more
-        # imagery files placed during A4 (night lights, clouds, sources).
-        self.assertEqual(seen, 17, "expected 17 manifest entries, saw %d" % seen)
+        # imagery files placed during A4 (night lights, clouds, sources);
+        # +1 in A8 (the scored PH2-PASS3-SPARK-R2 timeline).
+        self.assertEqual(seen, 18, "expected 18 manifest entries, saw %d" % seen)
 
 
 class TestLatLonMath(unittest.TestCase):
@@ -76,7 +90,7 @@ class TestLatLonMath(unittest.TestCase):
                                        msg="latlon (%s, %s)" % (lat, lon))
 
     def test_station_on_earth_surface(self):
-        station = S.read_station(INPUTS / "orbit" / "station.json")
+        station = S.read_station(need(INPUTS / "orbit" / "station.json"))
         self.assertEqual(station["name"], "GS-RAVENSROOST")
         self.assertAlmostEqual(station["lat_deg"], 28.5219, places=4)
         self.assertAlmostEqual(station["lon_deg"], -80.6817, places=4)
@@ -92,7 +106,7 @@ class TestLatLonMath(unittest.TestCase):
 
 class TestOrbit(unittest.TestCase):
     def test_orbit_known_moments(self):
-        rows = S.read_orbit(INPUTS / "orbit" / "P3-orbit.csv")
+        rows = S.read_orbit(need(INPUTS / "orbit" / "P3-orbit.csv"))
         self.assertEqual(len(rows), 247)
         self.assertEqual(rows[0]["met_s"], 0.0)
         self.assertEqual(rows[-1]["met_s"], 1230.0)
@@ -136,6 +150,8 @@ class TestSpacecraftSpec(unittest.TestCase):
 
 class TestSceneReport(unittest.TestCase):
     def test_scene_report(self):
+        need(REPORT)
+        need(INPUTS / "orbit" / "P3-orbit.csv")
         self.assertTrue(REPORT.is_file(),
                         "no scene report at %s - run build_a1.py in Blender" % REPORT)
         report = load_report()
@@ -181,6 +197,7 @@ class TestSceneReport(unittest.TestCase):
 
 class TestStills(unittest.TestCase):
     def test_still_files(self):
+        need(STILLS / S.STILL_NAMES[0])
         for name in S.STILL_NAMES:
             path = STILLS / name
             self.assertTrue(path.is_file(), "missing still %s" % path)
@@ -203,7 +220,9 @@ class TestCleanSources(unittest.TestCase):
                 continue
             if "inputs" in path.parts or "out" in path.parts:
                 continue
-            if ".hg" in path.parts or ".eden" in path.parts or ".agents" in path.parts:
+            # .venv is the Modal client's install (A7 setup), tool
+            # output like out/, never a source in this folder.
+            if ".hg" in path.parts or ".eden" in path.parts or ".agents" in path.parts or ".venv" in path.parts:
                 continue
             text = path.read_text(encoding="utf-8", errors="strict")
             for needle in banned:

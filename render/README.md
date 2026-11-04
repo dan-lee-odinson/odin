@@ -21,6 +21,22 @@ b9c7fab50e3de74d539a4e8e08efcaf892431f8de36534b541f639039ecc75ea). A5
 (the look pass, its three still rounds, and its animation) was built
 after that, also on Muse Wonder Full at medium.
 
+**What this deposit does and does not contain.** The deposit holds
+the scripts, the tests, these notes, `CAPTIONS.md`,
+`requirements.txt`, and — as the record of what was rendered from —
+`inputs/MANIFEST.sha256` and the imagery source notes under
+`inputs/imagery/`. It leaves out everything else under `inputs/`
+(the imagery, timelines, orbit and feed files themselves), all of
+`out/` (rendered stills, clips, reports and scene files), `.venv/`
+(the Modal client install; the setup step under "Finals on Modal"
+creates it), caches, and any `.blend`. The scripts rebuild every
+scene from a run's own inputs, so no scene file is needed. Where
+this README describes `inputs/`, `out/` or `.venv/`, it is
+describing the animation workspace the work was done in, not
+folders stored here; without the inputs, the rendering commands
+below cannot run from this deposit alone, and the tests that need
+an input or a rendered output skip with a stated reason.
+
 ## Run it
 
 With Blender (built and tested with Blender 5.2 LTS) on the PATH, from this
@@ -39,7 +55,7 @@ Calibration below). A full run writes to `out/a1/`:
 | `a1_01_wide.png` | Whole Earth, orbit path, ground station marker and label, spacecraft position marker |
 | `a1_02_hero.png` | Close three-quarter view of HUGINN on its sunlit side, Earth behind |
 | `a1_03_payload.png` | From the foil side: Earth in the lower frame, payload barrel pointing down at it |
-| `huginn_a1.blend` | The scene file (Earth texture packed in) |
+| `huginn_a1.blend` | The scene file the run writes (Earth texture packed in); not stored in the deposit |
 | `scene_report.json` | Machine-readable facts about the built scene; the tests check it |
 | `CAPTIONS.md` | The caption text each still and clip must carry |
 
@@ -250,18 +266,188 @@ an absolute path itself (relative arguments used to fail). Also folded
 in: a thinner limb glow, and the wing labels moved one panel in from
 the tips so the frame does not clip them. The first animated run is
 `dev-ph2-p3-open-01` (MET 800-1225, 86 frames, both cuts with sync
-files in `out/a5anim/`), because no scored PASS3 run's timeline is in
-the animation inputs; the same command renders a scored run unchanged
-when its timeline arrives. Where a run's epoch is marked shifted in
+files in `out/a5anim/`), because no scored PASS3 run's timeline was
+in the animation inputs at the time; the same command renders a
+scored run unchanged when its timeline arrives (from A8 it does). Where a run's epoch is marked shifted in
 `inputs/epochs.json`, its caption says the Sun is set to agree with the
 run's record, not the campaign clock (see `CAPTIONS.md`); the PASS-3
 runs are not shifted.
 
+## A7 / Finals on Modal
+
+Only the clean cut gets a final. `render_modal.py` renders A6 exactly
+as it stands — the same run and span (`dev-ph2-p3-open-01`, MET 800 to
+1225), the same look and lettering, Cycles at A6's 48 samples — at
+1920 x 1080 and 30 fps with a 1-second MET step: 426 frames, 14.2
+seconds, encoded H.264 at Blender's perceptually lossless setting
+since the edit encodes it again. The video uses about seven seconds
+at each end: the opening shot of HUGINN over Earth and the closing
+sunlit shot. The instrument cut stays as A6's preview in VERDA's pane.
+
+The container holds Blender 5.2.3 LTS for Linux x64 (this folder's
+release), downloaded in the image build from download.blender.org and
+refused unless its SHA-256 matches the pin Blender publishes, plus
+the animation workspace's code and `inputs/` (the inputs are not in
+this deposit; see the note at the top). Before rendering, the container
+checks every input against `inputs/MANIFEST.sha256` and stops on any
+mismatch. The render runs on one L40S with Cycles on OptiX where
+Modal's GPU offers it and on CUDA otherwise (Modal's own Blender
+example renders with CUDA, so OptiX may not be offered there). The
+probe prints which one ran, in its GPU line. Either way the new
+`--require-gpu` switch is on, so a machine with no GPU device stops
+the render instead of falling back to the CPU. There is no region
+pin and no warm container; a timeout backstops the run.
+
+### Setup (once, in a fresh PowerShell tab, from this folder)
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Modal reads `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` from your
+environment (already set as your user environment variables, so they
+are present in any new PowerShell tab). No key is typed, shown, or
+written to any file here.
+
+Optional, before any cloud run — the local A7 tests (no Modal, no GPU,
+no render):
+
+```powershell
+python -m unittest discover -s tests -p test_a7.py -v
+```
+
+### Run
+
+Step 1 — the probe: three frames (MET 800 to 802) at full size. It
+reads each frame's own render time from Blender's output (shown live,
+as before) and prints the probe's start-up, the mean frame time, and
+the projected cost of all 426 frames at the L40S's $1.95 an hour
+(Modal's rate as read on 1 November; the rate is a named constant in
+`render_modal.py`). The projection is that start-up, counted once,
+plus 426 mean frame times — not the probe's whole time spread over
+its frames, which would count start-up again in every frame. If
+Blender's frame times cannot be read, it falls back to that
+whole-time rate and says so in what it prints:
+
+```powershell
+.\.venv\Scripts\modal.exe run render_modal.py --probe
+```
+
+Step 2 — the full render. It reads the probe's saved timing and
+refuses to start if the projection is over the $15 cap:
+
+```powershell
+.\.venv\Scripts\modal.exe run render_modal.py
+```
+
+To set a different cap (in US dollars):
+
+```powershell
+.\.venv\Scripts\modal.exe run render_modal.py --cost-cap 20
+```
+
+Results land in `out\final\` and never overwrite a file there: the
+clip `dev-ph2-p3-open-01_final_clean.mp4`, its `.sync.json` and its
+`_report.json` (the probe's files carry `_probe`, plus
+`final_probe_timing.json`). Each run prints every returned file's
+SHA-256, the frame count, the GPU, the seconds per frame and Modal's
+app ID. After the run, the returned report is read against the
+timeline frame by frame by the same checks as the A5/A6 clips.
+
+### Cost
+
+Modal bills GPU time by the second. At $1.95 an hour for one L40S:
+
+- **Probe:** three full-size frames plus Blender start-up and scene
+  build. It prints both parts — start-up and mean frame time, also
+  saved in `final_probe_timing.json` — and projects the full render
+  as start-up once plus 426 mean frame times. The first run also
+  builds the cloud image once (Blender is about 385 MB to download
+  there).
+- **Full render:** the probe's projection governs. The default cap
+  refuses a start over $15, about 7.7 hours of L40S time; the
+  8-hour timeout is only a backstop behind the cap.
+
+### Afterwards: clear anything left on Modal
+
+`modal run` is ephemeral: the container stops when the render ends,
+nothing is deployed, and this script creates no Volume and no Secret.
+To confirm nothing is still running, and to stop it if it is:
+
+```powershell
+.\.venv\Scripts\modal.exe app list
+.\.venv\Scripts\modal.exe app stop odin-huginn-final
+```
+
+(The second command is only needed if the first shows the app still
+running; it asks for confirmation.) Modal may keep the built image
+cached for a later run; cached image layers are not running compute,
+and this Modal client has no command to delete them.
+
+## A8: the pane clips (scored run)
+
+`render_modal.py` now takes the run, the cut, the size, the MET span,
+the step and the clip name (`--run-id`, `--cut`, `--width`,
+`--height`, `--met-start`, `--met-end`, `--met-step`, `--clip`). No
+other arguments still means exactly the A7 final above. The step
+need not be whole: `1/15` is carried exactly, as a fraction, through
+the renderer into the sync file's `met_step_s`; whole-second steps
+write the same frames and sync files as before. Each render keeps
+its own probe timing next to its clip (`<clip stem>_probe_timing.json`;
+the A7 final keeps `final_probe_timing.json`), and the cost cap
+reads the timing for the render being started.
+
+For VERDA's pane (512 x 288 CSS pixels at 1920 x 1080), the two
+instrument-cut clips of the scored run `PH2-PASS3-SPARK-R2` render at
+1024 x 576, 30 fps, Cycles at 48 samples, perceptually lossless.
+Each carries its sync file pinning that timeline's SHA-256
+(`d0f1a573…`). From a fresh PowerShell tab, after the setup above —
+first the clip for the replay site (one second a frame):
+
+```powershell
+.\.venv\Scripts\modal.exe run render_modal.py --probe --run-id PH2-PASS3-SPARK-R2 --cut instrument --width 1024 --height 576 --met-start 800 --met-end 1225 --met-step 1 --clip PH2-PASS3-SPARK-R2_instrument_site.mp4
+.\.venv\Scripts\modal.exe run render_modal.py --run-id PH2-PASS3-SPARK-R2 --cut instrument --width 1024 --height 576 --met-start 800 --met-end 1225 --met-step 1 --clip PH2-PASS3-SPARK-R2_instrument_site.mp4
+```
+
+Then the footage clip (15 frames to a MET second, 1,801 frames):
+
+```powershell
+.\.venv\Scripts\modal.exe run render_modal.py --probe --run-id PH2-PASS3-SPARK-R2 --cut instrument --width 1024 --height 576 --met-start 880 --met-end 1000 --met-step 1/15 --clip PH2-PASS3-SPARK-R2_instrument_footage.mp4
+.\.venv\Scripts\modal.exe run render_modal.py --run-id PH2-PASS3-SPARK-R2 --cut instrument --width 1024 --height 576 --met-start 880 --met-end 1000 --met-step 1/15 --clip PH2-PASS3-SPARK-R2_instrument_footage.mp4
+```
+
+The two clips can run at the same time in two tabs: each `modal run`
+is its own ephemeral app and container, and the two write different
+files under different names. Two L40S GPUs then bill at once, and
+Modal may queue one if the workspace's GPU limit allows only one at
+a time. Within one clip, keep the order: a full render reads its own
+probe's timing first, so do not start a clip's full render in a
+second tab while its probe is still running.
+
+### A9: the pull-back clip
+
+One more cut, `pullback`, beside `clean` and `instrument`: camera
+only, like the clean cut, but the camera eases out from the clean
+cut's own framing (true scale, about 3 m off, 85 mm) until the whole
+sunlit Earth sits in the frame with black space around it, the lens
+widening to 40 mm on the way. The spacecraft stays at true size and
+vanishes early; no marker replaces it (see `CAPTIONS.md`). For the
+video's closing shot — `PH2-PASS3-SPARK-R2`, MET 1150 to 1158 at
+1/30 s a frame (241 frames), 1920 x 1080:
+
+```powershell
+.\.venv\Scripts\modal.exe run render_modal.py --probe --run-id PH2-PASS3-SPARK-R2 --cut pullback --width 1920 --height 1080 --met-start 1150 --met-end 1158 --met-step 1/30 --clip PH2-PASS3-SPARK-R2_pullback.mp4
+.\.venv\Scripts\modal.exe run render_modal.py --run-id PH2-PASS3-SPARK-R2 --cut pullback --width 1920 --height 1080 --met-start 1150 --met-end 1158 --met-step 1/30 --clip PH2-PASS3-SPARK-R2_pullback.mp4
+```
+
 ## License
 
-The scripts in this folder drive Blender and are licensed under the
-GNU General Public License, version 3 or later (GPL-3.0-or-later),
-compatible with Blender's own license (see `LICENSE.md`). The NASA Earth
-texture is pre-existing material under the terms in
-`inputs/imagery/SOURCE.md`; it is packed into the scene file for
-convenience and must keep its credit.
+The scripts and tests in this deposit drive Blender and are licensed
+under the GNU General Public License, version 3 or later
+(GPL-3.0-or-later), compatible with Blender's own license (see
+`LICENSE.md`). The NASA imagery is pre-existing material and is not
+stored here; its sources, credits, and terms are recorded in the
+deposit at `inputs/imagery/SOURCE.md` and
+`inputs/imagery/SOURCES.md`, and the inputs' hashes at
+`inputs/MANIFEST.sha256`.

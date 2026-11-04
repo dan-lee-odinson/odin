@@ -1,0 +1,4 @@
+# Local machine only: the Modal client for render_modal.py (A7).
+# Everything heavy (Blender, the render) stays in Modal's cloud image;
+# its versions are pinned at the top of render_modal.py.
+modal==1.6.3

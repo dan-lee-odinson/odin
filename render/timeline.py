@@ -139,10 +139,12 @@ def telemetry_span(timeline):
 def orbit_path_for(run_id):
     """The orbit file supplying a run's position, or None when it has none.
 
-    The two phase-2 PASS-3 runs share inputs/orbit/P3-orbit.csv. Phase 1's
-    R4 flew COSMOS's demo target, which has no orbit, so it gets no orbit
-    animation (inputs/orbit/README.md).
+    The phase-2 PASS-3 runs share inputs/orbit/P3-orbit.csv: the
+    development runs (dev-ph2-p3-*) and the scored runs
+    (PH2-PASS3-*) fly the same pass. Phase 1's R4 flew COSMOS's demo
+    target, which has no orbit, so it gets no orbit animation
+    (inputs/orbit/README.md).
     """
-    if run_id.startswith("dev-ph2-p3-"):
+    if run_id.startswith(("dev-ph2-p3-", "PH2-PASS3-")):
         return P3_ORBIT_CSV
     return None  # no orbit on record for this run

@@ -85,3 +85,20 @@ Per run:
   PASS3 run's timeline is in the animation inputs) is not shifted and
   carries no feed: sunlit and in contact throughout the clip
   (MET 800-1225), and it shows no space weather.
+
+## A9 pull-back clip
+
+For `PH2-PASS3-SPARK-R2_pullback.mp4` (the video's closing shot,
+MET 1150-1158 of the scored run), in place of the A5 clip caption:
+
+> The last eight seconds with HUGINN, drawn from the run's own record
+> (VERDA timeline): its position, the Sun and its state are the record's,
+> every frame. The camera starts three meters off the spacecraft at its
+> true size and pulls back until the whole sunlit Earth fills the frame.
+> The spacecraft's look and pose are drawn — a standard 6U CubeSat with
+> twin solar arrays — and so is the camera's move; the spacecraft stays
+> at its true size throughout, so it soon grows too small to see, and
+> no marker replaces it. Earth: NASA Blue Marble (NASA Earth
+> Observatory); clouds and night lights are NASA composites (Blue Marble
+> cloud layer; Black Marble 2016), not the run's date. This run was
+> sunlit throughout and carries no space-weather feed.

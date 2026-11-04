@@ -33,8 +33,20 @@ A2_REPORT = Path(os.environ.get("ANIM_A2_REPORT",
                                 ROOT / "out" / "a2" / "a2_report.json"))
 
 
+def need(path):
+    """Skip, with the reason stated, when a needed file is absent
+    (the deposit leaves out the inputs' data files and outputs)."""
+    if not Path(path).is_file():
+        raise unittest.SkipTest(
+            "needs %s - inputs/ and out/ are not in the deposit" % path)
+    return path
+
+
 class TestSolarAgreement(unittest.TestCase):
     def test_derived_sun_agrees_with_record(self):
+        need(ROOT / "inputs" / "epochs.json")
+        need(OPEN01)
+        need(S.ORBIT_CSV)
         epoch = solar.read_epoch("dev-ph2-p3-open-01")
         self.assertIsNotNone(epoch)
         self.assertEqual(epoch.isoformat(), "2026-08-01T13:28:23+00:00")
@@ -68,6 +80,9 @@ class TestSolarAgreement(unittest.TestCase):
 
 class TestSyncFile(unittest.TestCase):
     def test_sync_file_matches_frames(self):
+        need(SYNC_FILE)
+        need(A2_REPORT)
+        need(OPEN01)
         self.assertTrue(SYNC_FILE.is_file(),
                         "no sync file - run build_a2.py in Blender")
         self.assertTrue(A2_REPORT.is_file())

@@ -1,122 +1,182 @@
-# ANIM-04 - A1 to A5 (scene, record driver, sync file, derived Sun, cloud render script, true-scale look pass animated)
+# ANIM-05 — A6 to A9C, and the Modal finals (materials, render_modal.py, scored pane clips, pull-back)
 
-Deposit 04 of the animation session, for committal unchanged into
-`render/`. It supersedes ANIM-03 in contents (A5 added). Like ANIM-02
-and ANIM-03 it carries **no `.blend`** (the Director's ruling, replacing
-"scene file" in the brief's deposit list, section 6): `build_a1.py`
-rebuilds the A1 scene file and `build_a5.py` builds the true-scale
-scene from script. ANIM-01, ANIM-02 and ANIM-03 and their deposit
-notes stay where they are, untouched.
+Deposit 05 of the animation session, for committal unchanged into
+`render/`. It supersedes ANIM-04 in contents and brings the
+repository's `render/` from before A6 up to the animation as it
+stands after A9C, whose pull-back closes the published demo video.
+Like ANIM-02 to ANIM-04 it carries **no `.blend`**: the scripts
+rebuild every scene. ANIM-01 to ANIM-04 and their deposit notes stay
+where they are, untouched. **No change in this deposit alters how
+anything renders**: A10 fixed only `LICENSE.md`, `README.md`, test
+skip guards for a deposit without its inputs, and this note.
 
-## Milestones and build record
+## What changed since ANIM-04, milestone by milestone
 
-- **A1**: the 6U CubeSat and its scene as 1920 x 1080 stills.
-  Muse Wonder Full, high effort. Director saw the frames 29 October 2026.
-- **A2**: the record drives the scene at a 5 s MET step, with a
-  low-resolution preview of `dev-ph2-p3-open-01`.
-  Muse Wonder Full, medium effort. Director saw the preview
-  29 October 2026.
-- **A3**: the sync file beside each clip, and the Sun's direction derived
-  from the run's UTC epoch (`inputs/epochs.json`) with a low-precision
-  solar formula, checked against the record's `ADM_ECLIPSE`.
-  Muse Wonder Full, medium effort. Director saw the preview and sync
-  file 29 October 2026.
-- **A4**: `render_clip.py`, the headless render script taking every path
-  and setting as an argument, with the eclipse-darkness fix.
-  Muse Wonder Full, medium effort. Director saw A4's short clip, its
-  sync file, and the sunlit/eclipse fixture stills on 29 October 2026.
-- **A5**: the look pass. One true-scale follow-shot scene (spacecraft at
-  its real size at the origin, Earth moved around it, Cycles, derived
-  Sun, cloud shell, night lights, water glint, limb glow) in clean and
-  instrument cuts, taken through three still rounds on the Director's
-  notes (down-Sun rim light, then side light with round one's Earth
-  colors, cell grid, antenna-anchored link line, clearly darker
-  eclipse), then animated: `build_a5.py --animate` keyframes the scene
-  across a run's MET range with record-state changes on their record
-  times, driven by `render_clip.py`, which now resolves every path
-  argument itself. Also folded in at animation: a thinner limb glow and
-  wing labels moved one panel in from the tips.
-  Muse Wonder Full, medium effort, throughout. **Director saw the
-  round-three stills, then both animated clips, on 30 October 2026, and
-  approved the look, keeping the ground motion blur and the link's wide
-  translucent band.**
+- **A6 — the materials pass (30 October 2026).** Cell grid, brushed
+  metals, glass and faceted foil moved into `build_a1.py`'s
+  materials; coverglass glint off the arrays; AgX highlight roll-off;
+  bus-face lettering in plate and paint styles (`--closeup`,
+  `--busface` still modes in `build_a5.py`), then the materials-pass
+  animation of `dev-ph2-p3-open-01`. The Director settled A6 as the
+  video's look ("A6 is the look, and it goes into the video as it
+  stands") in the A7 direction.
+- **A7 — the final clean cut on Modal (`render_modal.py`).** The
+  cloud renderer, after the music folder's pattern: pinned Blender
+  5.2.3 LTS (Linux x64) verified against Blender's published
+  SHA-256 in the image build, inputs verified in the container
+  against `inputs/MANIFEST.sha256`, one L40S, `--require-gpu` so a
+  GPU-less machine stops instead of rendering on the CPU, H.264 at
+  Blender's perceptually lossless setting (`--perceptually-lossless`;
+  both switches default to the old behavior), a three-frame probe
+  and a $15 cost cap, results to `out/final/` never overwriting.
+  **A7B** made the probe read each frame's own render time from
+  Blender's output, so the projection counts start-up once
+  (start-up + 426 x mean frame time), with a stated whole-time
+  fallback; the README records OptiX where offered, CUDA otherwise.
+- **A8 — the scored run's pane clips.** `PH2-PASS3-SPARK-R2`'s
+  timeline joined the inputs by its SHA-256
+  (`d0f1a57349d60cbee5835f3bac6a945e02762ecf49387ebca6caa968d12fe617`),
+  manifest and epochs updated, and `orbit_path_for` gives
+  `PH2-PASS3-*` the P3 orbit. The MET step need not be whole: it is
+  carried exactly, as a fraction, through `sync.py`, `build_a5.py`,
+  `render_clip.py` and the sync file, whole steps byte-identical to
+  before. `render_modal.py` takes the run, cut, size, span, step
+  and clip name — no arguments still means the A7 final — and each
+  render keeps its own probe timing for its cost cap. Two
+  instrument clips at 1024 x 576: the site clip (MET 800-1225, one
+  second a frame) and the footage clip (MET 880-1000, 1/15 s a
+  frame, 1,801 frames). **A8B** made cue flashes last two frames or
+  two seconds of MET, whichever is longer (30 frames at 1/15 s;
+  whole steps unchanged).
+- **A9 to A9C — the pull-back.** A third cut, `pullback`, beside
+  `clean` and `instrument`: camera only, starting on the clean
+  cut's framing (about 3 m, 85 mm), easing out at a log pace with
+  the lens widening to 40 mm, per-frame clip distances, finer Earth
+  tessellation, spacecraft at true size vanishing with no marker,
+  ending on the whole sunlit disc at 0.84 of the frame height.
+  **A9B** diagnosed the hazy probe frame: probe progress was spread
+  over the probe's own three frames, compressing the whole move so
+  motion blur smeared the sunlit Earth; progress is now measured
+  against the full pull-back span end to end, and the pull-back
+  renders without motion blur. **A9C** held the limb in frame
+  through the middle (black space and Earth's curve through frame
+  160), swinging to the center only in the last third. Frames 1
+  and 241 were unchanged by A9B/A9C and are pinned by tests.
+- **A10 — this deposit.** Documentation accuracy only: `LICENSE.md`
+  covers every script and test deposited, `README.md` says plainly
+  what the deposit leaves out, and tests that need a left-out input
+  or rendered output skip with a stated reason, so the suite runs
+  from a fresh unzip alone.
 
-The animated run is `dev-ph2-p3-open-01` (MET 800-1225, 86 frames at
-960 x 540, 48 samples, 10 fps, both cuts each with its sync file),
-because no scored PASS3 run's timeline is in the animation inputs
-(`epochs.json` marks every `PH2-PASS3-*` timeline not in inputs); the
-Director's fallback named this run. The same `render_clip.py` command
-renders a scored run unchanged when its timeline arrives. That run's
-epoch is not shifted and it carries no feed, so its clips show no space
-weather. Where a run's epoch is marked shifted, `CAPTIONS.md` now says
-the Sun is set to agree with the run's record, not the campaign clock.
+## The three Modal renders the video and the site use
 
-## Tests run, with results (30 October 2026)
+Each was run by the Director from the animation workspace (probe
+first, as in `README.md`); Muse Code never ran Modal. Commands
+are the full-render commands, prefixed as run:
+`.\.venv\Scripts\modal.exe run render_modal.py ...`
 
-`python tests/show_red.py` - exit 0. All 24 tests pass clean; all 25
-red cases ran and failed as required (brief rule 8). Beyond ANIM-03's
-list, A5 adds three tests and six red cases:
+- **Clean cut (the video's opening and closing shots).**
+  Command: no further arguments (the A7 default:
+  `dev-ph2-p3-open-01`, clean, 1920 x 1080, MET 800-1225 at 1 s,
+  426 frames). App `ap-57eFEhSIfPfZlf0c130iTl`.
+  `dev-ph2-p3-open-01_final_clean.mp4` SHA-256
+  `088d2cfae7dd7d36b7be96fb4b7a717c7920bdf7299e78693435655d1727656b`.
+  Returned 2 November 2026: 426 frames, OPTIX on an NVIDIA L40S,
+  perceptually lossless.
+- **Instrument footage (the video's first incident).**
+  Command: `--run-id PH2-PASS3-SPARK-R2 --cut instrument --width
+  1024 --height 576 --met-start 880 --met-end 1000 --met-step 1/15
+  --clip PH2-PASS3-SPARK-R2_instrument_footage.mp4`.
+  App `ap-6ntCogJZAZdPG13MuXsm7K`.
+  `PH2-PASS3-SPARK-R2_instrument_footage.mp4` SHA-256
+  `59e69c6dc705321f4ba34daabe1bed5a65461b8ec8eedb2776701116aa859a84`.
+  1,801 frames; its sync file pins the scored timeline
+  (`d0f1a573...`).
+- **Pull-back (the video's last shot).**
+  Command: `--run-id PH2-PASS3-SPARK-R2 --cut pullback --width
+  1920 --height 1080 --met-start 1150 --met-end 1158 --met-step
+  1/30 --clip PH2-PASS3-SPARK-R2_pullback.mp4`.
+  App `ap-41k4LPTHgkCLzjlBYcWCz5`.
+  `PH2-PASS3-SPARK-R2_pullback.mp4` SHA-256
+  `8426ec32ad73f18eb53d134f72bbec3b086c4a487311d68cc5567174010e0eee`.
+  241 frames, rendered cleanly 3 November 2026 after A9C.
 
-- True-scale geometry (local east/north/up basis, Earth center below
-  the craft). Red case `a5_zenith_pointed_down`.
-- The two cuts are one `--cut` argument end to end. Red case
-  `a5_cut_argument_dropped`.
-- The MET 900 still report and files (both cuts, Cycles, record state).
-  Red case `a5_report_wrong_met`.
-- The redrawn fixture stills carry 1-3 pixel sensor strikes. The first
-  measure (near-white pixels in a sky band) failed on the true-scale
-  framing, where Earth fills that band and the denoiser softens each
-  speck; the check now counts small bright blobs ringed by dark
-  pixels, tightened until a strike-less still of the same size fails
-  it. Red case `a5_fixture_still_replaced`.
-- `render_clip.py` resolves relative path arguments to absolute ones
-  (Claude Code's run failed with relative paths). The updated command
-  test was watched failing on the old code first. Red case
-  `a4_relative_paths_unresolved`.
-- Both animated clips: every frame's MET follows its sync file, and
-  every frame's recorded state (sunlight, mode, payload, load limit,
-  contact) equals the timeline's own state at that MET, with the known
-  MET 900 moment (YELLOW_HIGH, in contact) pinned. The test was watched
-  failing before the clips existed. Red case
-  `a5anim_sync_step_doubled`.
+(The site clip `PH2-PASS3-SPARK-R2_instrument_site.mp4` also
+rendered under A8, SHA-256
+`cc0432f4598f10af8c3d6f3dca5c5a9236b98481ca3918db22802baeef12a09b`.)
 
-Also verified by eye, from stills extracted out of the finished clips:
-Earth drifting beneath the craft, the link tracking the station from
-the antenna, amber strips at MET 900, both cue flashes at the MET 912
-frames with the load back to green after the shed, and a text-free
-clean cut. All rendering stayed local (Cycles on the laptop's GPU,
-falling back to CPU elsewhere). No downloads, no paid calls, no cloud
-jobs.
+## Tests run, with results (4 November 2026)
+
+`python tests/show_red.py` — exit 0. **58 tests pass; all 59 red
+cases ran and failed first as required** (brief rule 8), covering
+everything since ANIM-04 among the rest: the GPU and encoding
+switches and their defaults, the manifest refusal, frame-time
+projection with its whole-time-red plant, probe range, cost cap,
+no-overwrite, the scored input's hash/manifest/epochs, the PASS-3
+orbit, fractional steps exact and whole steps unchanged, the cue
+flash length, Modal defaults unchanged, per-render probe timings,
+pull-back distance without jumps, whole-disc final framing, the
+limb held through frame 160, probe progress not spread over its
+own frames, and the pull-back's motion blur off.
+
+From a fresh unzip of this deposit alone, with no `inputs/` data
+files and no `out/`: **57 tests collect; 30 pass and 27 skip**,
+each skip stating the file it needs ("inputs/ and out/ are not in
+the deposit"). The skipped checks are the ones that read a real
+input or a rendered output: inputs-manifest/station/orbit/scene
+report and stills (A1), known moments, no-feed state and the A2
+report (A2), Sun agreement and the A2 sync pair (A3), eclipse
+darkness and the A4 clip pair (A4), local basis, A5 still report
+and fixture look (A5), both animated-frame sweeps (A5/A6 anim),
+bus face and close-up (A6), scored input and the two fractional
+sync comparisons (A8), and the four pull-back pose checks that
+derive their start from the orbit and epochs (A9). In the
+animation workspace, with inputs and outputs present, nothing
+skips.
 
 ## Contents
 
-Source (`build_a1.py`, `build_a2.py`, `build_a5.py`, `render_clip.py`,
-`scene_spec.py`, `timeline.py`, `solar.py`, `sync.py`, `truescale.py`),
-tests (`tests/`, red-case runner and fixture), `README.md`,
-`LICENSE.md`, `CAPTIONS.md`, this file as `DEPOSIT.md`, and
-`MANIFEST.sha256` listing every other file. **No `.blend`.** Left out:
-`inputs/`, rendered frames and clips, caches. Every file in the zip
-was byte-scanned (ASCII and UTF-16) for an absolute path, a
-user-profile folder, and a user name: none found.
+Scripts (`build_a1.py`, `build_a2.py`, `build_a5.py`,
+`render_clip.py`, `render_modal.py`, `scene_spec.py`, `solar.py`,
+`sync.py`, `timeline.py`, `truescale.py`), tests (`tests/`,
+including the red-case runner and the made-up-fixture timeline),
+`README.md`, `LICENSE.md`, `CAPTIONS.md`, `requirements.txt`, this
+file as `DEPOSIT.md`, and `MANIFEST.sha256` listing every other
+file. As the record of what was rendered from, the deposit also
+carries `inputs/MANIFEST.sha256` and `inputs/imagery/SOURCE.md`
+and `SOURCES.md` as text. **Left out:** everything else under
+`inputs/` (imagery, timelines, orbit and feed files), `out/`,
+`.venv/`, `__pycache__/`, `optix7cache.db`, any `.blend`, and the
+earlier deposits. Every file in the zip was byte-scanned for keys,
+tokens, an absolute path, a user-profile folder and a user name:
+none found (the scan's own pattern strings live in the tests, built
+at runtime so no test file trips it).
 
-Pre-existing: Blender (GPL; these scripts are GPL-3.0-or-later); the
-NASA Blue Marble, cloud, and Black Marble imagery in
-`inputs/imagery/` (credit NASA Earth Observatory; not in this zip);
-Python's standard library only. A6 will use Blender's own procedural
-textures only, per the Director, so no new asset is expected.
+Pre-existing: Blender 5.2.3 LTS (GPL; these scripts are
+GPL-3.0-or-later) and Modal client 1.6.3 (`requirements.txt`, local
+machine only); the NASA Blue Marble, cloud, and Black Marble
+imagery recorded above (credit NASA Earth Observatory; not in this
+zip); the VERDA timelines and orbit/epochs inputs (hashes in the
+carried inputs manifest; not in this zip); Python's standard
+library only otherwise.
+
+Zip SHA-256: recorded here after packing (see the copy of this
+note beside the zip, `ANIM-05.DEPOSIT.md` — a file inside a zip
+cannot name that zip's own final hash).
 
 ## Suggested commit message
 
 ```
-Add HUGINN animation A5: true-scale look pass, animated (ANIM-04)
+Add HUGINN animation A6-A9C: materials, Modal finals, pull-back (ANIM-05)
 
-A5 puts the spacecraft at its real size with Earth 500 km below:
-derived Sun, cloud shell, night lights, water glint, limb glow, in
-clean and instrument cuts. build_a5.py --animate keyframes the scene
-from a run's record with state changes on their record times;
-render_clip.py drives it and resolves every path argument itself.
-No .blend: the scripts rebuild the scene. Tests and red cases in
-tests/.
+Bring render/ from ANIM-04 to the published video's animation: A6
+materials and lettering, render_modal.py (pinned Blender 5.2.3 on
+one L40S, GPU-required, perceptually lossless, probe + cost cap),
+the scored PH2-PASS3-SPARK-R2 instrument clips with exact
+fractional MET steps, and the pull-back closing shot (limb held
+through the middle, no motion blur). Inputs are recorded by hash
+and source notes only; the scripts rebuild every scene. Tests and
+red cases in tests/.
 ```
 
 (Plus the brief's `Built-with:` line, this deposit's name, and its
